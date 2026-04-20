@@ -12,9 +12,14 @@ public class PropertyCard extends Card {
         this.isWildcard = isWildcard;
     }
 
+    // 这个 Getter 非常重要，PropertyArea 需要通过它来判断卡牌颜色并进行分类
+    public PropertyColor getColorGroup() {
+        return colorGroup;
+    }
+
     @Override
     public void executePlayLogic(Player initiator) {
-        // 逻辑：将此卡移动到玩家的 PropertyArea
-        System.out.println(initiator.getPlayerName() + " deployed property: " + getCardName());
+        // 当玩家打出这张牌时，把它放进玩家自己的房产区
+        initiator.getPropertyArea().addPropertyCard(this);
     }
 }

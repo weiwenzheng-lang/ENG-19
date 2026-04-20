@@ -28,4 +28,16 @@ public class Player {
     }
 
     // ... 其他 getter 和核心方法 ...
+    // 在 player.Player 类中补充这些获取区域的方法
+    public PropertyArea getPropertyArea() {
+        return propertyArea;
+    }
+
+    public BankArea getBankArea() {
+        return bankArea;
+    }
+
+    public Hand getHand() {
+        return hand;
+    }
 }
