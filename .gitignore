@@ -1,0 +1,13 @@
+# Compiled class file
+*.class
+out/
+bin/
+target/
+
+# IntelliJ IDEA
+.idea/
+*.iml
+*.iws
+
+# Mac hidden files
+.DS_Store
