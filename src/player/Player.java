@@ -4,9 +4,8 @@ import cards.Card;
 public class Player {
     private String playerId;
     private String playerName;
-    private int actionsRemaining;
+    private int actionsRemaining; // 核心：剩余行动步数
 
-    // 玩家的三大核心区域 (组合关系)
     private Hand hand;
     private BankArea bankArea;
     private PropertyArea propertyArea;
@@ -17,27 +16,32 @@ public class Player {
         this.hand = new Hand();
         this.bankArea = new BankArea();
         this.propertyArea = new PropertyArea();
+        this.actionsRemaining = 0;
+    }
+
+    // --- 修正爆红的方法 ---
+    public void resetActions() {
+        this.actionsRemaining = 3; // 每个回合开始重置为 3 点
+    }
+
+    public int getActionsRemaining() {
+        return actionsRemaining;
+    }
+
+    public void useAction() {
+        this.actionsRemaining--;
     }
 
     public String getPlayerName() { return playerName; }
+    public Hand getHand() { return hand; }
+    public BankArea getBankArea() { return bankArea; }
+    public PropertyArea getPropertyArea() { return propertyArea; }
 
+    // 打牌逻辑：这个方法会被 GameManager 调用
     public void playCard(Card card) {
-        // 基础打牌逻辑入口
-        card.executePlayLogic(this);
-        actionsRemaining--;
-    }
-
-    // ... 其他 getter 和核心方法 ...
-    // 在 player.Player 类中补充这些获取区域的方法
-    public PropertyArea getPropertyArea() {
-        return propertyArea;
-    }
-
-    public BankArea getBankArea() {
-        return bankArea;
-    }
-
-    public Hand getHand() {
-        return hand;
+        if (actionsRemaining > 0) {
+            card.executePlayLogic(this);
+            useAction(); // 每打一张牌扣除一点
+        }
     }
 }

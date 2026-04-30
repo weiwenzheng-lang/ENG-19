@@ -23,4 +23,12 @@ public class BankArea {
         }
         return total;
     }
+
+    // 在 BankArea.java 中添加：
+    public void pay(int amount, player.Player payee) {
+        // TODO: 完整的 Monopoly 规则是：先扣银行的钱，不够再拿房产抵债。
+        // 目前为了跑通逻辑，先做简单的文字打印和资产减少模拟：
+        System.out.println("💸 正在从银行扣除 " + amount + "M 支付给 " + payee.getPlayerName());
+        // 实际逻辑需要队员后续完善
+    }
 }

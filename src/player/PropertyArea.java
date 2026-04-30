@@ -1,43 +1,57 @@
 package player;
-import cards.PropertyCard;
+
 import enums.PropertyColor;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Optional;
 
 public class PropertyArea {
-    // 核心数据结构：将颜色映射到对应的套牌集合
-    private Map<PropertyColor, PropertySet> propertySets;
+    // 👈 注意：这里改为 Rentable 接口，这是多态的精髓
+    private Map<PropertyColor, Rentable> propertySets;
 
     public PropertyArea() {
         propertySets = new HashMap<>();
     }
 
-    // 打出房产卡：将其加入对应的颜色集合中
-    public void addPropertyCard(PropertyCard card) {
-        PropertyColor color = card.getColorGroup(); // 注意：需要在 PropertyCard 类中补充 getColorGroup() 方法
-
-        // 如果是第一次打出这个颜色的牌，初始化一个 Set
-        propertySets.putIfAbsent(color, new PropertySet(color, getDefaultRequiredCount(color)));
-
-        propertySets.get(color).addProperty(card);
-        System.out.println("System: Added to PropertyArea. Current " + color + " count: " + propertySets.get(color).getCardsCount());
-    }
-
-    // 核心游戏循环调用：统计已完成的房产套数（判定胜利）
-    public int countCompletedSets() {
-        int completedCount = 0;
-        for (PropertySet set : propertySets.values()) {
-            if (set.isComplete()) {
-                completedCount++;
+    // 辅助方法：找到可以盖房子的颜色（已凑齐且不是装饰器或特定逻辑）
+    public Optional<PropertyColor> findSetToImprove() {
+        for (Map.Entry<PropertyColor, Rentable> entry : propertySets.entrySet()) {
+            Rentable set = entry.getValue();
+            // 逻辑：如果是完整的 PropertySet 且目前还没被装饰（或者根据你的规则判断）
+            if (set instanceof PropertySet && ((PropertySet) set).isComplete()) {
+                return Optional.of(entry.getKey());
             }
         }
-        return completedCount;
+        return Optional.empty();
     }
 
-    // 临时辅助方法：根据 Monopoly 规则返回凑齐该颜色需要的数量
-    private int getDefaultRequiredCount(PropertyColor color) {
-        if (color == PropertyColor.DARK_BLUE || color == PropertyColor.BROWN || color == PropertyColor.UTILITY) return 2;
-        if (color == PropertyColor.RAILROAD) return 4;
-        return 3; // 大部分颜色需要 3 张
+    public Rentable getPropertySet(PropertyColor color) {
+        return propertySets.get(color);
+    }
+
+    public void updatePropertySet(PropertyColor color, Rentable decoratedSet) {
+        propertySets.put(color, decoratedSet);
+    }
+
+    // 原有的 addPropertyCard 需要兼容处理
+    public void addPropertyCard(cards.PropertyCard card) {
+        PropertyColor color = card.getColorGroup();
+        propertySets.computeIfAbsent(color, k -> new PropertySet(color, 2)); // 简化版
+
+        Rentable current = propertySets.get(color);
+        if (current instanceof PropertySet) {
+            ((PropertySet) current).addProperty(card);
+        }
+    }
+
+    // 在 PropertyArea.java 中添加：
+    public int countCompletedSets() {
+        int count = 0;
+        for (Rentable set : propertySets.values()) {
+            if (set.isComplete()) {
+                count++;
+            }
+        }
+        return count;
     }
 }

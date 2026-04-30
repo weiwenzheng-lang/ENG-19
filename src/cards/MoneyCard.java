@@ -9,8 +9,8 @@ public class MoneyCard extends Card {
 
     @Override
     public void executePlayLogic(Player initiator) {
-        // 金钱卡打出后的逻辑：进入玩家的银行区
-        System.out.println(initiator.getPlayerName() + " deposited money: " + getCardName() + " (Value: " + getMonetaryValue() + "M)");
-        // 具体的存入动作通常会在 Player 类中调用 BankArea 的方法来完成
+        // 严谨逻辑：直接调用 Player 的银行区域进行存储
+        initiator.getBankArea().deposit(this);
+        System.out.println("💰 [BANK] " + initiator.getPlayerName() + " 将 " + getCardName() + " 存入了银行。");
     }
 }
