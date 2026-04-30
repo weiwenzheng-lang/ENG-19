@@ -38,4 +38,14 @@ public class Hand {
             System.out.println(i + ": " + cardsInHand.get(i).getCardName());
         }
     }
+
+    // 在 player.Hand 类中补充：
+    public Card getCard(int index) {
+        if (index >= 0 && index < cardsInHand.size()) {
+            return cardsInHand.get(index);
+        }
+        return null;
+    }
+
+
 }
