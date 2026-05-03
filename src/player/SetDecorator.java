@@ -20,5 +20,26 @@ public abstract class SetDecorator implements Rentable {
         return wrappedSet.getColor();
     }
 
-    @Override public void addProperty(PropertyCard card) { wrappedSet.addProperty(card); }
+    @Override
+    public void addProperty(PropertyCard card) {
+        wrappedSet.addProperty(card);
+    }
+
+    @Override
+    public int calculateRent() {
+        // 子类（如 HouseDecorator）会在这里加 3M
+        return wrappedSet.calculateRent();
+    }
+
+    @Override
+    public String getDescription() {
+        // 子类会在这里加 " + House"
+        return wrappedSet.getDescription();
+    }
+
+    @Override
+    public String toString() {
+        // 老师要求：重写 toString。转发给内部对象，保证调试信息不丢失
+        return wrappedSet.toString();
+    }
 }

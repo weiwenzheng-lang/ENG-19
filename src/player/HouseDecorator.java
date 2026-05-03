@@ -4,6 +4,9 @@ public class HouseDecorator extends SetDecorator {
 
     public HouseDecorator(Rentable wrappedSet) {
         super(wrappedSet);
+        if (!wrappedSet.isComplete()) {
+            throw new IllegalStateException("这套房产还没凑齐，不能盖房子！");
+        }
     }
 
     @Override
@@ -16,5 +19,10 @@ public class HouseDecorator extends SetDecorator {
     public String getDescription() {
         // 打印时，在原有的描述后面加上 🏠 图标
         return wrappedSet.getDescription() + " + 🏠 House";
+    }
+
+    @Override
+    public String toString() {
+        return getDescription() + " | 总租金: " + calculateRent() + "M";
     }
 }
