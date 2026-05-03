@@ -10,8 +10,9 @@ public class CardFactory {
         List<Card> fullDeck = new ArrayList<>();
 
         // --- 房产卡 ---
-        fullDeck.add(new PropertyCard(1, "Boardwalk", 4, PropertyColor.DARK_BLUE, false));
-        fullDeck.add(new PropertyCard(2, "Park Place", 4, PropertyColor.DARK_BLUE, false));
+        int[] darkBlueRent = {3, 8};
+        fullDeck.add(new PropertyCard(1, "Boardwalk", 4, PropertyColor.DARK_BLUE, false,darkBlueRent));
+        fullDeck.add(new PropertyCard(2, "Park Place", 4, PropertyColor.DARK_BLUE, false,darkBlueRent));
 
         // --- 金钱卡 ---
         fullDeck.add(new MoneyCard(10, "5M", 5));
