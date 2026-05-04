@@ -38,14 +38,12 @@ public class Hand {
             System.out.println(i + ": " + cardsInHand.get(i).getCardName());
         }
     }
-
-    // 在 player.Hand 类中补充：
+    // 在 Hand 类中添加，以便 GameManager 可以查看手牌
     public Card getCard(int index) {
+        // 增加安全性检查：防止索引越界
         if (index >= 0 && index < cardsInHand.size()) {
             return cardsInHand.get(index);
         }
-        return null;
+        return null; // 如果索引不对，返回空
     }
-
-
 }
