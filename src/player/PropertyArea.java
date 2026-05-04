@@ -1,12 +1,13 @@
 package player;
 
+import cards.PropertyCard;
 import enums.PropertyColor;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Optional;
 
 public class PropertyArea {
-    // 👈 注意：这里改为 Rentable 接口，这是多态的精髓
+    //  注意：这里改为 Rentable 接口，这是多态的精髓
     private Map<PropertyColor, Rentable> propertySets;
 
     public PropertyArea() {
@@ -36,15 +37,19 @@ public class PropertyArea {
     // 原有的 addPropertyCard 需要兼容处理
     public void addPropertyCard(cards.PropertyCard card) {
         PropertyColor color = card.getColorGroup();
-        propertySets.computeIfAbsent(color, k -> new PropertySet(color, 2)); // 简化版
-
+        propertySets.computeIfAbsent(color, k -> new PropertySet(color));
         Rentable current = propertySets.get(color);
-        if (current instanceof PropertySet) {
-            ((PropertySet) current).addProperty(card);
+        // 👈 修正逻辑：无论有没有房子，都找到最底层的套装加牌
+        PropertySet root = (current instanceof SetDecorator) ?
+                ((SetDecorator) current).getRootSet() :
+                (PropertySet) current;
+
+        if (root != null) {
+            root.addProperty(card);
         }
     }
 
-    // 在 PropertyArea.java 中添加：
+    //判断胜利条件
     public int countCompletedSets() {
         int count = 0;
         for (Rentable set : propertySets.values()) {
@@ -54,4 +59,41 @@ public class PropertyArea {
         }
         return count;
     }
+
+    // 队员3核心逻辑：变色/挪动万能牌
+    public void swapWildCardColor(PropertyCard card, PropertyColor newColor) {
+        PropertyColor oldColor = card.getColorGroup();
+        if (oldColor == newColor) return;
+
+        Rentable oldRentable = propertySets.get(oldColor);
+        if (oldRentable != null) {
+            // 1. 无论外面包了多少层，先找到最底层的 PropertySet 把牌拔掉
+            // 找到那个套装（钱包），然后命令它拔牌
+            PropertySet oldRoot ;
+            if (oldRentable instanceof SetDecorator) {
+                oldRoot = ((SetDecorator) oldRentable).getRootSet();
+            } else {
+                oldRoot = (PropertySet) oldRentable;
+            }
+
+            oldRoot.removeProperty(card);
+
+            // 2. 检查旧套装的“房子”是否还合法
+            if (!oldRentable.isComplete() && oldRentable instanceof SetDecorator) {
+                System.out.println("⚠️ 注意：" + oldColor + " 套装不再完整，房子/酒店已被拆除！");
+                // 拆掉所有装饰器，变回最原始的 PropertySet
+                propertySets.put(oldColor, oldRoot);
+            }
+        }
+
+        // 3. 将牌加入新颜色的套装
+        propertySets.computeIfAbsent(newColor, k -> new PropertySet(newColor));
+        Rentable targetRentable = propertySets.get(newColor);
+
+        PropertySet targetRoot = (targetRentable instanceof SetDecorator) ?
+                ((SetDecorator) targetRentable).getRootSet() :
+                (PropertySet) targetRentable;
+        targetRoot.addProperty(card);
+    }
+
 }

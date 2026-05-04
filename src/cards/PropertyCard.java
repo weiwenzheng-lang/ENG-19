@@ -3,7 +3,7 @@ import enums.PropertyColor;
 import player.Player;
 
 public class PropertyCard extends Card {
-    private PropertyColor colorGroup;
+    protected PropertyColor colorGroup;
     private boolean isWildcard;
     private int[] rentTiers; // 存储租金阶梯的数组，例如 [1, 2, 4]
 
