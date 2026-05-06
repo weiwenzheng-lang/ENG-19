@@ -1,7 +1,6 @@
 package ui.javafx;
 
 import cards.Card;
-import cards.MoneyCard;
 import cards.RentCard;
 import core.GameManager;
 import core.TargetInfo;
@@ -11,6 +10,7 @@ import player.Player;
 import javafx.application.Platform;
 import javafx.collections.FXCollections;
 import javafx.geometry.Insets;
+import javafx.geometry.Pos;
 import javafx.scene.control.Button;
 import javafx.scene.control.ChoiceDialog;
 import javafx.scene.control.ContextMenu;
@@ -22,6 +22,8 @@ import javafx.scene.layout.FlowPane;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.Priority;
 import javafx.scene.layout.VBox;
+import javafx.scene.text.Font;
+import javafx.scene.text.FontWeight;
 
 import java.util.Arrays;
 import java.util.List;
@@ -44,6 +46,10 @@ public class GameController implements GameObserver {
         game.initializeGame(Arrays.asList("Player A", "Player B", "Player C"));
 
         opponents.setPadding(new Insets(10));
+        opponents.setAlignment(Pos.CENTER);
+        opponents.setStyle("-fx-background-color: #1d2b33; -fx-border-color: #43545f;"
+                + "-fx-border-width: 0 0 1 0;");
+        root.setStyle("-fx-background-color: #132127;");
         root.setTop(opponents);
         root.setCenter(createCenter());
         root.setBottom(createPlayerPanel());
@@ -58,26 +64,52 @@ public class GameController implements GameObserver {
             game.endTurn();
             renderAll();
         });
+        styleButton(endTurn);
 
-        VBox center = new VBox(12, turnLabel, deckLabel, discardLabel, endTurn);
-        center.setPadding(new Insets(16));
-        center.setStyle("-fx-background-color: #f6f8f9;");
+        HBox piles = new HBox(18,
+                CardView.back(game.getGameDeck().getDrawPileSize()),
+                new CardView("Discard", "Top card"));
+        piles.setAlignment(Pos.CENTER);
+
+        VBox center = new VBox(14, title("Table"), turnLabel, deckLabel, discardLabel, piles, endTurn);
+        center.setAlignment(Pos.CENTER);
+        center.setPadding(new Insets(18));
+        center.setStyle("-fx-background-color: #23343b;"
+                + "-fx-border-color: #58716f; -fx-border-width: 0 1 0 1;");
+        styleInfoLabel(turnLabel, "#f8fbf6");
+        styleInfoLabel(deckLabel, "#cfe7dd");
+        styleInfoLabel(discardLabel, "#ead8b3");
         return center;
     }
 
     private VBox createPlayerPanel() {
-        Label hand = new Label("Hand");
-        Label bank = new Label("Bank");
-        Label property = new Label("Properties");
+        Label hand = sectionLabel("Hand", "#ffd7a8");
+        Label bank = sectionLabel("Bank", "#ccecc3");
+        Label property = sectionLabel("Properties", "#cbd8ff");
         VBox panel = new VBox(8, hand, handView, bank, bankView, property, propertyView);
-        panel.setPadding(new Insets(12));
+        panel.setPadding(new Insets(14));
+        panel.setStyle("-fx-background-color: #17262d; -fx-border-color: #314a55;"
+                + "-fx-border-width: 1 0 0 0;");
+        handView.setStyle("-fx-background-color: rgba(255,215,168,0.08);"
+                + "-fx-background-radius: 10; -fx-padding: 10;");
+        bankView.setStyle("-fx-background-color: rgba(204,236,195,0.08);"
+                + "-fx-background-radius: 10; -fx-padding: 10;");
+        propertyView.setStyle("-fx-background-color: rgba(203,216,255,0.08);"
+                + "-fx-background-radius: 10; -fx-padding: 10;");
         return panel;
     }
 
     private VBox createLogPanel() {
-        VBox panel = new VBox(8, new Label("Log"), logView);
-        panel.setPadding(new Insets(10));
-        panel.setPrefWidth(280);
+        Label logTitle = sectionLabel("Log", "#f7d0d7");
+        VBox panel = new VBox(8, logTitle, logView);
+        panel.setPadding(new Insets(12));
+        panel.setPrefWidth(300);
+        panel.setStyle("-fx-background-color: #202b35; -fx-border-color: #3f5262;"
+                + "-fx-border-width: 0 0 0 1;");
+        logView.setStyle("-fx-control-inner-background: #f4ead8;"
+                + "-fx-background-color: #f4ead8; -fx-background-radius: 8;"
+                + "-fx-border-color: #c8a96b; -fx-border-radius: 8;"
+                + "-fx-font-family: 'Segoe UI'; -fx-font-size: 12px;");
         VBox.setVgrow(logView, Priority.ALWAYS);
         return panel;
     }
@@ -166,6 +198,34 @@ public class GameController implements GameObserver {
         PlayerAreaView view = new PlayerAreaView();
         view.render(current, false);
         propertyView.getChildren().add(view);
+    }
+
+    private Label title(String text) {
+        Label label = new Label(text);
+        label.setTextFill(javafx.scene.paint.Color.web("#f7efe1"));
+        label.setFont(Font.font("Segoe UI", FontWeight.BOLD, 24));
+        return label;
+    }
+
+    private Label sectionLabel(String text, String color) {
+        Label label = new Label(text);
+        label.setTextFill(javafx.scene.paint.Color.web(color));
+        label.setFont(Font.font("Segoe UI", FontWeight.BOLD, 15));
+        label.setStyle("-fx-padding: 2 0 2 2;");
+        return label;
+    }
+
+    private void styleInfoLabel(Label label, String color) {
+        label.setTextFill(javafx.scene.paint.Color.web(color));
+        label.setFont(Font.font("Segoe UI", FontWeight.SEMI_BOLD, 13));
+    }
+
+    private void styleButton(Button button) {
+        button.setTextFill(javafx.scene.paint.Color.web("#1b2a31"));
+        button.setFont(Font.font("Segoe UI", FontWeight.BOLD, 13));
+        button.setStyle("-fx-background-color: #f0c978; -fx-background-radius: 8;"
+                + "-fx-border-color: #ffe0a1; -fx-border-radius: 8;"
+                + "-fx-padding: 8 18 8 18;");
     }
 
     @Override
