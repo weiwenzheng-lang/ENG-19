@@ -7,24 +7,80 @@ import java.util.List;
 
 public class CardFactory {
     public static List<Card> createInitialDeck() {
-        List<Card> fullDeck = new ArrayList<>();
+        List<Card> deck = new ArrayList<>();
+        int id = 1;
 
-        // --- 房产卡 ---
+        id = addProperties(deck, id);
+        id = addMoney(deck, id);
+        addActions(deck, id);
+
+        if (deck.size() != 106) {
+            throw new IllegalStateException("Initial deck must contain 106 cards, got " + deck.size());
+        }
+        return deck;
+    }
+
+    private static int addProperties(List<Card> deck, int id) {
+        int[] twoSetRent = {1, 2};
+        int[] threeSetRent = {1, 2, 4};
+        int[] fourSetRent = {1, 2, 3, 4};
         int[] darkBlueRent = {3, 8};
-        fullDeck.add(new PropertyCard(1, "Boardwalk", 4, PropertyColor.DARK_BLUE, false,darkBlueRent));
-        fullDeck.add(new PropertyCard(2, "Park Place", 4, PropertyColor.DARK_BLUE, false,darkBlueRent));
+        int[] utilityRent = {1, 2};
 
-        // --- 金钱卡 ---
-        fullDeck.add(new MoneyCard(10, "5M", 5));
-        fullDeck.add(new MoneyCard(11, "1M", 1));
+        for (int i = 0; i < 2; i++) deck.add(new PropertyCard(id++, "Brown Property", 1, PropertyColor.BROWN, false, twoSetRent));
+        for (int i = 0; i < 3; i++) deck.add(new PropertyCard(id++, "Light Blue Property", 1, PropertyColor.LIGHT_BLUE, false, threeSetRent));
+        for (int i = 0; i < 3; i++) deck.add(new PropertyCard(id++, "Pink Property", 2, PropertyColor.PINK, false, threeSetRent));
+        for (int i = 0; i < 3; i++) deck.add(new PropertyCard(id++, "Orange Property", 2, PropertyColor.ORANGE, false, threeSetRent));
+        for (int i = 0; i < 3; i++) deck.add(new PropertyCard(id++, "Red Property", 3, PropertyColor.RED, false, threeSetRent));
+        for (int i = 0; i < 3; i++) deck.add(new PropertyCard(id++, "Yellow Property", 3, PropertyColor.YELLOW, false, threeSetRent));
+        for (int i = 0; i < 3; i++) deck.add(new PropertyCard(id++, "Green Property", 4, PropertyColor.GREEN, false, threeSetRent));
+        for (int i = 0; i < 2; i++) deck.add(new PropertyCard(id++, "Dark Blue Property", 4, PropertyColor.DARK_BLUE, false, darkBlueRent));
+        for (int i = 0; i < 4; i++) deck.add(new PropertyCard(id++, "Railroad Property", 2, PropertyColor.RAILROAD, false, fourSetRent));
+        for (int i = 0; i < 2; i++) deck.add(new PropertyCard(id++, "Utility Property", 2, PropertyColor.UTILITY, false, utilityRent));
 
-        // --- 功能卡 (使用具体的子类) ---
-        // 1. 注入 Sly Deal
-        fullDeck.add(new SlyDealCard(20, "Sly Deal", 3));
+        deck.add(new PropertyWildCard(id++, "Brown/Light Blue Wild", 1, PropertyColor.BROWN, PropertyColor.LIGHT_BLUE, twoSetRent, threeSetRent));
+        deck.add(new PropertyWildCard(id++, "Pink/Orange Wild", 2, PropertyColor.PINK, PropertyColor.ORANGE, threeSetRent, threeSetRent));
+        deck.add(new PropertyWildCard(id++, "Red/Yellow Wild", 3, PropertyColor.RED, PropertyColor.YELLOW, threeSetRent, threeSetRent));
+        deck.add(new PropertyWildCard(id++, "Green/Dark Blue Wild", 4, PropertyColor.GREEN, PropertyColor.DARK_BLUE, threeSetRent, darkBlueRent));
+        deck.add(new PropertyWildCard(id++, "Railroad/Utility Wild", 2, PropertyColor.RAILROAD, PropertyColor.UTILITY, fourSetRent, utilityRent));
+        deck.add(new PropertyWildCard(id++, "Light Blue/Railroad Wild", 4, PropertyColor.LIGHT_BLUE, PropertyColor.RAILROAD, threeSetRent, fourSetRent));
+        deck.add(new PropertyWildCard(id++, "Railroad/Green Wild", 4, PropertyColor.RAILROAD, PropertyColor.GREEN, fourSetRent, threeSetRent));
+        for (int i = 0; i < 4; i++) deck.add(new SuperWildCard(id++, "Property Wildcard", 0));
+        return id;
+    }
 
-        // 2. 注入 House Card
-        fullDeck.add(new HouseCard(30, "House", 3));
+    private static int addMoney(List<Card> deck, int id) {
+        for (int i = 0; i < 6; i++) deck.add(new MoneyCard(id++, "1M", 1));
+        for (int i = 0; i < 5; i++) deck.add(new MoneyCard(id++, "2M", 2));
+        for (int i = 0; i < 3; i++) deck.add(new MoneyCard(id++, "3M", 3));
+        for (int i = 0; i < 3; i++) deck.add(new MoneyCard(id++, "4M", 4));
+        for (int i = 0; i < 2; i++) deck.add(new MoneyCard(id++, "5M", 5));
+        deck.add(new MoneyCard(id++, "10M", 10));
+        return id;
+    }
 
-        return fullDeck;
+    private static int addActions(List<Card> deck, int id) {
+        for (int i = 0; i < 10; i++) deck.add(new PassGoCard(id++, "Pass Go", 1));
+        for (int i = 0; i < 3; i++) deck.add(new SlyDealCard(id++, "Sly Deal", 3));
+        for (int i = 0; i < 3; i++) deck.add(new ForceDealCard(id++, "Forced Deal", 3));
+        for (int i = 0; i < 2; i++) deck.add(new DealBreakerCard(id++, "Deal Breaker", 5));
+        for (int i = 0; i < 3; i++) deck.add(new JustSayNoCard(id++, "Just Say No", 4));
+        for (int i = 0; i < 3; i++) deck.add(new DebtCollectorCard(id++, "Debt Collector", 3));
+        for (int i = 0; i < 3; i++) deck.add(new BirthdayCard(id++, "It's My Birthday", 2));
+        for (int i = 0; i < 3; i++) deck.add(new HouseCard(id++, "House", 3));
+        for (int i = 0; i < 2; i++) deck.add(new ActionCard(id++, "Hotel", 4, "HOTEL"));
+        for (int i = 0; i < 2; i++) deck.add(new ActionCard(id++, "Double The Rent", 1, "DOUBLE_RENT"));
+
+        PropertyColor[] rentColors = {
+                PropertyColor.BROWN, PropertyColor.LIGHT_BLUE, PropertyColor.PINK,
+                PropertyColor.ORANGE, PropertyColor.RED, PropertyColor.YELLOW,
+                PropertyColor.GREEN, PropertyColor.DARK_BLUE, PropertyColor.RAILROAD,
+                PropertyColor.UTILITY, PropertyColor.BROWN, PropertyColor.RED,
+                PropertyColor.GREEN
+        };
+        for (PropertyColor color : rentColors) {
+            deck.add(new RentCard(id++, color + " Rent", 1, color, color));
+        }
+        return id;
     }
 }

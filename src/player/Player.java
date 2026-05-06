@@ -39,9 +39,11 @@ public class Player {
 
     // 打牌逻辑：这个方法会被 GameManager 调用
     public void playCard(Card card) {
-        if (actionsRemaining > 0) {
-            card.executePlayLogic(this);
-            useAction(); // 每打一张牌扣除一点
-        }
+        card.executePlayLogic(this);
+    }
+
+    @Override
+    public String toString() {
+        return playerName;
     }
 }

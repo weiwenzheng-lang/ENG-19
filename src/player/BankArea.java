@@ -1,6 +1,7 @@
 package player;
 import cards.Card;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 
 public class BankArea {
@@ -13,6 +14,10 @@ public class BankArea {
 
     public void deposit(Card card) {
         liquidAssets.add(card);
+    }
+
+    public List<Card> getAssets() {
+        return Collections.unmodifiableList(liquidAssets);
     }
 
     // 计算银行总资产

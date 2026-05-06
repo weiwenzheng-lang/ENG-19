@@ -2,6 +2,7 @@ package player;
 
 import cards.PropertyCard;
 import enums.PropertyColor;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Optional;
@@ -30,8 +31,96 @@ public class PropertyArea {
         return propertySets.get(color);
     }
 
+    public Map<PropertyColor, Rentable> getPropertySets() {
+        return Collections.unmodifiableMap(propertySets);
+    }
+
     public void updatePropertySet(PropertyColor color, Rentable decoratedSet) {
         propertySets.put(color, decoratedSet);
+    }
+
+    public boolean stealFirstIncompletePropertyTo(PropertyArea recipient) {
+        PropertyCard card = detachFirstIncompleteProperty();
+        if (card == null) {
+            return false;
+        }
+        recipient.addPropertyCard(card);
+        return true;
+    }
+
+    public boolean transferFirstCompletedSetTo(PropertyArea recipient) {
+        PropertyColor completedColor = null;
+        Rentable completedSet = null;
+        for (Map.Entry<PropertyColor, Rentable> entry : propertySets.entrySet()) {
+            Rentable rentable = entry.getValue();
+            if (rentable.isComplete()) {
+                completedColor = entry.getKey();
+                completedSet = rentable;
+                break;
+            }
+        }
+        if (completedColor == null) {
+            return false;
+        }
+        propertySets.remove(completedColor);
+        recipient.updatePropertySet(completedColor, completedSet);
+        return true;
+    }
+
+    public boolean forceSwapFirstAvailableProperty(PropertyArea other) {
+        PropertyCard mine = detachFirstIncompleteProperty();
+        if (mine == null) {
+            return false;
+        }
+
+        PropertyCard theirs = other.detachFirstIncompleteProperty();
+        if (theirs == null) {
+            addPropertyCard(mine);
+            return false;
+        }
+
+        addPropertyCard(theirs);
+        other.addPropertyCard(mine);
+        return true;
+    }
+
+    private PropertyCard detachFirstIncompleteProperty() {
+        PropertyColor selectedColor = null;
+        PropertySet selectedRoot = null;
+        PropertyCard selectedCard = null;
+        for (Map.Entry<PropertyColor, Rentable> entry : propertySets.entrySet()) {
+            Rentable rentable = entry.getValue();
+            if (rentable.isComplete()) {
+                continue;
+            }
+
+            PropertySet root = unwrap(rentable);
+            if (root != null && !root.getCards().isEmpty()) {
+                selectedColor = entry.getKey();
+                selectedRoot = root;
+                selectedCard = root.getCards().get(0);
+                break;
+            }
+        }
+        if (selectedCard == null) {
+            return null;
+        }
+        selectedRoot.removeProperty(selectedCard);
+        removeColorIfEmpty(selectedColor, selectedRoot);
+        return selectedCard;
+    }
+
+    private PropertySet unwrap(Rentable rentable) {
+        if (rentable instanceof SetDecorator) {
+            return ((SetDecorator) rentable).getRootSet();
+        }
+        return (PropertySet) rentable;
+    }
+
+    private void removeColorIfEmpty(PropertyColor color, PropertySet root) {
+        if (root.getCardsCount() == 0) {
+            propertySets.remove(color);
+        }
     }
 
     // 原有的 addPropertyCard 需要兼容处理

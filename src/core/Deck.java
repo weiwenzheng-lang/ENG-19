@@ -51,4 +51,16 @@ public class Deck {
     public void receiveDiscard(Card card) {
         discardPile.push(card);
     }
+
+    public int getDrawPileSize() {
+        return drawPile.size();
+    }
+
+    public int getDiscardPileSize() {
+        return discardPile.size();
+    }
+
+    public Card peekDiscardTop() {
+        return discardPile.isEmpty() ? null : discardPile.peek();
+    }
 }

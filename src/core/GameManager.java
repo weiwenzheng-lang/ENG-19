@@ -4,6 +4,7 @@ import cards.Card;
 import player.Player;
 import patterns.observer.GameObserver;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 
 /**
@@ -21,6 +22,7 @@ public class GameManager {
     private int currentTurnIndex;
     private int actionsRemaining; // 当前回合剩余行动力
     private boolean isGameOver;
+    private TargetInfo currentTargetInfo;
 
     // 观察者列表
     private List<GameObserver> observers;
@@ -94,6 +96,10 @@ public class GameManager {
      * @param cardIndex 玩家手牌的索引
      */
     public void handlePlayCard(int cardIndex) {
+        executePlayerAction(cardIndex, null);
+    }
+
+    public void executePlayerAction(int cardIndex, TargetInfo target) {
         if (actionsRemaining <= 0) {
             notifyEvent("⚠️ 行动力不足！请结束回合。");
             return;
@@ -104,13 +110,35 @@ public class GameManager {
 
         if (selectedCard != null) {
             // 执行卡牌效果 (多态调用)
-            p.playCard(selectedCard);
+            currentTargetInfo = target;
+            try {
+                p.playCard(selectedCard);
+            } finally {
+                currentTargetInfo = null;
+            }
             p.getHand().removeCard(cardIndex);
+            gameDeck.receiveDiscard(selectedCard);
 
             actionsRemaining--;
             notifyEvent(p.getPlayerName() + " 打出了: " + selectedCard.getCardName() + " (剩余行动: " + actionsRemaining + ")");
 
             checkWinCondition();
+        }
+    }
+
+    public void depositCardToBank(int cardIndex) {
+        if (actionsRemaining <= 0) {
+            notifyEvent("⚠️ 行动力不足！请结束回合。");
+            return;
+        }
+
+        Player p = getCurrentPlayer();
+        Card selectedCard = p.getHand().removeCard(cardIndex);
+        if (selectedCard != null) {
+            p.getBankArea().deposit(selectedCard);
+            actionsRemaining--;
+            notifyEvent(p.getPlayerName() + " 存入银行: " + selectedCard.getCardName()
+                    + " (剩余行动: " + actionsRemaining + ")");
         }
     }
 
@@ -148,6 +176,26 @@ public class GameManager {
 
     public Player getCurrentPlayer() {
         return activePlayers.get(currentTurnIndex);
+    }
+
+    public Player resolveTargetOrFirstOpponent(Player initiator) {
+        if (currentTargetInfo != null && currentTargetInfo.getTargetPlayer() != null) {
+            return currentTargetInfo.getTargetPlayer();
+        }
+        List<Player> opponents = getOpponents(initiator);
+        return opponents.isEmpty() ? null : opponents.get(0);
+    }
+
+    public List<Player> getActivePlayers() {
+        return Collections.unmodifiableList(activePlayers);
+    }
+
+    public Deck getGameDeck() {
+        return gameDeck;
+    }
+
+    public boolean isGameOver() {
+        return isGameOver;
     }
 
     /**

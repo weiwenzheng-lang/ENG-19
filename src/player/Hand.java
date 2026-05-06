@@ -1,6 +1,7 @@
 package player;
 import cards.Card;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 
 public class Hand {
@@ -45,5 +46,9 @@ public class Hand {
             return cardsInHand.get(index);
         }
         return null; // 如果索引不对，返回空
+    }
+
+    public List<Card> getCards() {
+        return Collections.unmodifiableList(cardsInHand);
     }
 }

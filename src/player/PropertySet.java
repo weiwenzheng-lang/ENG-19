@@ -2,6 +2,7 @@ package player;
 import cards.PropertyCard;
 import enums.PropertyColor;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 
 public class PropertySet implements Rentable{
@@ -55,5 +56,9 @@ public class PropertySet implements Rentable{
     }
     public void removeProperty(PropertyCard card) {
         this.cards.remove(card);
+    }
+
+    public List<PropertyCard> getCards() {
+        return Collections.unmodifiableList(cards);
     }
 }
