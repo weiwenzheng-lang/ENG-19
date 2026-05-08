@@ -9,9 +9,11 @@
     <orderEntry type="inheritedJdk" />
     <orderEntry type="sourceFolder" forTests="false" />
     <orderEntry type="module-library">
-      <library name="JavaFX 8">
+      <library name="OpenJFX 17.0.19">
         <CLASSES>
-          <root url="jar://$MODULE_DIR$/lib/jfxrt.jar!/" />
+          <root url="jar://$MODULE_DIR$/lib/javafx-base-17.0.19-win.jar!/" />
+          <root url="jar://$MODULE_DIR$/lib/javafx-graphics-17.0.19-win.jar!/" />
+          <root url="jar://$MODULE_DIR$/lib/javafx-controls-17.0.19-win.jar!/" />
         </CLASSES>
         <JAVADOC />
         <SOURCES />
