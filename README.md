@@ -56,13 +56,15 @@ Testing Framework: JUnit 5 (Jupiter)
 
 Build System: IntelliJ IDEA Project Structure / Maven (Optional)
 
+JavaFX Dependency: The project includes JavaFX 8 runtime jar at `lib/jfxrt.jar`, referenced by `ENG-19.iml`, so teammates do not need to configure a separate JavaFX SDK manually.
+
 ## 🚀 Getting Started
 
 ### Prerequisites
 
 Java Development Kit (JDK) 17 or higher.
 
-JavaFX SDK configured in your IDE.
+JavaFX is already included under the project `lib` folder.
 
 ### Running the Game
 
