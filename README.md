@@ -56,7 +56,7 @@ Testing Framework: JUnit 5 (Jupiter)
 
 Build System: IntelliJ IDEA Project Structure / Maven (Optional)
 
-JavaFX Dependency: The project includes JavaFX 8 runtime jar at `lib/jfxrt.jar`, referenced by `ENG-19.iml`, so teammates do not need to configure a separate JavaFX SDK manually.
+JavaFX Dependency: The project includes OpenJFX 17 jars under `lib`, referenced by `ENG-19.iml`, so teammates do not need to configure a separate JavaFX SDK manually.
 
 ## 🚀 Getting Started
 
