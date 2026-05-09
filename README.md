@@ -56,7 +56,7 @@ Testing Framework: JUnit 5 (Jupiter)
 
 Build System: IntelliJ IDEA Project Structure / Maven (Optional)
 
-JavaFX Dependency: The project includes OpenJFX 17 jars under `lib`, referenced by `ENG-19.iml`, so teammates do not need to configure a separate JavaFX SDK manually.
+JavaFX Dependency: The project includes OpenJFX 17.0.2 jars under `lib`, referenced by `ENG-19.iml`, so teammates do not need to configure a separate JavaFX SDK manually. If IntelliJ still reports class file version 68.0, remove any existing JavaFX 24 library from Project Structure and reload this project.
 
 ## 🚀 Getting Started
 
