@@ -25,7 +25,6 @@ import javafx.scene.layout.VBox;
 import javafx.scene.text.Font;
 import javafx.scene.text.FontWeight;
 
-import java.util.Arrays;
 import java.util.List;
 import java.util.Optional;
 
@@ -41,10 +40,18 @@ public class GameController implements GameObserver {
     private final Label deckLabel = new Label("Deck");
     private final Label discardLabel = new Label("Discard");
 
-    public BorderPane createContent() {
+    // 新构造方法：接收动态玩家名称列表
+    public GameController(List<String> playerNames) {
         game.addObserver(this);
-        game.initializeGame(Arrays.asList("Player A", "Player B", "Player C"));
+        game.initializeGame(playerNames);
+    }
 
+    // 保留无参构造（兼容性，默认 3 人）
+    public GameController() {
+        this(List.of("Player A", "Player B", "Player C"));
+    }
+
+    public BorderPane createContent() {
         opponents.setPadding(new Insets(10));
         opponents.setAlignment(Pos.CENTER);
         opponents.setStyle("-fx-background-color: #1d2b33; -fx-border-color: #43545f;"
@@ -131,9 +138,7 @@ public class GameController implements GameObserver {
     private void renderOpponents(Player current) {
         opponents.getChildren().clear();
         for (Player player : game.getActivePlayers()) {
-            if (player == current) {
-                continue;
-            }
+            if (player == current) continue;
             PlayerAreaView view = new PlayerAreaView();
             view.render(player, true);
             opponents.getChildren().add(view);
