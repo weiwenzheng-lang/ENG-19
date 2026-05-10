@@ -15,6 +15,46 @@ public class PropertyArea {
         propertySets = new HashMap<>();
     }
 
+    public boolean addHouseToCompleteSet() {
+        for (Map.Entry<PropertyColor, Rentable> entry : propertySets.entrySet()) {
+            PropertyColor color = entry.getKey();
+            Rentable current = entry.getValue();
+
+            // 1. 必须是完整套装
+            // 2. 检查是否已经盖了房子（避免重复盖房）
+            if (current.isComplete() && !(current instanceof HouseDecorator)) {
+                // 使用装饰器模式包裹原有的套装
+                Rentable houseDecorated = new HouseDecorator(current);
+                propertySets.put(color, houseDecorated);
+                System.out.println("System: Added a House to " + color + " set.");
+                return true;
+            }
+        }
+        return false;
+    }
+
+    public boolean addHotelToCompleteSet() {
+        for (Map.Entry<PropertyColor, Rentable> entry : propertySets.entrySet()) {
+            PropertyColor color = entry.getKey();
+            Rentable current = entry.getValue();
+
+            // 1. 必须是完整套装
+            // 2. 必须已经有 House (HouseDecorator)
+            // 3. 必须还没有 Hotel (HotelDecorator)
+            if (current.isComplete() &&
+                    (current instanceof HouseDecorator) &&
+                    !(current instanceof HotelDecorator)) {
+
+                // 进一步包裹，在房子之上盖酒店
+                Rentable hotelDecorated = new HotelDecorator(current);
+                propertySets.put(color, hotelDecorated);
+                System.out.println("System: Added a Hotel to " + color + " set.");
+                return true;
+            }
+        }
+        return false;
+    }
+
     // 辅助方法：找到可以盖房子的颜色（已凑齐且不是装饰器或特定逻辑）
     public Optional<PropertyColor> findSetToImprove() {
         for (Map.Entry<PropertyColor, Rentable> entry : propertySets.entrySet()) {
@@ -169,7 +209,7 @@ public class PropertyArea {
 
             // 2. 检查旧套装的“房子”是否还合法
             if (!oldRentable.isComplete() && oldRentable instanceof SetDecorator) {
-                System.out.println("⚠️ 注意：" + oldColor + " 套装不再完整，房子/酒店已被拆除！");
+                System.out.println("注意：" + oldColor + " 套装不再完整，房子/酒店已被拆除！");
                 // 拆掉所有装饰器，变回最原始的 PropertySet
                 propertySets.put(oldColor, oldRoot);
             }

@@ -16,18 +16,42 @@ public class RentCard extends ActionCard {
     }
 
     @Override
-    public void executePlayLogic(Player player) {
-        // 1. 获取所有对手
-        for (Player opponent : GameManager.getInstance().getOpponents(player)) {
-            // 2. 计算租金 (装饰器模式在这里发威了！)
-            // 不管对方有没有盖房子，只要调用 calculateRent()，装饰器会自动算出加成后的价格
-            Rentable set = opponent.getPropertyArea().getPropertySet(color1);
-            int rentAmount = (set != null) ? set.calculateRent() : 0;
+    public void executePlayLogic(Player initiator) {
+        // 1. 获取倍率（只获取一次，对本次收租的所有对手生效）
+        int multiplier = GameManager.getInstance().getAndResetRentMultiplier();
 
-            if (rentAmount > 0) {
-                System.out.println("💰 " + opponent.getPlayerName() + " 需要向 " + player.getPlayerName() + " 支付 " + rentAmount + "M 租金");
-                // 3. 扣钱逻辑 (需要队友在 BankArea 实现)
-                opponent.getBankArea().pay(rentAmount, player);
+        // 2. 遍历每个对手
+        for (Player opponent : GameManager.getInstance().getOpponents(initiator)) {
+            int opponentTotalBaseRent = 0;
+
+            // 3. 检查对手是否有 color1 的完整套装
+            Rentable set1 = opponent.getPropertyArea().getPropertySet(color1);
+            // 规则：必须存在且是“完整套装”
+            if (set1 != null && set1.isComplete()) {
+                opponentTotalBaseRent += set1.calculateRent();
+            }
+
+            // 4. 检查对手是否有 color2 的完整套装
+            // 注意：有些租金卡可能只有一种颜色，此时需要判断 color2 不为空
+            if (color2 != null) {
+                Rentable set2 = opponent.getPropertyArea().getPropertySet(color2);
+                if (set2 != null && set2.isComplete()) {
+                    opponentTotalBaseRent += set2.calculateRent();
+                }
+            }
+
+            // 5. 应用双倍倍数并结算
+            int finalRent = opponentTotalBaseRent * multiplier;
+
+            if (finalRent > 0) {
+                String logMsg = String.format("💰 [收租] %s 拥有目标完整套装，需支付 %dM (倍率: %dx)",
+                        opponent.getPlayerName(), finalRent, multiplier);
+                System.out.println(logMsg);
+
+                // 执行支付：从受害者银行给发起者钱
+                opponent.getBankArea().pay(finalRent, initiator);
+            } else {
+                System.out.println("ℹ️ " + opponent.getPlayerName() + " 没有对应的完整套装，无需支付租金。");
             }
         }
     }

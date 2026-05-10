@@ -10,12 +10,14 @@ public class CardFactory {
         List<Card> deck = new ArrayList<>();
         int id = 1;
 
-        id = addProperties(deck, id);
-        id = addMoney(deck, id);
-        addActions(deck, id);
+        // 依次调用三个方法来填充牌堆
+        id = addProperties(deck, id);    // 处理房产和万能牌
+        id = addMoney(deck, id);         // 处理货币牌
+        addActions(deck, id);            // 处理行动牌、租金卡、规则卡
 
-        if (deck.size() != 106) {
-            throw new IllegalStateException("Initial deck must contain 106 cards, got " + deck.size());
+        // 最终校验总数 110 张
+        if (deck.size() != 110) {
+            throw new IllegalStateException("牌堆总数错误！应该是 110 张，当前生成了: " + deck.size());
         }
         return deck;
     }
@@ -27,6 +29,7 @@ public class CardFactory {
         int[] darkBlueRent = {3, 8};
         int[] utilityRent = {1, 2};
 
+        // 1. 标准房产卡 (28张)
         for (int i = 0; i < 2; i++) deck.add(new PropertyCard(id++, "Brown Property", 1, PropertyColor.BROWN, false, twoSetRent));
         for (int i = 0; i < 3; i++) deck.add(new PropertyCard(id++, "Light Blue Property", 1, PropertyColor.LIGHT_BLUE, false, threeSetRent));
         for (int i = 0; i < 3; i++) deck.add(new PropertyCard(id++, "Pink Property", 2, PropertyColor.PINK, false, threeSetRent));
@@ -38,6 +41,7 @@ public class CardFactory {
         for (int i = 0; i < 4; i++) deck.add(new PropertyCard(id++, "Railroad Property", 2, PropertyColor.RAILROAD, false, fourSetRent));
         for (int i = 0; i < 2; i++) deck.add(new PropertyCard(id++, "Utility Property", 2, PropertyColor.UTILITY, false, utilityRent));
 
+        // 2. 万能房产卡 (共 11 张)
         deck.add(new PropertyWildCard(id++, "Brown/Light Blue Wild", 1, PropertyColor.BROWN, PropertyColor.LIGHT_BLUE, twoSetRent, threeSetRent));
         deck.add(new PropertyWildCard(id++, "Pink/Orange Wild", 2, PropertyColor.PINK, PropertyColor.ORANGE, threeSetRent, threeSetRent));
         deck.add(new PropertyWildCard(id++, "Red/Yellow Wild", 3, PropertyColor.RED, PropertyColor.YELLOW, threeSetRent, threeSetRent));
@@ -45,11 +49,15 @@ public class CardFactory {
         deck.add(new PropertyWildCard(id++, "Railroad/Utility Wild", 2, PropertyColor.RAILROAD, PropertyColor.UTILITY, fourSetRent, utilityRent));
         deck.add(new PropertyWildCard(id++, "Light Blue/Railroad Wild", 4, PropertyColor.LIGHT_BLUE, PropertyColor.RAILROAD, threeSetRent, fourSetRent));
         deck.add(new PropertyWildCard(id++, "Railroad/Green Wild", 4, PropertyColor.RAILROAD, PropertyColor.GREEN, fourSetRent, threeSetRent));
-        for (int i = 0; i < 4; i++) deck.add(new SuperWildCard(id++, "Property Wildcard", 0));
+        deck.add(new PropertyWildCard(id++, "Blue/Green Wild", 4, PropertyColor.DARK_BLUE, PropertyColor.GREEN, darkBlueRent, threeSetRent));
+        for (int i = 0; i < 2; i++) deck.add(new SuperWildCard(id++, "Multi-Color Wild", 0));
+        deck.add(new SuperWildCard(id++, "10-Color Special Wild", 0));
+
         return id;
     }
 
     private static int addMoney(List<Card> deck, int id) {
+        // 货币卡 (共 20 张)
         for (int i = 0; i < 6; i++) deck.add(new MoneyCard(id++, "1M", 1));
         for (int i = 0; i < 5; i++) deck.add(new MoneyCard(id++, "2M", 2));
         for (int i = 0; i < 3; i++) deck.add(new MoneyCard(id++, "3M", 3));
@@ -60,17 +68,19 @@ public class CardFactory {
     }
 
     private static int addActions(List<Card> deck, int id) {
+        // 1. 具体行动卡 (共 36 张)
+        for (int i = 0; i < 2; i++)  deck.add(new DealBreakerCard(id++, "Deal Breaker", 5));
+        for (int i = 0; i < 3; i++)  deck.add(new JustSayNoCard(id++, "Just Say No", 4));
+        for (int i = 0; i < 3; i++)  deck.add(new SlyDealCard(id++, "Sly Deal", 3));
+        for (int i = 0; i < 4; i++)  deck.add(new ForceDealCard(id++, "Forced Deal", 3));
+        for (int i = 0; i < 3; i++)  deck.add(new DebtCollectorCard(id++, "Debt Collector", 3));
+        for (int i = 0; i < 3; i++)  deck.add(new BirthdayCard(id++, "It's My Birthday", 2));
         for (int i = 0; i < 10; i++) deck.add(new PassGoCard(id++, "Pass Go", 1));
-        for (int i = 0; i < 3; i++) deck.add(new SlyDealCard(id++, "Sly Deal", 3));
-        for (int i = 0; i < 3; i++) deck.add(new ForceDealCard(id++, "Forced Deal", 3));
-        for (int i = 0; i < 2; i++) deck.add(new DealBreakerCard(id++, "Deal Breaker", 5));
-        for (int i = 0; i < 3; i++) deck.add(new JustSayNoCard(id++, "Just Say No", 4));
-        for (int i = 0; i < 3; i++) deck.add(new DebtCollectorCard(id++, "Debt Collector", 3));
-        for (int i = 0; i < 3; i++) deck.add(new BirthdayCard(id++, "It's My Birthday", 2));
-        for (int i = 0; i < 3; i++) deck.add(new HouseCard(id++, "House", 3));
-        for (int i = 0; i < 2; i++) deck.add(new ActionCard(id++, "Hotel", 4, "HOTEL"));
-        for (int i = 0; i < 2; i++) deck.add(new ActionCard(id++, "Double The Rent", 1, "DOUBLE_RENT"));
+        for (int i = 0; i < 3; i++)  deck.add(new HouseCard(id++, "House", 3));
+        for (int i = 0; i < 3; i++)  deck.add(new HotelCard(id++, "Hotel", 4));
+        for (int i = 0; i < 2; i++)  deck.add(new DoubleTheRentCard(id++, "Double The Rent", 1));
 
+        // 2. 租金卡 (共 13 张)
         PropertyColor[] rentColors = {
                 PropertyColor.BROWN, PropertyColor.LIGHT_BLUE, PropertyColor.PINK,
                 PropertyColor.ORANGE, PropertyColor.RED, PropertyColor.YELLOW,
@@ -81,6 +91,12 @@ public class CardFactory {
         for (PropertyColor color : rentColors) {
             deck.add(new RentCard(id++, color + " Rent", 1, color, color));
         }
+
+        // 3. 规则卡占位 (余下 2 张，凑足 110 张)
+        for (int i = 0; i < 2; i++) {
+            deck.add(new ActionCard(id++, "Rule Card", 0, "RULE"));
+        }
+
         return id;
     }
 }

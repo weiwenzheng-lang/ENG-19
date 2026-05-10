@@ -23,6 +23,7 @@ public class GameManager {
     private int actionsRemaining; // 当前回合剩余行动力
     private boolean isGameOver;
     private TargetInfo currentTargetInfo;
+    private int rentMultiplier = 1; // 新增：用于存储租金倍率，默认为 1
 
     // 观察者列表
     private List<GameObserver> observers;
@@ -42,9 +43,7 @@ public class GameManager {
         return instance;
     }
 
-    // ==========================================
     // 1. 游戏初始化逻辑 (Initialization)
-    // ==========================================
 
     public void initializeGame(List<String> playerNames) {
         // 1. 初始化牌堆
@@ -68,9 +67,8 @@ public class GameManager {
         startNewTurn();
     }
 
-    // ==========================================
     // 2. 回合生命周期管理 (Turn Lifecycle)
-    // ==========================================
+
 
     /**
      * 开始一个新回合。
@@ -172,6 +170,22 @@ public class GameManager {
             isGameOver = true;
             notifyEvent("🎊 恭喜 " + p.getPlayerName() + " 收集齐 3 套房产，获得胜利！");
         }
+    }
+
+    // 激活双倍租金效果
+    public void activateDoubleRent() {
+        this.rentMultiplier *= 2; // 支持叠加逻辑（如果一回合打出两张，就是4倍）
+        notifyEvent("📢 [Double rent] The rent to be collected next time will be changed to " + rentMultiplier + " 倍！");
+    }
+
+    /**
+     * 获取当前的租金倍率，并立即重置为 1
+     * 供 RentCard 或收租逻辑调用
+     */
+    public int getAndResetRentMultiplier() {
+        int current = this.rentMultiplier;
+        this.rentMultiplier = 1; // 使用后重置，确保不影响下下张租金卡
+        return current;
     }
 
     public Player getCurrentPlayer() {
