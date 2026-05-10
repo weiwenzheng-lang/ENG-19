@@ -40,13 +40,11 @@ public class GameController implements GameObserver {
     private final Label deckLabel = new Label("Deck");
     private final Label discardLabel = new Label("Discard");
 
-    // 新构造方法：接收动态玩家名称列表
     public GameController(List<String> playerNames) {
         game.addObserver(this);
         game.initializeGame(playerNames);
     }
 
-    // 保留无参构造（兼容性，默认 3 人）
     public GameController() {
         this(List.of("Player A", "Player B", "Player C"));
     }
@@ -166,8 +164,18 @@ public class GameController implements GameObserver {
 
         MenuItem play = new MenuItem("Play card");
         play.setOnAction(event -> {
-            TargetInfo target = needsTarget(card) ? chooseTarget() : null;
-            game.executePlayerAction(cardIndex, target);
+            // 只有需要目标的卡才弹窗选人，否则直接打出
+            if (needsTarget(card)) {
+                TargetInfo target = chooseTarget();
+                if (target == null) {
+                    // 用户取消了选择，不执行任何操作
+                    onGameEvent("取消使用 " + card.getCardName());
+                    return;
+                }
+                game.executePlayerAction(cardIndex, target);
+            } else {
+                game.executePlayerAction(cardIndex, null);
+            }
             renderAll();
         });
 
@@ -175,20 +183,28 @@ public class GameController implements GameObserver {
         menu.show(owner, javafx.geometry.Side.TOP, 0, 0);
     }
 
+    /**
+     * 判断卡牌是否需要选择目标（单个对手）
+     * 注意：RentCard 不需要选人，它会自动向所有对手收租
+     */
     private boolean needsTarget(Card card) {
-        return card instanceof RentCard
-                || card.getCardName().equals("Sly Deal")
-                || card.getCardName().equals("Forced Deal")
-                || card.getCardName().equals("Deal Breaker")
-                || card.getCardName().equals("Debt Collector");
+        String name = card.getCardName();
+        return name.equals("Sly Deal")
+                || name.equals("Forced Deal")
+                || name.equals("Deal Breaker")
+                || name.equals("Debt Collector");
     }
 
     private TargetInfo chooseTarget() {
         List<Player> choices = game.getOpponents(game.getCurrentPlayer());
+        if (choices.isEmpty()) {
+            onGameEvent("没有可选的对手");
+            return null;
+        }
         ChoiceDialog<Player> dialog = new ChoiceDialog<>(choices.get(0), FXCollections.observableArrayList(choices));
         dialog.setTitle("Choose Target");
-        dialog.setHeaderText(null);
-        dialog.setContentText("Target player");
+        dialog.setHeaderText("Select a player to perform the action on");
+        dialog.setContentText("Target:");
         Optional<Player> selected = dialog.showAndWait();
         return selected.map(TargetInfo::new).orElse(null);
     }
