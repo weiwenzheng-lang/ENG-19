@@ -46,6 +46,13 @@ public class GameManager {
     // 1. 游戏初始化逻辑 (Initialization)
 
     public void initializeGame(List<String> playerNames) {
+        currentTurnIndex = 0;
+        actionsRemaining = 0;
+        isGameOver = false;
+        currentTargetInfo = null;
+        rentMultiplier = 1;
+        resetState();
+
         // 1. 初始化牌堆
         gameDeck.initializeDeck(CardFactory.createInitialDeck());
 
@@ -98,6 +105,11 @@ public class GameManager {
     }
 
     public void executePlayerAction(int cardIndex, TargetInfo target) {
+        if (isGameOver) {
+            notifyEvent("游戏已经结束，请开始新游戏或退出游戏。");
+            return;
+        }
+
         if (actionsRemaining <= 0) {
             notifyEvent("⚠️ 行动力不足！请结束回合。");
             return;
@@ -125,6 +137,11 @@ public class GameManager {
     }
 
     public void depositCardToBank(int cardIndex) {
+        if (isGameOver) {
+            notifyEvent("游戏已经结束，请开始新游戏或退出游戏。");
+            return;
+        }
+
         if (actionsRemaining <= 0) {
             notifyEvent("⚠️ 行动力不足！请结束回合。");
             return;
@@ -144,6 +161,11 @@ public class GameManager {
      * 结束当前回合
      */
     public void endTurn() {
+        if (isGameOver) {
+            notifyEvent("游戏已经结束，请开始新游戏或退出游戏。");
+            return;
+        }
+
         Player p = getCurrentPlayer();
 
         // 检查手牌上限 (7张)
@@ -226,6 +248,10 @@ public class GameManager {
 
     public void addObserver(GameObserver observer) {
         observers.add(observer);
+    }
+
+    public void removeObserver(GameObserver observer) {
+        observers.remove(observer);
     }
 
     private void notifyEvent(String message) {

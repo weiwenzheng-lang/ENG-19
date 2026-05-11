@@ -1,6 +1,7 @@
 package ui.javafx;
 
 import javafx.application.Application;
+import javafx.application.Platform;
 import javafx.scene.Scene;
 import javafx.scene.control.ChoiceDialog;
 import javafx.stage.Stage;
@@ -9,9 +10,18 @@ import java.util.ArrayList;
 import java.util.List;
 
 public class MainApp extends Application {
+    private GameController currentController;
     
     @Override
     public void start(Stage stage) {
+        startGame(stage);
+    }
+
+    private void startGame(Stage stage) {
+        if (currentController != null) {
+            currentController.dispose();
+        }
+
         int playerCount = choosePlayerCount(stage);
         if (playerCount < 2 || playerCount > 5) {
             playerCount = 3; // 默认 3 人
@@ -22,8 +32,10 @@ public class MainApp extends Application {
             playerNames.add("Player " + i);
         }
 
-        GameController controller = new GameController(playerNames);
-        Scene scene = new Scene(controller.createContent(), 1180, 760);
+        currentController = new GameController(playerNames,
+                () -> startGame(stage),
+                Platform::exit);
+        Scene scene = new Scene(currentController.createContent(), 1180, 760);
         stage.setTitle("Monopoly Deal");
         stage.setScene(scene);
         stage.show();

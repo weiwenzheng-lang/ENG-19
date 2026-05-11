@@ -41,8 +41,18 @@ public class GameController implements GameObserver {
     private final Label turnLabel = new Label("Turn");
     private final Label deckLabel = new Label("Deck");
     private final Label discardLabel = new Label("Discard");
+    private final Button endTurnButton = new Button("End Turn");
+    private final HBox gameOverActions = new HBox(10);
+    private final Runnable newGameAction;
+    private final Runnable exitGameAction;
 
     public GameController(List<String> playerNames) {
+        this(playerNames, () -> {}, Platform::exit);
+    }
+
+    public GameController(List<String> playerNames, Runnable newGameAction, Runnable exitGameAction) {
+        this.newGameAction = newGameAction;
+        this.exitGameAction = exitGameAction;
         game.addObserver(this);
         game.initializeGame(playerNames);
     }
@@ -66,19 +76,32 @@ public class GameController implements GameObserver {
     }
 
     private VBox createCenter() {
-        Button endTurn = new Button("End Turn");
-        endTurn.setOnAction(event -> {
+        endTurnButton.setOnAction(event -> {
             game.endTurn();
             renderAll();
         });
-        styleButton(endTurn);
+        styleButton(endTurnButton);
+
+        Button newGame = new Button("开始新游戏");
+        newGame.setOnAction(event -> newGameAction.run());
+        styleButton(newGame);
+
+        Button exitGame = new Button("退出游戏");
+        exitGame.setOnAction(event -> exitGameAction.run());
+        styleButton(exitGame);
+
+        gameOverActions.getChildren().setAll(exitGame, newGame);
+        gameOverActions.setAlignment(Pos.CENTER);
+        gameOverActions.setVisible(false);
+        gameOverActions.setManaged(false);
 
         HBox piles = new HBox(18,
                 CardView.back(game.getGameDeck().getDrawPileSize()),
                 new CardView("Discard", "Top card"));
         piles.setAlignment(Pos.CENTER);
 
-        VBox center = new VBox(14, title("Table"), turnLabel, deckLabel, discardLabel, piles, endTurn);
+        VBox center = new VBox(14, title("Table"), turnLabel, deckLabel, discardLabel,
+                piles, endTurnButton, gameOverActions);
         center.setAlignment(Pos.CENTER);
         center.setPadding(new Insets(18));
         center.setStyle("-fx-background-color: #23343b;"
@@ -148,6 +171,10 @@ public class GameController implements GameObserver {
         deckLabel.setText("Draw pile: " + game.getGameDeck().getDrawPileSize());
         Card discardTop = game.getGameDeck().peekDiscardTop();
         discardLabel.setText("Discard: " + (discardTop == null ? "Empty" : discardTop.getCardName()));
+        boolean gameOver = game.isGameOver();
+        endTurnButton.setDisable(gameOver);
+        gameOverActions.setVisible(gameOver);
+        gameOverActions.setManaged(gameOver);
 
         renderOpponents(current);
         renderHand(current);
@@ -171,7 +198,9 @@ public class GameController implements GameObserver {
         for (int i = 0; i < cards.size(); i++) {
             int index = i;
             CardView cardView = new CardView(cards.get(i));
-            cardView.setOnMouseClicked(event -> showCardMenu(cardView, index, cards.get(index)));
+            if (!game.isGameOver()) {
+                cardView.setOnMouseClicked(event -> showCardMenu(cardView, index, cards.get(index)));
+            }
             handView.getChildren().add(cardView);
         }
     }
@@ -285,5 +314,9 @@ public class GameController implements GameObserver {
             logView.getItems().add(0, "Turn starts: " + playerName);
             renderAll();
         });
+    }
+
+    public void dispose() {
+        game.removeObserver(this);
     }
 }
