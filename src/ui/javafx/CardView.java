@@ -64,12 +64,41 @@ public class CardView extends StackPane {
             String colorHex = "#c99f4f"; // 默认
             try {
                 enums.PropertyColor color = ((cards.PropertyCard) card).getColorGroup();
-                colorHex = switch(color) {
-                    case DARK_BLUE -> "#0d47a1"; case GREEN -> "#2e7d32"; case RED -> "#c62828";
-                    case YELLOW -> "#f9a825"; case PINK -> "#ad1457"; case ORANGE -> "#ef6c00";
-                    case LIGHT_BLUE -> "#0288d1"; case BROWN -> "#4e342e"; case RAILROAD -> "#37474f";
-                    case UTILITY -> "#558b2f"; default -> "#c99f4f";
-                };
+                switch (color) {
+                    case DARK_BLUE:
+                        colorHex = "#0d47a1";
+                        break;
+                    case GREEN:
+                        colorHex = "#2e7d32";
+                        break;
+                    case RED:
+                        colorHex = "#c62828";
+                        break;
+                    case YELLOW:
+                        colorHex = "#f9a825";
+                        break;
+                    case PINK:
+                        colorHex = "#ad1457";
+                        break;
+                    case ORANGE:
+                        colorHex = "#ef6c00";
+                        break;
+                    case LIGHT_BLUE:
+                        colorHex = "#0288d1";
+                        break;
+                    case BROWN:
+                        colorHex = "#4e342e";
+                        break;
+                    case RAILROAD:
+                        colorHex = "#37474f";
+                        break;
+                    case UTILITY:
+                        colorHex = "#558b2f";
+                        break;
+                    default:
+                        colorHex = "#c99f4f";
+                        break;
+                }
             } catch (Exception e) {}
             return "-fx-background-color: #fdfaf0; -fx-border-color: " + colorHex + "; -fx-border-width: 5 0 0 0;";
         }
