@@ -186,6 +186,30 @@ public class GameController implements GameObserver {
 
         MenuItem play = new MenuItem("Play card");
         play.setOnAction(event -> {
+            if (card instanceof cards.SuperWildCard || card instanceof cards.PropertyWildCard) {
+                // 获取可选颜色
+                enums.PropertyColor[] options;
+                if (card instanceof cards.SuperWildCard) {
+                    options = ((cards.SuperWildCard) card).getAvailableColors();
+                } else {
+                    options = ((cards.PropertyWildCard) card).getAvailableColors();
+                }
+
+                // 弹出选择框
+                enums.PropertyColor selectedColor = chooseColor(options);
+
+                if (selectedColor == null) {
+                    onGameEvent("取消使用 " + card.getCardName());
+                    return;
+                }
+
+                // 调用各自的 setCurrentColor
+                if (card instanceof cards.SuperWildCard) {
+                    ((cards.SuperWildCard) card).setCurrentColor(selectedColor);
+                } else {
+                    ((cards.PropertyWildCard) card).setCurrentColor(selectedColor);
+                }
+            }
             // 只有需要目标的卡才弹窗选人，否则直接打出
             if (needsTarget(card)) {
                 TargetInfo target = chooseTarget();
@@ -215,6 +239,20 @@ public class GameController implements GameObserver {
                 || name.equals("Forced Deal")
                 || name.equals("Deal Breaker")
                 || name.equals("Debt Collector");
+    }
+    /**
+     * 支持不同数量的选项（2个或10个）
+     * @return 玩家选中的颜色，如果取消则返回 null
+     */
+    private enums.PropertyColor chooseColor(enums.PropertyColor[] colorOptions) {
+        List<enums.PropertyColor> options = java.util.Arrays.asList(colorOptions);
+        ChoiceDialog<enums.PropertyColor> dialog = new ChoiceDialog<>(options.get(0), options);
+        dialog.setTitle("Select Color");
+        dialog.setHeaderText("Choose the color for this card");
+        dialog.setContentText("Color:");
+
+        Optional<enums.PropertyColor> result = dialog.showAndWait();
+        return result.orElse(null);
     }
 
     private TargetInfo chooseTarget() {

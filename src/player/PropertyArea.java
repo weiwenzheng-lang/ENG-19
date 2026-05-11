@@ -19,7 +19,6 @@ public class PropertyArea {
         for (Map.Entry<PropertyColor, Rentable> entry : propertySets.entrySet()) {
             PropertyColor color = entry.getKey();
             Rentable current = entry.getValue();
-
             // 1. 必须是完整套装
             // 2. 检查是否已经盖了房子（避免重复盖房）
             if (current.isComplete() && !(current instanceof HouseDecorator)) {
@@ -37,7 +36,6 @@ public class PropertyArea {
         for (Map.Entry<PropertyColor, Rentable> entry : propertySets.entrySet()) {
             PropertyColor color = entry.getKey();
             Rentable current = entry.getValue();
-
             // 1. 必须是完整套装
             // 2. 必须已经有 House (HouseDecorator)
             // 3. 必须还没有 Hotel (HotelDecorator)
@@ -163,16 +161,19 @@ public class PropertyArea {
         }
     }
 
-    // 原有的 addPropertyCard 需要兼容处理
     public void addPropertyCard(cards.PropertyCard card) {
         PropertyColor color = card.getColorGroup();
+        // 如果玩家还没选颜色（还是 WILD），默认不能直接入场
+        // 这通常由 GameController 拦截，但后端要保底
+        if (color == PropertyColor.WILD) {
+            System.err.println("Error: Cannot add a WILD card without a specific color!");
+            return;
+        }
+
         propertySets.computeIfAbsent(color, k -> new PropertySet(color));
         Rentable current = propertySets.get(color);
-        // 👈 修正逻辑：无论有没有房子，都找到最底层的套装加牌
-        PropertySet root = (current instanceof SetDecorator) ?
-                ((SetDecorator) current).getRootSet() :
-                (PropertySet) current;
 
+        PropertySet root = unwrap(current);
         if (root != null) {
             root.addProperty(card);
         }
@@ -189,40 +190,34 @@ public class PropertyArea {
         return count;
     }
 
-    // 队员3核心逻辑：变色/挪动万能牌
-    public void swapWildCardColor(PropertyCard card, PropertyColor newColor) {
+    public void swapWildCardColor(cards.PropertyCard card, PropertyColor newColor) {
         PropertyColor oldColor = card.getColorGroup();
         if (oldColor == newColor) return;
 
+        // 1. 从旧套装中拔出
         Rentable oldRentable = propertySets.get(oldColor);
         if (oldRentable != null) {
-            // 1. 无论外面包了多少层，先找到最底层的 PropertySet 把牌拔掉
-            // 找到那个套装（钱包），然后命令它拔牌
-            PropertySet oldRoot ;
-            if (oldRentable instanceof SetDecorator) {
-                oldRoot = ((SetDecorator) oldRentable).getRootSet();
-            } else {
-                oldRoot = (PropertySet) oldRentable;
-            }
-
+            PropertySet oldRoot = unwrap(oldRentable);
             oldRoot.removeProperty(card);
 
-            // 2. 检查旧套装的“房子”是否还合法
-            if (!oldRentable.isComplete() && oldRentable instanceof SetDecorator) {
-                System.out.println("注意：" + oldColor + " 套装不再完整，房子/酒店已被拆除！");
-                // 拆掉所有装饰器，变回最原始的 PropertySet
-                propertySets.put(oldColor, oldRoot);
+            // 如果拔完牌后旧套装变空了，从 Map 中移除防止内存泄漏
+            removeColorIfEmpty(oldColor, oldRoot);
+            // 2. 检查旧套装的装饰器（房子/酒店）是否还合法
+            // 如果原本是完整的，拔掉牌后不完整了，必须拆房
+            if (oldRentable instanceof SetDecorator && !oldRoot.isComplete()) {
+                System.out.println("System: " + oldColor + " set is no longer complete. Buildings removed.");
+                propertySets.put(oldColor, oldRoot); // 变回不带房子的原始套装
             }
         }
 
-        // 3. 将牌加入新颜色的套装
-        propertySets.computeIfAbsent(newColor, k -> new PropertySet(newColor));
-        Rentable targetRentable = propertySets.get(newColor);
+        // 3. 【核心修改】：修改卡牌本身的颜色属性
+        // 如果是十色全能牌，调用我们之前写的 setCurrentColor 方法
+        if (card instanceof cards.SuperWildCard) {
+            ((cards.SuperWildCard) card).setCurrentColor(newColor);
+        }
 
-        PropertySet targetRoot = (targetRentable instanceof SetDecorator) ?
-                ((SetDecorator) targetRentable).getRootSet() :
-                (PropertySet) targetRentable;
-        targetRoot.addProperty(card);
+        // 4. 将牌加入新颜色的套装
+        this.addPropertyCard(card);
     }
 
 }
