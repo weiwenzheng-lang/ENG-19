@@ -34,7 +34,9 @@ public class MainApp extends Application {
         dialog.setTitle("Game Setup");
         dialog.setHeaderText("Select Number of Players");
         dialog.setContentText("Choose the number of players (2–5):");
-        dialog.initOwner(owner);
+        if (owner != null && owner.isShowing()) {
+            dialog.initOwner(owner);
+        }
         return dialog.showAndWait().orElse(3);
     }
 

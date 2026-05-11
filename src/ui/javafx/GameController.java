@@ -17,6 +17,7 @@ import javafx.scene.control.ContextMenu;
 import javafx.scene.control.Label;
 import javafx.scene.control.ListView;
 import javafx.scene.control.MenuItem;
+import javafx.scene.control.ScrollPane;
 import javafx.scene.layout.BorderPane;
 import javafx.scene.layout.FlowPane;
 import javafx.scene.layout.HBox;
@@ -25,6 +26,7 @@ import javafx.scene.layout.VBox;
 import javafx.scene.text.Font;
 import javafx.scene.text.FontWeight;
 
+import java.util.Arrays;
 import java.util.List;
 import java.util.Optional;
 
@@ -46,7 +48,7 @@ public class GameController implements GameObserver {
     }
 
     public GameController() {
-        this(List.of("Player A", "Player B", "Player C"));
+        this(Arrays.asList("Player A", "Player B", "Player C"));
     }
 
     public BorderPane createContent() {
@@ -87,21 +89,41 @@ public class GameController implements GameObserver {
         return center;
     }
 
-    private VBox createPlayerPanel() {
+    private ScrollPane createPlayerPanel() {
         Label hand = sectionLabel("Hand", "#ffd7a8");
         Label bank = sectionLabel("Bank", "#ccecc3");
         Label property = sectionLabel("Properties", "#cbd8ff");
-        VBox panel = new VBox(8, hand, handView, bank, bankView, property, propertyView);
+
+        VBox handColumn = new VBox(8, hand, handView);
+        VBox assetColumn = new VBox(8, bank, bankView, property, propertyView);
+        HBox content = new HBox(12, handColumn, assetColumn);
+        HBox.setHgrow(handColumn, Priority.ALWAYS);
+        HBox.setHgrow(assetColumn, Priority.ALWAYS);
+        handColumn.setMinWidth(380);
+        assetColumn.setMinWidth(320);
+
+        VBox panel = new VBox(content);
         panel.setPadding(new Insets(14));
         panel.setStyle("-fx-background-color: #17262d; -fx-border-color: #314a55;"
                 + "-fx-border-width: 1 0 0 0;");
+        panel.setFillWidth(true);
         handView.setStyle("-fx-background-color: rgba(255,215,168,0.08);"
                 + "-fx-background-radius: 10; -fx-padding: 10;");
         bankView.setStyle("-fx-background-color: rgba(204,236,195,0.08);"
                 + "-fx-background-radius: 10; -fx-padding: 10;");
         propertyView.setStyle("-fx-background-color: rgba(203,216,255,0.08);"
                 + "-fx-background-radius: 10; -fx-padding: 10;");
-        return panel;
+        VBox.setVgrow(propertyView, Priority.ALWAYS);
+
+        ScrollPane scroll = new ScrollPane(panel);
+        scroll.setFitToWidth(true);
+        scroll.setHbarPolicy(ScrollPane.ScrollBarPolicy.AS_NEEDED);
+        scroll.setVbarPolicy(ScrollPane.ScrollBarPolicy.AS_NEEDED);
+        scroll.setPrefViewportHeight(300);
+        scroll.setMaxHeight(340);
+        scroll.setStyle("-fx-background-color: #17262d; -fx-background: #17262d;"
+                + "-fx-border-color: #314a55; -fx-border-width: 1 0 0 0;");
+        return scroll;
     }
 
     private VBox createLogPanel() {
