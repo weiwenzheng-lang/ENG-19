@@ -15,9 +15,9 @@ public class CardFactory {
         id = addMoney(deck, id);         // 处理货币牌
         addActions(deck, id);            // 处理行动牌、租金卡、规则卡
 
-        // 最终校验总数 110 张
-        if (deck.size() != 110) {
-            throw new IllegalStateException("牌堆总数错误！应该是 110 张，当前生成了: " + deck.size());
+        // 最终校验总数 108 张（去掉了规则卡）
+        if (deck.size() != 108) {
+            throw new IllegalStateException("牌堆总数错误！应该是 108 张，当前生成了: " + deck.size());
         }
         return deck;
     }
@@ -90,11 +90,6 @@ public class CardFactory {
         };
         for (PropertyColor color : rentColors) {
             deck.add(new RentCard(id++, color + " Rent", 1, color, color));
-        }
-
-        // 3. 规则卡占位 (余下 2 张，凑足 110 张)
-        for (int i = 0; i < 2; i++) {
-            deck.add(new ActionCard(id++, "Rule Card", 0, "RULE"));
         }
 
         return id;
