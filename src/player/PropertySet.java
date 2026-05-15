@@ -29,12 +29,10 @@ public class PropertySet implements Rentable{
 
     @Override
     public int calculateRent() {
-        // 老师在 Lec 03 强调的稳健性：防止空指针
         if (cards.isEmpty()) {
             return 0;
         }
-        // 获取当前张数对应的基础租金
-        return cards.get(0).getRentForCount(cards.size());
+        return color.getRentForCount(cards.size());
     }
     @Override
     public PropertyColor getColor() {

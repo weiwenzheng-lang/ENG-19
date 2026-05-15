@@ -11,7 +11,9 @@ import javafx.application.Platform;
 import javafx.collections.FXCollections;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
+import javafx.scene.control.Alert;
 import javafx.scene.control.Button;
+import javafx.scene.control.ButtonType;
 import javafx.scene.control.ChoiceDialog;
 import javafx.scene.control.ContextMenu;
 import javafx.scene.control.Label;
@@ -41,6 +43,8 @@ public class GameController implements GameObserver {
     private final Label turnLabel = new Label("Turn");
     private final Label deckLabel = new Label("Deck");
     private final Label discardLabel = new Label("Discard");
+    private final CardView drawPileView = CardView.back(0);
+    private final CardView discardPileView = new CardView("Discard", "");
     private final Button endTurnButton = new Button("End Turn");
     private final HBox gameOverActions = new HBox(10);
     private final Runnable newGameAction;
@@ -66,8 +70,14 @@ public class GameController implements GameObserver {
         opponents.setAlignment(Pos.CENTER);
         opponents.setStyle("-fx-background-color: #1d2b33; -fx-border-color: #43545f;"
                 + "-fx-border-width: 0 0 1 0;");
-        root.setStyle("-fx-background-color: #132127;");
-        root.setTop(opponents);
+        root.setStyle("-fx-background-color: #0d0f12;"); // 璋冩暣涓哄拰 css 涓€鑷寸殑鏆楅粦鑳屾櫙
+        ScrollPane opponentScroll = new ScrollPane(opponents);
+        opponentScroll.setFitToHeight(true);
+        opponentScroll.setHbarPolicy(ScrollPane.ScrollBarPolicy.AS_NEEDED);
+        opponentScroll.setVbarPolicy(ScrollPane.ScrollBarPolicy.NEVER);
+        opponentScroll.setMaxHeight(190);
+        opponentScroll.setStyle("-fx-background-color: #1d2b33; -fx-background: #1d2b33;");
+        root.setTop(opponentScroll);
         root.setCenter(createCenter());
         root.setBottom(createPlayerPanel());
         root.setRight(createLogPanel());
@@ -82,11 +92,11 @@ public class GameController implements GameObserver {
         });
         styleButton(endTurnButton);
 
-        Button newGame = new Button("开始新游戏");
+        Button newGame = new Button("New Game");
         newGame.setOnAction(event -> newGameAction.run());
         styleButton(newGame);
 
-        Button exitGame = new Button("退出游戏");
+        Button exitGame = new Button("Exit Game");
         exitGame.setOnAction(event -> exitGameAction.run());
         styleButton(exitGame);
 
@@ -96,85 +106,134 @@ public class GameController implements GameObserver {
         gameOverActions.setManaged(false);
 
         HBox piles = new HBox(18,
-                CardView.back(game.getGameDeck().getDrawPileSize()),
-                new CardView("Discard", "Top card"));
+                drawPileView,
+                discardPileView);
         piles.setAlignment(Pos.CENTER);
 
         VBox center = new VBox(14, title("Table"), turnLabel, deckLabel, discardLabel,
                 piles, endTurnButton, gameOverActions);
         center.setAlignment(Pos.CENTER);
         center.setPadding(new Insets(18));
-        center.setStyle("-fx-background-color: #23343b;"
-                + "-fx-border-color: #58716f; -fx-border-width: 0 1 0 1;");
+        center.setStyle("-fx-background-color: #0e2535;"
+                + "-fx-border-color: #3b424a; -fx-border-width: 0 1 0 1;");
         styleInfoLabel(turnLabel, "#f8fbf6");
         styleInfoLabel(deckLabel, "#cfe7dd");
         styleInfoLabel(discardLabel, "#ead8b3");
         return center;
     }
 
+    /**
+     * 浼樺寲鐐?锛氬交搴曟敼閫犲簳閮ㄥ竷灞€銆?
+     * 灏嗗師鏈瀭鐩村爢鍙犵殑 Bank 鍜?Properties 鎷嗚В寮€锛屼笌 Hand 骞舵帓褰㈡垚妯悜涓夊垪锛堝乏銆佷腑銆佸彸锛夈€?
+     * 楂樺害澶уぇ缂╁噺锛屽畬缇庡绾充竴鏁存帓鍗＄墝锛屼笉闇€瑕佷换浣曞瀭鐩存粴鍔ㄣ€?
+     */
     private ScrollPane createPlayerPanel() {
         Label hand = sectionLabel("Hand", "#ffd7a8");
         Label bank = sectionLabel("Bank", "#ccecc3");
         Label property = sectionLabel("Properties", "#cbd8ff");
 
+        // 灏嗗畠浠媶鍒嗕负鐙珛鐨勪笁鍒?
         VBox handColumn = new VBox(8, hand, handView);
-        VBox assetColumn = new VBox(8, bank, bankView, property, propertyView);
-        HBox content = new HBox(12, handColumn, assetColumn);
+        VBox bankColumn = new VBox(8, bank, bankView);
+        VBox propertyColumn = new VBox(8, property, propertyView);
+
+        // 妯悜骞舵帓缁勫悎
+        HBox content = new HBox(12, handColumn, bankColumn, propertyColumn);
         HBox.setHgrow(handColumn, Priority.ALWAYS);
-        HBox.setHgrow(assetColumn, Priority.ALWAYS);
-        handColumn.setMinWidth(380);
-        assetColumn.setMinWidth(320);
+        HBox.setHgrow(bankColumn, Priority.ALWAYS);
+        HBox.setHgrow(propertyColumn, Priority.ALWAYS);
+
+        // 閰嶅悎 100x140 鐨勬柊鐗堝崱鐗岃瀹氬悎鐞嗙殑鏈€灏忓搴?
+        handColumn.setMinWidth(360);
+        bankColumn.setMinWidth(220);
+        propertyColumn.setMinWidth(360);
 
         VBox panel = new VBox(content);
         panel.setPadding(new Insets(14));
         panel.setStyle("-fx-background-color: #17262d; -fx-border-color: #314a55;"
                 + "-fx-border-width: 1 0 0 0;");
         panel.setFillWidth(true);
-        handView.setStyle("-fx-background-color: rgba(255,215,168,0.08);"
+
+        handView.setStyle("-fx-background-color: rgba(255,215,168,0.05);"
                 + "-fx-background-radius: 10; -fx-padding: 10;");
-        bankView.setStyle("-fx-background-color: rgba(204,236,195,0.08);"
+        bankView.setStyle("-fx-background-color: rgba(204,236,195,0.05);"
                 + "-fx-background-radius: 10; -fx-padding: 10;");
-        propertyView.setStyle("-fx-background-color: rgba(203,216,255,0.08);"
+        propertyView.setStyle("-fx-background-color: rgba(203,216,255,0.05);"
                 + "-fx-background-radius: 10; -fx-padding: 10;");
+
+        VBox.setVgrow(handView, Priority.ALWAYS);
+        VBox.setVgrow(bankView, Priority.ALWAYS);
         VBox.setVgrow(propertyView, Priority.ALWAYS);
 
         ScrollPane scroll = new ScrollPane(panel);
         scroll.setFitToWidth(true);
         scroll.setHbarPolicy(ScrollPane.ScrollBarPolicy.AS_NEEDED);
         scroll.setVbarPolicy(ScrollPane.ScrollBarPolicy.AS_NEEDED);
-        scroll.setPrefViewportHeight(300);
-        scroll.setMaxHeight(340);
+
+        // 鑷€傚簲楂樺害璋冩暣锛?40px 鍒氬ソ瀹岀編涓嶇暀鐧藉绾充竴鎺?140px 楂樺害鐨勫崱鐗屼笌鍒嗙被鏍囬
+        scroll.setPrefViewportHeight(240);
+        scroll.setMaxHeight(260);
         scroll.setStyle("-fx-background-color: #17262d; -fx-background: #17262d;"
                 + "-fx-border-color: #314a55; -fx-border-width: 1 0 0 0;");
         return scroll;
     }
 
+    /**
+     * 浼樺寲鐐?锛氫慨澶峀og鏃ュ織妗嗘枃瀛楅鑹插拰鑳屾櫙銆?
+     * 绉婚櫎鍘熷厛纭紪鐮佺殑榛勮壊鑳屾櫙锛屼娇鍏惰窡 style.css 鐨勬殫榛戠鎶€椋庢牸铻嶄负涓€浣撱€?
+     */
     private VBox createLogPanel() {
         Label logTitle = sectionLabel("Log", "#f7d0d7");
         VBox panel = new VBox(8, logTitle, logView);
         panel.setPadding(new Insets(12));
         panel.setPrefWidth(300);
-        panel.setStyle("-fx-background-color: #202b35; -fx-border-color: #3f5262;"
+        panel.setStyle("-fx-background-color: #0d0f12; -fx-border-color: #3f5262;"
                 + "-fx-border-width: 0 0 0 1;");
-        logView.setStyle("-fx-control-inner-background: #f4ead8;"
-                + "-fx-background-color: #f4ead8; -fx-background-radius: 8;"
-                + "-fx-border-color: #c8a96b; -fx-border-radius: 8;"
-                + "-fx-font-family: 'Segoe UI'; -fx-font-size: 12px;");
+
+        // 灏嗗唴閮ㄨ儗鏅敼鎴愪笌璧涘崥鏈嬪厠 css 缁熶竴鐨勬繁鑹诧紙#16181b锛夛紝杩欐牱 css 閲岀殑鐏拌壊鍜岀豢鑹查珮浜枃鏈氨鑳藉畬缇庣湅娓呬簡锛?
+        logView.setStyle("-fx-control-inner-background: #16181b; "
+                + "-fx-background-color: #16181b; -fx-background-radius: 8;"
+                + "-fx-border-color: #3b424a; -fx-border-radius: 8;"
+                + "-fx-font-family: 'Consolas'; -fx-font-size: 12px;");
         VBox.setVgrow(logView, Priority.ALWAYS);
         return panel;
     }
 
+    private boolean winPopupShown = false;
+
     private void renderAll() {
         Player current = game.getCurrentPlayer();
         turnLabel.setText("Current: " + current.getPlayerName()
-                + " | Actions: " + game.getActionsRemaining());
+                + " | Actions: " + game.getActionsRemaining()
+                + " | Sets: " + current.getPropertyArea().countCompletedSets() + "/3");
         deckLabel.setText("Draw pile: " + game.getGameDeck().getDrawPileSize());
+        drawPileView.getChildren().clear();
+        drawPileView.getChildren().add(CardView.back(game.getGameDeck().getDrawPileSize()));
         Card discardTop = game.getGameDeck().peekDiscardTop();
         discardLabel.setText("Discard: " + (discardTop == null ? "Empty" : discardTop.getCardName()));
+
+        // Update discard pile visual
+        discardPileView.getChildren().clear();
+        if (discardTop != null) {
+            discardPileView.getChildren().add(new CardView(discardTop));
+        } else {
+            discardPileView.getChildren().add(new CardView("Discard", ""));
+        }
+
         boolean gameOver = game.isGameOver();
         endTurnButton.setDisable(gameOver);
         gameOverActions.setVisible(gameOver);
         gameOverActions.setManaged(gameOver);
+
+        if (gameOver && !winPopupShown) {
+            winPopupShown = true;
+            javafx.scene.control.Alert alert = new javafx.scene.control.Alert(
+                    javafx.scene.control.Alert.AlertType.INFORMATION);
+            alert.setTitle("Game Over");
+            alert.setHeaderText(current.getPlayerName() + " Wins!");
+            alert.setContentText("Collected 3 complete property sets!");
+            alert.show();
+        }
 
         renderOpponents(current);
         renderHand(current);
@@ -207,16 +266,51 @@ public class GameController implements GameObserver {
 
     private void showCardMenu(CardView owner, int cardIndex, Card card) {
         ContextMenu menu = new ContextMenu();
+
         MenuItem bank = new MenuItem("Deposit to bank");
         bank.setOnAction(event -> {
             game.depositCardToBank(cardIndex);
             renderAll();
         });
 
+        MenuItem discard = new MenuItem("Discard");
+        discard.setOnAction(event -> {
+            game.discardCard(cardIndex);
+            renderAll();
+        });
+
         MenuItem play = new MenuItem("Play card");
         play.setOnAction(event -> {
-            if (card instanceof cards.SuperWildCard || card instanceof cards.PropertyWildCard) {
-                // 获取可选颜色
+            if (card instanceof cards.DoubleTheRentCard) {
+                playDoubleRent(cardIndex);
+                renderAll();
+                return;
+            }
+
+            TargetInfo targetInfo = null;
+            if (card instanceof cards.HouseCard) {
+                targetInfo = chooseImprovementTarget(game.getCurrentPlayer().getPropertyArea().getHouseEligibleColors());
+                if (targetInfo == null) {
+                    onGameEvent("No eligible complete set for House.");
+                    return;
+                }
+            } else if (card instanceof cards.HotelCard) {
+                targetInfo = chooseImprovementTarget(game.getCurrentPlayer().getPropertyArea().getHotelEligibleColors());
+                if (targetInfo == null) {
+                    onGameEvent("No eligible complete set for Hotel.");
+                    return;
+                }
+            }
+
+            if (card instanceof cards.RentCard && ((cards.RentCard) card).isMultiColor()) {
+                cards.RentCard rentCard = (cards.RentCard) card;
+                enums.PropertyColor selectedColor = chooseColor(rentCard.getColorOptions());
+                if (selectedColor == null) {
+                    onGameEvent("Cancelled " + card.getCardName());
+                    return;
+                }
+                rentCard.setSelectedColor(selectedColor);
+            } else if (card instanceof cards.SuperWildCard || card instanceof cards.PropertyWildCard) {
                 enums.PropertyColor[] options;
                 if (card instanceof cards.SuperWildCard) {
                     options = ((cards.SuperWildCard) card).getAvailableColors();
@@ -224,55 +318,38 @@ public class GameController implements GameObserver {
                     options = ((cards.PropertyWildCard) card).getAvailableColors();
                 }
 
-                // 弹出选择框
                 enums.PropertyColor selectedColor = chooseColor(options);
 
                 if (selectedColor == null) {
-                    onGameEvent("取消使用 " + card.getCardName());
+                    onGameEvent("Cancelled " + card.getCardName());
                     return;
                 }
 
-                // 调用各自的 setCurrentColor
                 if (card instanceof cards.SuperWildCard) {
                     ((cards.SuperWildCard) card).setCurrentColor(selectedColor);
                 } else {
                     ((cards.PropertyWildCard) card).setCurrentColor(selectedColor);
                 }
             }
-            // 只有需要目标的卡才弹窗选人，否则直接打出
             if (needsTarget(card)) {
-                TargetInfo target = chooseTarget();
-                if (target == null) {
-                    // 用户取消了选择，不执行任何操作
-                    onGameEvent("取消使用 " + card.getCardName());
+                targetInfo = chooseTarget(card);
+                if (targetInfo == null) {
+                    onGameEvent("Cancelled " + card.getCardName());
                     return;
                 }
-                game.executePlayerAction(cardIndex, target);
-            } else {
-                game.executePlayerAction(cardIndex, null);
             }
+            game.executePlayerAction(cardIndex, targetInfo);
             renderAll();
         });
 
-        menu.getItems().addAll(bank, play);
+        menu.getItems().addAll(bank, discard, play);
         menu.show(owner, javafx.geometry.Side.TOP, 0, 0);
     }
 
-    /**
-     * 判断卡牌是否需要选择目标（单个对手）
-     * 注意：RentCard 不需要选人，它会自动向所有对手收租
-     */
     private boolean needsTarget(Card card) {
-        String name = card.getCardName();
-        return name.equals("Sly Deal")
-                || name.equals("Forced Deal")
-                || name.equals("Deal Breaker")
-                || name.equals("Debt Collector");
+        return card.requiresTarget();
     }
-    /**
-     * 支持不同数量的选项（2个或10个）
-     * @return 玩家选中的颜色，如果取消则返回 null
-     */
+
     private enums.PropertyColor chooseColor(enums.PropertyColor[] colorOptions) {
         List<enums.PropertyColor> options = java.util.Arrays.asList(colorOptions);
         ChoiceDialog<enums.PropertyColor> dialog = new ChoiceDialog<>(options.get(0), options);
@@ -284,10 +361,20 @@ public class GameController implements GameObserver {
         return result.orElse(null);
     }
 
-    private TargetInfo chooseTarget() {
-        List<Player> choices = game.getOpponents(game.getCurrentPlayer());
+    private TargetInfo chooseTarget(Card card) {
+        java.util.List<Player> choices = new java.util.ArrayList<>(game.getOpponents(game.getCurrentPlayer()));
+        if (card instanceof cards.SlyDealCard) {
+            choices.removeIf(player -> player.getPropertyArea().getStealableIncompleteColors().isEmpty());
+        } else if (card instanceof cards.ForceDealCard) {
+            if (game.getCurrentPlayer().getPropertyArea().getPropertyColorsWithCards().isEmpty()) {
+                return null;
+            }
+            choices.removeIf(player -> player.getPropertyArea().getPropertyColorsWithCards().isEmpty());
+        } else if (card instanceof cards.DealBreakerCard) {
+            choices.removeIf(player -> player.getPropertyArea().countCompletedSets() == 0);
+        }
         if (choices.isEmpty()) {
-            onGameEvent("没有可选的对手");
+            onGameEvent("No available opponent.");
             return null;
         }
         ChoiceDialog<Player> dialog = new ChoiceDialog<>(choices.get(0), FXCollections.observableArrayList(choices));
@@ -295,7 +382,116 @@ public class GameController implements GameObserver {
         dialog.setHeaderText("Select a player to perform the action on");
         dialog.setContentText("Target:");
         Optional<Player> selected = dialog.showAndWait();
-        return selected.map(TargetInfo::new).orElse(null);
+        if (!selected.isPresent()) {
+            return null;
+        }
+
+        Player target = selected.get();
+        if (card instanceof cards.SlyDealCard) {
+            PropertyPick targetCard = choosePropertyCard(target, target.getPropertyArea().getStealableIncompleteColors(),
+                    "Choose property to steal");
+            if (targetCard == null) {
+                return null;
+            }
+            return new TargetInfo(target, targetCard.color, targetCard.index);
+        }
+        if (card instanceof cards.ForceDealCard) {
+            PropertyPick mine = choosePropertyCard(game.getCurrentPlayer(),
+                    game.getCurrentPlayer().getPropertyArea().getPropertyColorsWithCards(),
+                    "Choose your property to give");
+            if (mine == null) {
+                return null;
+            }
+            PropertyPick theirs = choosePropertyCard(target, target.getPropertyArea().getPropertyColorsWithCards(),
+                    "Choose target property to receive");
+            if (theirs == null) {
+                return null;
+            }
+            return new TargetInfo(target, mine.color, mine.index, theirs.color, theirs.index);
+        }
+        return new TargetInfo(target);
+    }
+
+    private TargetInfo chooseImprovementTarget(List<enums.PropertyColor> colors) {
+        if (colors.isEmpty()) {
+            return null;
+        }
+        ChoiceDialog<enums.PropertyColor> dialog = new ChoiceDialog<>(colors.get(0), colors);
+        dialog.setTitle("Choose Property Set");
+        dialog.setHeaderText("Select a set");
+        dialog.setContentText("Set:");
+        Optional<enums.PropertyColor> selected = dialog.showAndWait();
+        return selected.map(TargetInfo::forImprovement).orElse(null);
+    }
+
+    private PropertyPick choosePropertyCard(Player owner, List<enums.PropertyColor> colors, String title) {
+        java.util.List<PropertyPick> picks = new java.util.ArrayList<>();
+        for (enums.PropertyColor color : colors) {
+            List<cards.PropertyCard> cards = owner.getPropertyArea().getCards(color);
+            for (int i = 0; i < cards.size(); i++) {
+                picks.add(new PropertyPick(color, i, color + " - " + cards.get(i).getCardName()));
+            }
+        }
+        if (picks.isEmpty()) {
+            return null;
+        }
+        ChoiceDialog<PropertyPick> dialog = new ChoiceDialog<>(picks.get(0), picks);
+        dialog.setTitle(title);
+        dialog.setHeaderText(owner.getPlayerName());
+        dialog.setContentText("Property:");
+        return dialog.showAndWait().orElse(null);
+    }
+
+    private void playDoubleRent(int doubleCardIndex) {
+        List<Card> hand = game.getCurrentPlayer().getHand().getCards();
+        java.util.List<Integer> rentIndexes = new java.util.ArrayList<>();
+        java.util.List<String> choices = new java.util.ArrayList<>();
+        for (int i = 0; i < hand.size(); i++) {
+            if (i != doubleCardIndex && hand.get(i) instanceof cards.RentCard) {
+                rentIndexes.add(i);
+                choices.add(i + ": " + hand.get(i).getCardName());
+            }
+        }
+        if (choices.isEmpty()) {
+            onGameEvent("Double The Rent must be paired with a rent card.");
+            return;
+        }
+        ChoiceDialog<String> dialog = new ChoiceDialog<>(choices.get(0), choices);
+        dialog.setTitle("Double The Rent");
+        dialog.setHeaderText("Choose a rent card to play with it");
+        dialog.setContentText("Rent:");
+        Optional<String> selected = dialog.showAndWait();
+        if (!selected.isPresent()) {
+            return;
+        }
+        int rentCardIndex = rentIndexes.get(choices.indexOf(selected.get()));
+        Card rent = hand.get(rentCardIndex);
+        if (rent instanceof cards.RentCard && ((cards.RentCard) rent).isMultiColor()) {
+            cards.RentCard rentCard = (cards.RentCard) rent;
+            enums.PropertyColor selectedColor = chooseColor(rentCard.getColorOptions());
+            if (selectedColor == null) {
+                return;
+            }
+            rentCard.setSelectedColor(selectedColor);
+        }
+        game.executeDoubleRentAction(doubleCardIndex, rentCardIndex, null);
+    }
+
+    private static class PropertyPick {
+        final enums.PropertyColor color;
+        final int index;
+        final String label;
+
+        PropertyPick(enums.PropertyColor color, int index, String label) {
+            this.color = color;
+            this.index = index;
+            this.label = label;
+        }
+
+        @Override
+        public String toString() {
+            return label;
+        }
     }
 
     private void renderBank(Player current) {
@@ -343,7 +539,53 @@ public class GameController implements GameObserver {
         Platform.runLater(() -> {
             logView.getItems().add(0, message);
             renderAll();
+
+            if (message.contains("[INTERRUPT_REQUEST]")) {
+                handleInterruptRequest();
+            }
         });
+    }
+
+    private void handleInterruptRequest() {
+        if (game.getCurrentState() != GameManager.GameState.WAITING_FOR_COUNTER_ACTION) return;
+
+        Player victim = game.getPendingVictim();
+        if (victim == null) return;
+
+        List<Card> hand = victim.getHand().getCards();
+        int jsnIdx = -1;
+        for (int i = 0; i < hand.size(); i++) {
+            if (hand.get(i).getCardName().equals("Just Say No")) {
+                jsnIdx = i;
+                break;
+            }
+        }
+        final int jsnIndex = jsnIdx;
+
+        Alert alert = new Alert(
+                jsnIndex >= 0
+                        ? Alert.AlertType.CONFIRMATION
+                        : Alert.AlertType.INFORMATION);
+        alert.setTitle("Counter Action");
+        alert.setHeaderText(victim.getPlayerName() + " is under attack!");
+
+        if (jsnIndex >= 0) {
+            alert.setContentText("Use Just Say No to counter?");
+            alert.getButtonTypes().setAll(ButtonType.YES, ButtonType.NO);
+            alert.showAndWait().ifPresent(response -> {
+                if (response == ButtonType.YES) {
+                    game.counterAttackWithJustSayNo(jsnIndex);
+                } else {
+                    game.resolvePendingAction();
+                }
+                renderAll();
+            });
+        } else {
+            alert.setContentText("No Just Say No available. The action will proceed.");
+            alert.showAndWait();
+            game.resolvePendingAction();
+            renderAll();
+        }
     }
 
     @Override

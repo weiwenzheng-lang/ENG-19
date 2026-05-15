@@ -14,7 +14,7 @@ public class SuperWildCard extends PropertyCard {
     private PropertyColor currentSelectedColor;
 
     public SuperWildCard(int id, String name, int value) {
-        super(id, name, value, PropertyColor.WILD, true, null);
+        super(id, name, value, PropertyColor.WILD, null);
         this.currentSelectedColor = PropertyColor.WILD;
     }
 
@@ -23,16 +23,13 @@ public class SuperWildCard extends PropertyCard {
      * @param newColor 玩家从 UI 界面选中的新颜色
      */
     public void setCurrentColor(PropertyColor newColor) {
-        // 健壮性检查 (Lec 06 Robustness)：防止非法赋值
         if (newColor == null || newColor == PropertyColor.WILD) {
             throw new IllegalArgumentException("Error: Super Wild card must be set to a specific property color!");
         }
 
-        // 修改当前选定颜色
         this.currentSelectedColor = newColor;
-
-        // 同时同步修改父类的 colorGroup 字段，确保 PropertySet 逻辑一致
         this.colorGroup = newColor;
+        this.rentTiers = newColor.getRentTiers(); // Bug fix: sync rent tiers
 
         System.out.println("[System] Super Wildcard activated! Current color changed to: " + this.currentSelectedColor);
     }

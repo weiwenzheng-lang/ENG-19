@@ -8,24 +8,16 @@ public class ForceDealCard extends ActionCard {
         super(id, name, value, "FORCE_DEAL");
     }
 
+    @Override public boolean requiresTarget() { return true; }
+
     @Override
     public void executePlayLogic(Player initiator) {
-        Player victim = GameManager.getInstance().resolveTargetOrFirstOpponent(initiator);
-        if (victim == null) {
-            System.out.println("No valid target for Force Deal.");
-            return;
-        }
-
-        Runnable action = () -> {
+        GameManager.getInstance().initiateTargetedAttack(initiator, victim -> {
             boolean swapped = initiator.getPropertyArea()
                     .forceSwapFirstAvailableProperty(victim.getPropertyArea());
             if (!swapped) {
                 throw new IllegalStateException("Force Deal failed: both players need swappable incomplete properties.");
             }
-            System.out.println("[Force Deal] " + initiator.getPlayerName()
-                    + " swapped properties with " + victim.getPlayerName());
-        };
-
-        GameManager.getInstance().initiateAttack(victim, action);
+        });
     }
 }

@@ -11,8 +11,11 @@ public abstract class SetDecorator implements Rentable {
     }
 
     @Override
+    public boolean isDecorated() { return true; }
+
+    @Override
     public boolean isComplete() {
-        return wrappedSet.isComplete(); // 转发给内部对象
+        return wrappedSet.isComplete();
     }
 
     @Override

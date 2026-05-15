@@ -19,9 +19,9 @@ class DealBreakerTest {
         Player victim = new Player("2", "Victim");
         int[] rent = {3, 8};
         victim.getPropertyArea().addPropertyCard(
-                new PropertyCard(1, "Boardwalk", 4, PropertyColor.DARK_BLUE, false, rent));
+                new PropertyCard(1, "Boardwalk", 4, PropertyColor.DARK_BLUE, rent));
         victim.getPropertyArea().addPropertyCard(
-                new PropertyCard(2, "Park Place", 4, PropertyColor.DARK_BLUE, false, rent));
+                new PropertyCard(2, "Park Place", 4, PropertyColor.DARK_BLUE, rent));
 
         Rentable withHouse = new HouseDecorator(victim.getPropertyArea().getPropertySet(PropertyColor.DARK_BLUE));
         Rentable withHotel = new HotelDecorator(withHouse);

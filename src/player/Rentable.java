@@ -4,12 +4,12 @@ import cards.PropertyCard;
 import enums.PropertyColor;
 
 public interface Rentable {
-    int calculateRent();      // 计算租金
-    String getDescription();  // 获取描述 (方便控制台打印)
-    boolean isComplete();     // 👈 新增：让装饰器和原始套装都能判断是否凑齐
-    PropertyColor getColor(); // 👈 新增：方便获取颜色
+    int calculateRent();
+    String getDescription();
+    boolean isComplete();
+    PropertyColor getColor();
     void addProperty(PropertyCard card);
 
-
-
+    default boolean isDecorated() { return false; }
+    default PropertySet asPropertySet() { return (PropertySet) this; }
 }

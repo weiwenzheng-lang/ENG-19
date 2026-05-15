@@ -18,7 +18,8 @@ public class HotelCard extends ActionCard {
         if (success) {
             System.out.println("[Hotel] " + initiator.getPlayerName() + " added a Hotel to a complete set!");
         } else {
-            System.out.println("[Hotel] Failed: " + initiator.getPlayerName() + " has no complete set with a house to place a Hotel.");
+            System.out.println("[Hotel] No eligible set — depositing as money instead.");
+            initiator.getBankArea().deposit(this);
         }
     }
 }
