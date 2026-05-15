@@ -3,30 +3,34 @@ package core;
 import cards.Card;
 import player.Player;
 import patterns.observer.GameObserver;
+
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+import java.util.function.Consumer;
 
-/**
- * GameManager - 游戏核心控制类 (单例模式)
- * 重构说明：
- * 1. 彻底移除了 Scanner 和硬编码的输入逻辑，改为由 UI 驱动。
- * 2. 细化了回合状态管理，确保每一阶段逻辑单一 (Single Responsibility)。
- * 3. 增强了观察者模式通知，确保 UI 能实时获取所有状态变更。
- */
 public class GameManager {
     private static GameManager instance;
 
-    private List<Player> activePlayers;
-    private Deck gameDeck;
+    private final List<Player> activePlayers;
+    private final Deck gameDeck;
+    private final List<GameObserver> observers;
     private int currentTurnIndex;
-    private int actionsRemaining; // 当前回合剩余行动力
+    private int actionsRemaining;
     private boolean isGameOver;
     private TargetInfo currentTargetInfo;
-    private int rentMultiplier = 1; // 新增：用于存储租金倍率，默认为 1
+    private int rentMultiplier = 1;
 
-    // 观察者列表
-    private List<GameObserver> observers;
+    public enum GameState {
+        NORMAL_TURN,
+        WAITING_FOR_COUNTER_ACTION
+    }
+
+    private GameState currentState = GameState.NORMAL_TURN;
+    private Runnable pendingAction;
+    private Player pendingVictim;
+    private List<Player> pendingVictims;
+    private int pendingVictimIndex;
 
     private GameManager() {
         this.activePlayers = new ArrayList<>();
@@ -43,8 +47,6 @@ public class GameManager {
         return instance;
     }
 
-    // 1. 游戏初始化逻辑 (Initialization)
-
     public void initializeGame(List<String> playerNames) {
         currentTurnIndex = 0;
         actionsRemaining = 0;
@@ -53,160 +55,218 @@ public class GameManager {
         rentMultiplier = 1;
         resetState();
 
-        // 1. 初始化牌堆
         gameDeck.initializeDeck(CardFactory.createInitialDeck());
 
-        // 2. 创建玩家
         activePlayers.clear();
         for (int i = 0; i < playerNames.size(); i++) {
             Player newPlayer = new Player(String.valueOf(i), playerNames.get(i));
-
-            // 🌟 核心修复：游戏开始前，给每位玩家发 5 张初始手牌！
-            List<Card> startingCards = gameDeck.drawCards(5);
-            newPlayer.getHand().addCards(startingCards);
-
+            newPlayer.getHand().addCards(gameDeck.drawCards(5));
             activePlayers.add(newPlayer);
         }
 
-        notifyEvent("游戏初始化完成，共 " + activePlayers.size() + " 位玩家，每人已发 5 张初始手牌。");
-
-        // 3. 开始第一回合 (此时玩家已有5张底牌，加上回合开始抽的2张，共有7张牌可以打)
+        notifyEvent("Game initialized with " + activePlayers.size() + " players.");
         startNewTurn();
     }
 
-    // 2. 回合生命周期管理 (Turn Lifecycle)
-
-
-    /**
-     * 开始一个新回合。
-     * 重构点：将原有的死循环拆解为独立的方法调用。
-     */
     public void startNewTurn() {
-        if (isGameOver) return;
+        if (isGameOver) {
+            return;
+        }
 
         Player currentPlayer = getCurrentPlayer();
-        actionsRemaining = 3; // 规则：每回合3次机会
+        actionsRemaining = 3;
+        rentMultiplier = 1;
 
         notifyTurnChange(currentPlayer.getPlayerName());
 
-        // 自动抽2张牌
         List<Card> drawn = gameDeck.drawCards(2);
         currentPlayer.getHand().addCards(drawn);
-
-        notifyEvent(currentPlayer.getPlayerName() + " 抽了 2 张牌。");
+        notifyEvent(currentPlayer.getPlayerName() + " drew " + drawn.size() + " card(s).");
+        checkDrawStalemate();
     }
 
-    /**
-     * 核心动作入口：供 UI 调用，当玩家点击某张牌时执行。
-     * @param cardIndex 玩家手牌的索引
-     */
     public void handlePlayCard(int cardIndex) {
         executePlayerAction(cardIndex, null);
     }
 
     public void executePlayerAction(int cardIndex, TargetInfo target) {
         if (isGameOver) {
-            notifyEvent("游戏已经结束，请开始新游戏或退出游戏。");
+            notifyEvent("Game is already over.");
             return;
         }
-
         if (actionsRemaining <= 0) {
-            notifyEvent("⚠️ 行动力不足！请结束回合。");
+            notifyEvent("Not enough actions. End your turn.");
             return;
         }
 
-        Player p = getCurrentPlayer();
-        Card selectedCard = p.getHand().getCard(cardIndex); // 需在 Hand 类补充 getCard 方法
+        Player player = getCurrentPlayer();
+        Card selectedCard = player.getHand().getCard(cardIndex);
+        if (selectedCard == null) {
+            return;
+        }
+        if (selectedCard instanceof cards.JustSayNoCard) {
+            notifyEvent("Just Say No can only be used when responding to an attack.");
+            return;
+        }
+        if (selectedCard instanceof cards.DoubleTheRentCard) {
+            notifyEvent("Double The Rent must be played together with a rent card.");
+            return;
+        }
 
+        currentTargetInfo = target;
+        try {
+            player.playCard(selectedCard);
+        } catch (IllegalStateException ex) {
+            notifyEvent("Cannot play " + selectedCard.getCardName() + ": " + ex.getMessage());
+            return;
+        } finally {
+            currentTargetInfo = null;
+        }
+
+        player.getHand().removeCard(cardIndex);
+        gameDeck.receiveDiscard(selectedCard);
+        actionsRemaining--;
+        notifyEvent(player.getPlayerName() + " played " + selectedCard.getCardName()
+                + " (actions left: " + actionsRemaining + ")");
+        checkWinCondition();
+    }
+
+    public void executeDoubleRentAction(int doubleCardIndex, int rentCardIndex, TargetInfo target) {
+        if (isGameOver) {
+            notifyEvent("Game is already over.");
+            return;
+        }
+        if (actionsRemaining < 2) {
+            notifyEvent("Not enough actions: Double The Rent plus Rent costs 2 actions.");
+            return;
+        }
+
+        Player player = getCurrentPlayer();
+        Card doubleCard = player.getHand().getCard(doubleCardIndex);
+        Card rentCard = player.getHand().getCard(rentCardIndex);
+        if (!(doubleCard instanceof cards.DoubleTheRentCard) || !(rentCard instanceof cards.RentCard)) {
+            notifyEvent("Double The Rent must be paired with a rent card.");
+            return;
+        }
+
+        currentTargetInfo = target;
+        try {
+            activateDoubleRent();
+            player.playCard(rentCard);
+        } catch (IllegalStateException ex) {
+            rentMultiplier = 1;
+            notifyEvent("Cannot play rent combo: " + ex.getMessage());
+            return;
+        } finally {
+            currentTargetInfo = null;
+        }
+
+        int first = Math.max(doubleCardIndex, rentCardIndex);
+        int second = Math.min(doubleCardIndex, rentCardIndex);
+        Card removedFirst = player.getHand().removeCard(first);
+        Card removedSecond = player.getHand().removeCard(second);
+        gameDeck.receiveDiscard(removedFirst);
+        gameDeck.receiveDiscard(removedSecond);
+        actionsRemaining -= 2;
+        notifyEvent(player.getPlayerName() + " played Double The Rent with "
+                + rentCard.getCardName() + " (actions left: " + actionsRemaining + ")");
+        checkWinCondition();
+    }
+
+    public void discardCard(int cardIndex) {
+        if (isGameOver) {
+            notifyEvent("Game is already over.");
+            return;
+        }
+
+        Player player = getCurrentPlayer();
+        Card selectedCard = player.getHand().removeCard(cardIndex);
         if (selectedCard != null) {
-            // 执行卡牌效果 (多态调用)
-            currentTargetInfo = target;
-            try {
-                p.playCard(selectedCard);
-            } finally {
-                currentTargetInfo = null;
-            }
-            p.getHand().removeCard(cardIndex);
             gameDeck.receiveDiscard(selectedCard);
-
-            actionsRemaining--;
-            notifyEvent(p.getPlayerName() + " 打出了: " + selectedCard.getCardName() + " (剩余行动: " + actionsRemaining + ")");
-
-            checkWinCondition();
+            notifyEvent(player.getPlayerName() + " discarded " + selectedCard.getCardName());
         }
     }
 
     public void depositCardToBank(int cardIndex) {
         if (isGameOver) {
-            notifyEvent("游戏已经结束，请开始新游戏或退出游戏。");
+            notifyEvent("Game is already over.");
             return;
         }
-
         if (actionsRemaining <= 0) {
-            notifyEvent("⚠️ 行动力不足！请结束回合。");
+            notifyEvent("Not enough actions. End your turn.");
             return;
         }
 
-        Player p = getCurrentPlayer();
-        Card selectedCard = p.getHand().removeCard(cardIndex);
-        if (selectedCard != null) {
-            p.getBankArea().deposit(selectedCard);
-            actionsRemaining--;
-            notifyEvent(p.getPlayerName() + " 存入银行: " + selectedCard.getCardName()
-                    + " (剩余行动: " + actionsRemaining + ")");
+        Player player = getCurrentPlayer();
+        Card selectedCard = player.getHand().removeCard(cardIndex);
+        if (selectedCard == null) {
+            return;
         }
+        if (selectedCard instanceof cards.HouseCard || selectedCard instanceof cards.HotelCard) {
+            player.getHand().addCards(Collections.singletonList(selectedCard));
+            notifyEvent("House/Hotel cannot be banked from this menu; play it on a complete set.");
+            return;
+        }
+
+        player.getBankArea().deposit(selectedCard);
+        actionsRemaining--;
+        notifyEvent(player.getPlayerName() + " banked " + selectedCard.getCardName()
+                + " (actions left: " + actionsRemaining + ")");
+        checkWinCondition();
     }
 
-    /**
-     * 结束当前回合
-     */
     public void endTurn() {
         if (isGameOver) {
-            notifyEvent("游戏已经结束，请开始新游戏或退出游戏。");
+            notifyEvent("Game is already over.");
             return;
         }
 
-        Player p = getCurrentPlayer();
-
-        // 检查手牌上限 (7张)
-        if (p.getHand().requiresDiscard()) {
-            notifyEvent("⚠️ " + p.getPlayerName() + " 需要弃牌至 7 张！");
-            // 这里不阻塞，由 UI 判断状态并调用 discard 方法
+        Player player = getCurrentPlayer();
+        if (player.getHand().requiresDiscard()) {
+            notifyEvent(player.getPlayerName() + " must discard down to 7 cards.");
             return;
         }
 
-        // 切换到下一个玩家
+        checkWinCondition();
+        if (isGameOver) {
+            return;
+        }
+
+        checkDrawStalemate();
+        if (isGameOver) {
+            return;
+        }
+
         currentTurnIndex = (currentTurnIndex + 1) % activePlayers.size();
         startNewTurn();
     }
 
-    // ==========================================
-    // 3. 业务逻辑 (Business Logic)
-    // ==========================================
-
     private void checkWinCondition() {
-        Player p = getCurrentPlayer();
-        int completedSets = p.getPropertyArea().countCompletedSets();
-
-        if (completedSets >= 3) {
-            isGameOver = true;
-            notifyEvent("🎊 恭喜 " + p.getPlayerName() + " 收集齐 3 套房产，获得胜利！");
+        for (Player player : activePlayers) {
+            int completedSets = player.getPropertyArea().countCompletedSets();
+            if (completedSets >= 3) {
+                isGameOver = true;
+                notifyEvent("Congratulations " + player.getPlayerName()
+                        + " collected 3 full property sets and wins!");
+                return;
+            }
         }
     }
 
-    // 激活双倍租金效果
-    public void activateDoubleRent() {
-        this.rentMultiplier *= 2; // 支持叠加逻辑（如果一回合打出两张，就是4倍）
-        notifyEvent("📢 [Double rent] The rent to be collected next time will be changed to " + rentMultiplier + " 倍！");
+    private void checkDrawStalemate() {
+        if (!isGameOver && gameDeck.getDrawPileSize() == 0 && gameDeck.getDiscardPileSize() == 0) {
+            notifyEvent("Draw pile is empty. Continue playing with cards in hand.");
+        }
     }
 
-    /**
-     * 获取当前的租金倍率，并立即重置为 1
-     * 供 RentCard 或收租逻辑调用
-     */
+    public void activateDoubleRent() {
+        this.rentMultiplier *= 2;
+        notifyEvent("Double rent is active for the next rent card.");
+    }
+
     public int getAndResetRentMultiplier() {
         int current = this.rentMultiplier;
-        this.rentMultiplier = 1; // 使用后重置，确保不影响下下张租金卡
+        this.rentMultiplier = 1;
         return current;
     }
 
@@ -234,17 +294,13 @@ public class GameManager {
         return isGameOver;
     }
 
-    /**
-     * 获取当前玩家剩余行动力
-     * 供 UI 显示和 JUnit 测试使用
-     */
     public int getActionsRemaining() {
         return actionsRemaining;
     }
 
-    // ==========================================
-    // 4. 观察者管理 (Observer Pattern)
-    // ==========================================
+    public TargetInfo getCurrentTargetInfo() {
+        return currentTargetInfo;
+    }
 
     public void addObserver(GameObserver observer) {
         observers.add(observer);
@@ -255,139 +311,125 @@ public class GameManager {
     }
 
     private void notifyEvent(String message) {
-        for (GameObserver o : observers) {
-            o.onGameEvent(message);
+        for (GameObserver observer : observers) {
+            observer.onGameEvent(message);
         }
     }
 
     private void notifyTurnChange(String playerName) {
-        for (GameObserver o : observers) {
-            o.onTurnChanged(playerName);
+        for (GameObserver observer : observers) {
+            observer.onTurnChanged(playerName);
         }
     }
 
-
-    // ==========================================
-    // 5. 异步中断机制 (Interrupt & State Machine)
-    // 专门处理 "Just Say No" 这种打断常规流程的交互
-    // ==========================================
-
-    // 游戏状态枚举
-    public enum GameState {
-        NORMAL_TURN,               // 正常出牌阶段
-        WAITING_FOR_COUNTER_ACTION // 等待对方使用 Just Say No 阶段
-    }
-
-    private GameState currentState = GameState.NORMAL_TURN;
-    private Runnable pendingAction; // 被挂起的危险动作（例如：偷取房产的具体代码）
-    private Player pendingVictim;   // 当前正在被攻击、需要做出回应的玩家
-
-    /**
-     * 供攻击类卡牌（如 SlyDealCard, RentCard）调用。
-     * 发起攻击，并将实际的伤害逻辑包装成 Runnable 挂起。
-     */
     public void initiateAttack(Player victim, Runnable action) {
         this.currentState = GameState.WAITING_FOR_COUNTER_ACTION;
         this.pendingAction = action;
         this.pendingVictim = victim;
-
-        // 发送特殊格式的事件通知，UI 层监听到后会弹窗询问 victim
-        notifyEvent("⚠️ [INTERRUPT_REQUEST] " + victim.getPlayerName() + " 遭到了针对！是否打出 Just Say No？");
+        this.pendingVictims = null;
+        this.pendingVictimIndex = 0;
+        notifyEvent("[INTERRUPT_REQUEST] " + victim.getPlayerName() + " may use Just Say No.");
     }
 
-    /**
-     * UI 回调 API：受害者选择“默默承受”（或超时、没有反制卡）
-     */
+    public void initiateGroupAttack(List<Player> victims, Runnable action) {
+        if (victims == null || victims.isEmpty()) {
+            action.run();
+            return;
+        }
+        this.currentState = GameState.WAITING_FOR_COUNTER_ACTION;
+        this.pendingAction = action;
+        this.pendingVictims = new ArrayList<>(victims);
+        this.pendingVictimIndex = 0;
+        this.pendingVictim = this.pendingVictims.get(0);
+        notifyEvent("[INTERRUPT_REQUEST] " + pendingVictim.getPlayerName()
+                + " may use Just Say No. If any player counters, the whole card is cancelled.");
+    }
+
     public void resolvePendingAction() {
-        if (currentState == GameState.WAITING_FOR_COUNTER_ACTION && pendingAction != null) {
-            pendingAction.run(); // 真正执行扣钱或偷牌
-            notifyEvent("✅ 动作结算完成。");
+        if (currentState != GameState.WAITING_FOR_COUNTER_ACTION || pendingAction == null) {
+            return;
+        }
+        if (pendingVictims != null && pendingVictimIndex < pendingVictims.size() - 1) {
+            pendingVictimIndex++;
+            pendingVictim = pendingVictims.get(pendingVictimIndex);
+            notifyEvent("[INTERRUPT_REQUEST] " + pendingVictim.getPlayerName()
+                    + " may use Just Say No. If any player counters, the whole card is cancelled.");
+            return;
+        }
+
+        try {
+            pendingAction.run();
+            notifyEvent("Action resolved.");
+            checkWinCondition();
+        } catch (IllegalStateException ex) {
+            notifyEvent("Action failed: " + ex.getMessage());
+        } finally {
             resetState();
         }
     }
 
-    /**
-     * UI 回调 API：受害者打出了 "Just Say No"
-     * @param cardIndex Just Say No 在手牌中的位置
-     */
     public void counterAttackWithJustSayNo(int cardIndex) {
-        if (currentState == GameState.WAITING_FOR_COUNTER_ACTION && pendingVictim != null) {
-            Card card = pendingVictim.getHand().getCard(cardIndex); // 获取但不立刻删除
-
-            // 严谨校验：确保他打出的真的是反制卡
-            if (card != null && card.getCardName().equals("Just Say No")) {
-                pendingVictim.getHand().removeCard(cardIndex); // 消耗掉这张卡
-                gameDeck.receiveDiscard(card); // 放入弃牌堆
-
-                notifyEvent("🛡️ 完美防御！" + pendingVictim.getPlayerName() + " 打出了 Just Say No，攻击被无效化！");
-                resetState(); // 状态恢复正常，挂起的攻击被直接抛弃！
-            } else {
-                notifyEvent("❌ 非法的防御卡牌！");
-            }
+        if (currentState != GameState.WAITING_FOR_COUNTER_ACTION || pendingVictim == null) {
+            return;
         }
+
+        Card card = pendingVictim.getHand().getCard(cardIndex);
+        if (card != null && card.getCardName().equals("Just Say No")) {
+            pendingVictim.getHand().removeCard(cardIndex);
+            gameDeck.receiveDiscard(card);
+            notifyEvent(pendingVictim.getPlayerName() + " used Just Say No. The action is cancelled.");
+            resetState();
+        } else {
+            notifyEvent("Invalid counter card.");
+        }
+    }
+
+    public Player getPendingVictim() {
+        return pendingVictim;
+    }
+
+    public GameState getCurrentState() {
+        return currentState;
     }
 
     private void resetState() {
         this.currentState = GameState.NORMAL_TURN;
         this.pendingAction = null;
         this.pendingVictim = null;
+        this.pendingVictims = null;
+        this.pendingVictimIndex = 0;
     }
 
-    // ==========================================
-    // 6. 辅助方法 (Helper Methods)
-    // ==========================================
+    public void initiateTargetedAttack(Player initiator, Consumer<Player> attackAction) {
+        Player victim = resolveTargetOrFirstOpponent(initiator);
+        if (victim == null) {
+            throw new IllegalStateException("no valid target for this action.");
+        }
+        initiateAttack(victim, () -> attackAction.accept(victim));
+    }
 
-    /**
-     * 获取除指定玩家以外的所有对手
-     * 供 RentCard (收租卡) 等需要遍历对手的卡牌调用
-     */
     public List<Player> getOpponents(Player player) {
         List<Player> opponents = new ArrayList<>();
-        // 遍历所有存活的玩家
-        for (Player p : activePlayers) {
-            // 如果不是自己，就加入到对手列表里
-            if (!p.equals(player)) {
-                opponents.add(p);
+        for (Player candidate : activePlayers) {
+            if (!candidate.equals(player)) {
+                opponents.add(candidate);
             }
         }
         return opponents;
     }
 
-    /**
-     * 处理全球支付（如：生日卡）
-     * @param initiator 发起者（收钱的人）
-     * @param amount 每人要交的金额
-     */
     public void processGlobalPayment(Player initiator, int amount) {
         List<Player> opponents = getOpponents(initiator);
-
-        notifyEvent("🎂 祝 " + initiator.getPlayerName() + " 生日快乐！每位对手需支付 " + amount + "M。");
-
         for (Player victim : opponents) {
-            // 逻辑：从受害者银行扣钱，给发起者
-            // 注意：这里调用的是队员 4 负责的 BankArea 逻辑
-            // 为了保证编译通过，请确保 Player 类有 getBankArea() 方法
             victim.getBankArea().pay(amount, initiator);
-
-            notifyEvent("💸 " + victim.getPlayerName() + " 向生日星支付了 " + amount + "M。");
         }
-
-        // 支付完成后通知 UI 刷新数据
-        notifyEvent("✅ 生日礼金收取完毕！");
+        notifyEvent("Global payment complete.");
     }
 
-    /**
-     * 为指定玩家抽取指定数量的牌
-     * 供 Pass Go (通行证) 等需要额外抽牌的卡牌调用
-     */
     public void drawCardsForPlayer(Player player, int count) {
-        // 1. 从牌堆抽牌
         List<Card> drawnCards = gameDeck.drawCards(count);
-
-        // 2. 加入玩家手牌
         player.getHand().addCards(drawnCards);
-
-        // 3. 通知 UI 界面更新
-        notifyEvent("🃏 " + player.getPlayerName() + " 额外抽了 " + count + " 张牌！");
+        notifyEvent(player.getPlayerName() + " drew " + drawnCards.size() + " extra card(s).");
+        checkDrawStalemate();
     }
 }
