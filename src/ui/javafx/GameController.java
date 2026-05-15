@@ -43,6 +43,7 @@ public class GameController implements GameObserver {
     private final Label turnLabel = new Label("Turn");
     private final Label deckLabel = new Label("Deck");
     private final Label discardLabel = new Label("Discard");
+    private final CardView drawPileView = CardView.back(0);
     private final CardView discardPileView = new CardView("Discard", "");
     private final Button endTurnButton = new Button("End Turn");
     private final HBox gameOverActions = new HBox(10);
@@ -69,8 +70,14 @@ public class GameController implements GameObserver {
         opponents.setAlignment(Pos.CENTER);
         opponents.setStyle("-fx-background-color: #1d2b33; -fx-border-color: #43545f;"
                 + "-fx-border-width: 0 0 1 0;");
-        root.setStyle("-fx-background-color: #0d0f12;"); // 调整为和 css 一致的暗黑背景
-        root.setTop(opponents);
+        root.setStyle("-fx-background-color: #0d0f12;"); // 璋冩暣涓哄拰 css 涓€鑷寸殑鏆楅粦鑳屾櫙
+        ScrollPane opponentScroll = new ScrollPane(opponents);
+        opponentScroll.setFitToHeight(true);
+        opponentScroll.setHbarPolicy(ScrollPane.ScrollBarPolicy.AS_NEEDED);
+        opponentScroll.setVbarPolicy(ScrollPane.ScrollBarPolicy.NEVER);
+        opponentScroll.setMaxHeight(190);
+        opponentScroll.setStyle("-fx-background-color: #1d2b33; -fx-background: #1d2b33;");
+        root.setTop(opponentScroll);
         root.setCenter(createCenter());
         root.setBottom(createPlayerPanel());
         root.setRight(createLogPanel());
@@ -85,11 +92,11 @@ public class GameController implements GameObserver {
         });
         styleButton(endTurnButton);
 
-        Button newGame = new Button("开始新游戏");
+        Button newGame = new Button("New Game");
         newGame.setOnAction(event -> newGameAction.run());
         styleButton(newGame);
 
-        Button exitGame = new Button("退出游戏");
+        Button exitGame = new Button("Exit Game");
         exitGame.setOnAction(event -> exitGameAction.run());
         styleButton(exitGame);
 
@@ -99,7 +106,7 @@ public class GameController implements GameObserver {
         gameOverActions.setManaged(false);
 
         HBox piles = new HBox(18,
-                CardView.back(game.getGameDeck().getDrawPileSize()),
+                drawPileView,
                 discardPileView);
         piles.setAlignment(Pos.CENTER);
 
@@ -116,27 +123,27 @@ public class GameController implements GameObserver {
     }
 
     /**
-     * 优化点1：彻底改造底部布局。
-     * 将原本垂直堆叠的 Bank 和 Properties 拆解开，与 Hand 并排形成横向三列（左、中、右）。
-     * 高度大大缩减，完美容纳一整排卡牌，不需要任何垂直滚动。
+     * 浼樺寲鐐?锛氬交搴曟敼閫犲簳閮ㄥ竷灞€銆?
+     * 灏嗗師鏈瀭鐩村爢鍙犵殑 Bank 鍜?Properties 鎷嗚В寮€锛屼笌 Hand 骞舵帓褰㈡垚妯悜涓夊垪锛堝乏銆佷腑銆佸彸锛夈€?
+     * 楂樺害澶уぇ缂╁噺锛屽畬缇庡绾充竴鏁存帓鍗＄墝锛屼笉闇€瑕佷换浣曞瀭鐩存粴鍔ㄣ€?
      */
     private ScrollPane createPlayerPanel() {
         Label hand = sectionLabel("Hand", "#ffd7a8");
         Label bank = sectionLabel("Bank", "#ccecc3");
         Label property = sectionLabel("Properties", "#cbd8ff");
 
-        // 将它们拆分为独立的三列
+        // 灏嗗畠浠媶鍒嗕负鐙珛鐨勪笁鍒?
         VBox handColumn = new VBox(8, hand, handView);
         VBox bankColumn = new VBox(8, bank, bankView);
         VBox propertyColumn = new VBox(8, property, propertyView);
 
-        // 横向并排组合
+        // 妯悜骞舵帓缁勫悎
         HBox content = new HBox(12, handColumn, bankColumn, propertyColumn);
         HBox.setHgrow(handColumn, Priority.ALWAYS);
         HBox.setHgrow(bankColumn, Priority.ALWAYS);
         HBox.setHgrow(propertyColumn, Priority.ALWAYS);
 
-        // 配合 100x140 的新版卡牌设定合理的最小宽度
+        // 閰嶅悎 100x140 鐨勬柊鐗堝崱鐗岃瀹氬悎鐞嗙殑鏈€灏忓搴?
         handColumn.setMinWidth(360);
         bankColumn.setMinWidth(220);
         propertyColumn.setMinWidth(360);
@@ -163,7 +170,7 @@ public class GameController implements GameObserver {
         scroll.setHbarPolicy(ScrollPane.ScrollBarPolicy.AS_NEEDED);
         scroll.setVbarPolicy(ScrollPane.ScrollBarPolicy.AS_NEEDED);
 
-        // 自适应高度调整：240px 刚好完美不留白容纳一排 140px 高度的卡牌与分类标题
+        // 鑷€傚簲楂樺害璋冩暣锛?40px 鍒氬ソ瀹岀編涓嶇暀鐧藉绾充竴鎺?140px 楂樺害鐨勫崱鐗屼笌鍒嗙被鏍囬
         scroll.setPrefViewportHeight(240);
         scroll.setMaxHeight(260);
         scroll.setStyle("-fx-background-color: #17262d; -fx-background: #17262d;"
@@ -172,8 +179,8 @@ public class GameController implements GameObserver {
     }
 
     /**
-     * 优化点2：修复Log日志框文字颜色和背景。
-     * 移除原先硬编码的黄色背景，使其跟 style.css 的暗黑科技风格融为一体。
+     * 浼樺寲鐐?锛氫慨澶峀og鏃ュ織妗嗘枃瀛楅鑹插拰鑳屾櫙銆?
+     * 绉婚櫎鍘熷厛纭紪鐮佺殑榛勮壊鑳屾櫙锛屼娇鍏惰窡 style.css 鐨勬殫榛戠鎶€椋庢牸铻嶄负涓€浣撱€?
      */
     private VBox createLogPanel() {
         Label logTitle = sectionLabel("Log", "#f7d0d7");
@@ -183,7 +190,7 @@ public class GameController implements GameObserver {
         panel.setStyle("-fx-background-color: #0d0f12; -fx-border-color: #3f5262;"
                 + "-fx-border-width: 0 0 0 1;");
 
-        // 将内部背景改成与赛博朋克 css 统一的深色（#16181b），这样 css 里的灰色和绿色高亮文本就能完美看清了！
+        // 灏嗗唴閮ㄨ儗鏅敼鎴愪笌璧涘崥鏈嬪厠 css 缁熶竴鐨勬繁鑹诧紙#16181b锛夛紝杩欐牱 css 閲岀殑鐏拌壊鍜岀豢鑹查珮浜枃鏈氨鑳藉畬缇庣湅娓呬簡锛?
         logView.setStyle("-fx-control-inner-background: #16181b; "
                 + "-fx-background-color: #16181b; -fx-background-radius: 8;"
                 + "-fx-border-color: #3b424a; -fx-border-radius: 8;"
@@ -200,13 +207,17 @@ public class GameController implements GameObserver {
                 + " | Actions: " + game.getActionsRemaining()
                 + " | Sets: " + current.getPropertyArea().countCompletedSets() + "/3");
         deckLabel.setText("Draw pile: " + game.getGameDeck().getDrawPileSize());
+        drawPileView.getChildren().clear();
+        drawPileView.getChildren().add(CardView.back(game.getGameDeck().getDrawPileSize()));
         Card discardTop = game.getGameDeck().peekDiscardTop();
         discardLabel.setText("Discard: " + (discardTop == null ? "Empty" : discardTop.getCardName()));
 
         // Update discard pile visual
+        discardPileView.getChildren().clear();
         if (discardTop != null) {
-            discardPileView.getChildren().clear();
             discardPileView.getChildren().add(new CardView(discardTop));
+        } else {
+            discardPileView.getChildren().add(new CardView("Discard", ""));
         }
 
         boolean gameOver = game.isGameOver();
@@ -270,11 +281,32 @@ public class GameController implements GameObserver {
 
         MenuItem play = new MenuItem("Play card");
         play.setOnAction(event -> {
+            if (card instanceof cards.DoubleTheRentCard) {
+                playDoubleRent(cardIndex);
+                renderAll();
+                return;
+            }
+
+            TargetInfo targetInfo = null;
+            if (card instanceof cards.HouseCard) {
+                targetInfo = chooseImprovementTarget(game.getCurrentPlayer().getPropertyArea().getHouseEligibleColors());
+                if (targetInfo == null) {
+                    onGameEvent("No eligible complete set for House.");
+                    return;
+                }
+            } else if (card instanceof cards.HotelCard) {
+                targetInfo = chooseImprovementTarget(game.getCurrentPlayer().getPropertyArea().getHotelEligibleColors());
+                if (targetInfo == null) {
+                    onGameEvent("No eligible complete set for Hotel.");
+                    return;
+                }
+            }
+
             if (card instanceof cards.RentCard && ((cards.RentCard) card).isMultiColor()) {
                 cards.RentCard rentCard = (cards.RentCard) card;
                 enums.PropertyColor selectedColor = chooseColor(rentCard.getColorOptions());
                 if (selectedColor == null) {
-                    onGameEvent("取消使用 " + card.getCardName());
+                    onGameEvent("Cancelled " + card.getCardName());
                     return;
                 }
                 rentCard.setSelectedColor(selectedColor);
@@ -289,7 +321,7 @@ public class GameController implements GameObserver {
                 enums.PropertyColor selectedColor = chooseColor(options);
 
                 if (selectedColor == null) {
-                    onGameEvent("取消使用 " + card.getCardName());
+                    onGameEvent("Cancelled " + card.getCardName());
                     return;
                 }
 
@@ -300,15 +332,13 @@ public class GameController implements GameObserver {
                 }
             }
             if (needsTarget(card)) {
-                TargetInfo target = chooseTarget();
-                if (target == null) {
-                    onGameEvent("取消使用 " + card.getCardName());
+                targetInfo = chooseTarget(card);
+                if (targetInfo == null) {
+                    onGameEvent("Cancelled " + card.getCardName());
                     return;
                 }
-                game.executePlayerAction(cardIndex, target);
-            } else {
-                game.executePlayerAction(cardIndex, null);
             }
+            game.executePlayerAction(cardIndex, targetInfo);
             renderAll();
         });
 
@@ -331,10 +361,20 @@ public class GameController implements GameObserver {
         return result.orElse(null);
     }
 
-    private TargetInfo chooseTarget() {
-        List<Player> choices = game.getOpponents(game.getCurrentPlayer());
+    private TargetInfo chooseTarget(Card card) {
+        java.util.List<Player> choices = new java.util.ArrayList<>(game.getOpponents(game.getCurrentPlayer()));
+        if (card instanceof cards.SlyDealCard) {
+            choices.removeIf(player -> player.getPropertyArea().getStealableIncompleteColors().isEmpty());
+        } else if (card instanceof cards.ForceDealCard) {
+            if (game.getCurrentPlayer().getPropertyArea().getPropertyColorsWithCards().isEmpty()) {
+                return null;
+            }
+            choices.removeIf(player -> player.getPropertyArea().getPropertyColorsWithCards().isEmpty());
+        } else if (card instanceof cards.DealBreakerCard) {
+            choices.removeIf(player -> player.getPropertyArea().countCompletedSets() == 0);
+        }
         if (choices.isEmpty()) {
-            onGameEvent("没有可选的对手");
+            onGameEvent("No available opponent.");
             return null;
         }
         ChoiceDialog<Player> dialog = new ChoiceDialog<>(choices.get(0), FXCollections.observableArrayList(choices));
@@ -342,7 +382,116 @@ public class GameController implements GameObserver {
         dialog.setHeaderText("Select a player to perform the action on");
         dialog.setContentText("Target:");
         Optional<Player> selected = dialog.showAndWait();
-        return selected.map(TargetInfo::new).orElse(null);
+        if (!selected.isPresent()) {
+            return null;
+        }
+
+        Player target = selected.get();
+        if (card instanceof cards.SlyDealCard) {
+            PropertyPick targetCard = choosePropertyCard(target, target.getPropertyArea().getStealableIncompleteColors(),
+                    "Choose property to steal");
+            if (targetCard == null) {
+                return null;
+            }
+            return new TargetInfo(target, targetCard.color, targetCard.index);
+        }
+        if (card instanceof cards.ForceDealCard) {
+            PropertyPick mine = choosePropertyCard(game.getCurrentPlayer(),
+                    game.getCurrentPlayer().getPropertyArea().getPropertyColorsWithCards(),
+                    "Choose your property to give");
+            if (mine == null) {
+                return null;
+            }
+            PropertyPick theirs = choosePropertyCard(target, target.getPropertyArea().getPropertyColorsWithCards(),
+                    "Choose target property to receive");
+            if (theirs == null) {
+                return null;
+            }
+            return new TargetInfo(target, mine.color, mine.index, theirs.color, theirs.index);
+        }
+        return new TargetInfo(target);
+    }
+
+    private TargetInfo chooseImprovementTarget(List<enums.PropertyColor> colors) {
+        if (colors.isEmpty()) {
+            return null;
+        }
+        ChoiceDialog<enums.PropertyColor> dialog = new ChoiceDialog<>(colors.get(0), colors);
+        dialog.setTitle("Choose Property Set");
+        dialog.setHeaderText("Select a set");
+        dialog.setContentText("Set:");
+        Optional<enums.PropertyColor> selected = dialog.showAndWait();
+        return selected.map(TargetInfo::forImprovement).orElse(null);
+    }
+
+    private PropertyPick choosePropertyCard(Player owner, List<enums.PropertyColor> colors, String title) {
+        java.util.List<PropertyPick> picks = new java.util.ArrayList<>();
+        for (enums.PropertyColor color : colors) {
+            List<cards.PropertyCard> cards = owner.getPropertyArea().getCards(color);
+            for (int i = 0; i < cards.size(); i++) {
+                picks.add(new PropertyPick(color, i, color + " - " + cards.get(i).getCardName()));
+            }
+        }
+        if (picks.isEmpty()) {
+            return null;
+        }
+        ChoiceDialog<PropertyPick> dialog = new ChoiceDialog<>(picks.get(0), picks);
+        dialog.setTitle(title);
+        dialog.setHeaderText(owner.getPlayerName());
+        dialog.setContentText("Property:");
+        return dialog.showAndWait().orElse(null);
+    }
+
+    private void playDoubleRent(int doubleCardIndex) {
+        List<Card> hand = game.getCurrentPlayer().getHand().getCards();
+        java.util.List<Integer> rentIndexes = new java.util.ArrayList<>();
+        java.util.List<String> choices = new java.util.ArrayList<>();
+        for (int i = 0; i < hand.size(); i++) {
+            if (i != doubleCardIndex && hand.get(i) instanceof cards.RentCard) {
+                rentIndexes.add(i);
+                choices.add(i + ": " + hand.get(i).getCardName());
+            }
+        }
+        if (choices.isEmpty()) {
+            onGameEvent("Double The Rent must be paired with a rent card.");
+            return;
+        }
+        ChoiceDialog<String> dialog = new ChoiceDialog<>(choices.get(0), choices);
+        dialog.setTitle("Double The Rent");
+        dialog.setHeaderText("Choose a rent card to play with it");
+        dialog.setContentText("Rent:");
+        Optional<String> selected = dialog.showAndWait();
+        if (!selected.isPresent()) {
+            return;
+        }
+        int rentCardIndex = rentIndexes.get(choices.indexOf(selected.get()));
+        Card rent = hand.get(rentCardIndex);
+        if (rent instanceof cards.RentCard && ((cards.RentCard) rent).isMultiColor()) {
+            cards.RentCard rentCard = (cards.RentCard) rent;
+            enums.PropertyColor selectedColor = chooseColor(rentCard.getColorOptions());
+            if (selectedColor == null) {
+                return;
+            }
+            rentCard.setSelectedColor(selectedColor);
+        }
+        game.executeDoubleRentAction(doubleCardIndex, rentCardIndex, null);
+    }
+
+    private static class PropertyPick {
+        final enums.PropertyColor color;
+        final int index;
+        final String label;
+
+        PropertyPick(enums.PropertyColor color, int index, String label) {
+            this.color = color;
+            this.index = index;
+            this.label = label;
+        }
+
+        @Override
+        public String toString() {
+            return label;
+        }
     }
 
     private void renderBank(Player current) {
