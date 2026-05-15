@@ -2,7 +2,6 @@ package cards;
 
 import core.GameManager;
 import player.Player;
-
 import java.util.List;
 
 public class BirthdayCard extends ActionCard {
@@ -16,9 +15,12 @@ public class BirthdayCard extends ActionCard {
         List<Player> opponents = GameManager.getInstance().getOpponents(initiator);
         if (opponents.isEmpty()) return;
 
-        // 以第一个对手作为可被反制的目标
-        GameManager.getInstance().initiateAttack(opponents.get(0), () -> {
-            GameManager.getInstance().processGlobalPayment(initiator, 2);
-        });
+        // 核心修复：遍历所有对手，让他们每个人都有机会独立触发 Just Say No 机制
+        for (Player victim : opponents) {
+            GameManager.getInstance().initiateAttack(victim, () -> {
+                victim.getBankArea().pay(2, initiator);
+                System.out.println("🎂 " + victim.getPlayerName() + " 向 " + initiator.getPlayerName() + " 支付了 2M 生日礼金！");
+            });
+        }
     }
 }

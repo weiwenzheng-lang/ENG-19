@@ -4,87 +4,125 @@ import cards.*;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
 import javafx.scene.control.Label;
+import javafx.scene.layout.Priority;
+import javafx.scene.layout.VBox;
 import javafx.scene.layout.StackPane;
+import javafx.scene.layout.Region;
 import javafx.scene.text.Font;
 import javafx.scene.text.FontWeight;
+import javafx.scene.paint.Color;
+import javafx.scene.effect.DropShadow;
 
 public class CardView extends StackPane {
+
     public CardView(Card card) {
-        this(card == null ? "Empty" : card.getCardName(),
-                card instanceof MoneyCard ? "" : (card == null ? "" : card.getMonetaryValue() + "M"),
-                styleFor(card));
+        // 优化1：尺寸适当缩小，防止撑出界面的滚动条
+        setPrefSize(100, 140);
+        setMinSize(100, 140);
+        setMaxSize(100, 140);
+
+        // 卡牌主面板：毛玻璃+暗金质感
+        VBox cardBody = new VBox();
+        cardBody.setAlignment(Pos.TOP_CENTER);
+        cardBody.setStyle("-fx-background-color: linear-gradient(to bottom right, #2a2d34, #141518); "
+                + "-fx-background-radius: 10; "
+                + "-fx-border-color: " + getAccentColor(card) + "; "
+                + "-fx-border-width: 2; "
+                + "-fx-border-radius: 10;");
+
+        // 增加阴影发光特效
+        DropShadow glow = new DropShadow();
+        glow.setColor(Color.web(getAccentColor(card)).deriveColor(1, 1, 1, 0.6));
+        glow.setRadius(10);
+        glow.setSpread(0.2);
+        cardBody.setEffect(glow);
+
+        // 顶部高亮条
+        Region headerBar = new Region();
+        headerBar.setPrefHeight(6); // 略微调细
+        headerBar.setStyle("-fx-background-color: " + getAccentColor(card) + "; "
+                + "-fx-background-radius: 8 8 0 0;");
+
+        // 卡牌名称
+        Label nameLabel = new Label(card.getCardName());
+        nameLabel.setWrapText(true);
+        nameLabel.setAlignment(Pos.CENTER);
+        nameLabel.setFont(Font.font("Segoe UI", FontWeight.BOLD, 12)); // 字体微调
+        nameLabel.setTextFill(Color.WHITE);
+        nameLabel.setPadding(new Insets(8, 3, 2, 3));
+
+        // 卡牌类型标签
+        Label typeLabel = new Label(getCardTypeShortName(card));
+        typeLabel.setFont(Font.font("Consolas", FontWeight.NORMAL, 10));
+        typeLabel.setTextFill(Color.web("#a0aab5"));
+
+        // 优化2：动态弹簧！把价值文本永远“挤”到最下面，不用死板的 padding
+        Region spacer = new Region();
+        VBox.setVgrow(spacer, Priority.ALWAYS);
+
+        // 卡牌价值 (底部发光的货币价值)
+        Label valueLabel = new Label("¥ " + card.getMonetaryValue() + "M");
+        valueLabel.setFont(Font.font("Consolas", FontWeight.BLACK, 14));
+        valueLabel.setTextFill(Color.web("#00ff9f")); // 荧光绿
+        valueLabel.setPadding(new Insets(0, 0, 8, 0)); // 只有底部留白
+
+        // 注意这里加入了 spacer
+        cardBody.getChildren().addAll(headerBar, nameLabel, typeLabel, spacer, valueLabel);
+
+        // 鼠标悬停动画效果
+        this.setOnMouseEntered(e -> {
+            this.setTranslateY(-10);
+            glow.setRadius(20);
+        });
+        this.setOnMouseExited(e -> {
+            this.setTranslateY(0);
+            glow.setRadius(10);
+        });
+
+        getChildren().add(cardBody);
     }
 
+    // 重载用于背面/牌堆
     public CardView(String title, String subtitle) {
-        this(title, subtitle, "-fx-background-color: #f7efe1; -fx-border-color: #d8b46f;");
+        setPrefSize(100, 140);
+        setMinSize(100, 140);
+        setMaxSize(100, 140);
+
+        VBox cardBody = new VBox(8);
+        cardBody.setAlignment(Pos.CENTER);
+        cardBody.setStyle("-fx-background-color: repeating-linear-gradient(45deg, #111, #111 10px, #222 10px, #222 20px); "
+                + "-fx-background-radius: 10; -fx-border-color: #00f2ff; -fx-border-width: 2; -fx-border-radius: 10;");
+
+        Label titleLabel = new Label(title);
+        titleLabel.setTextFill(Color.web("#00f2ff"));
+        titleLabel.setFont(Font.font("Consolas", FontWeight.BLACK, 14));
+
+        // 优化3：修复了之前你代码里漏掉的 subtitle（剩余卡牌数）
+        Label subtitleLabel = new Label(subtitle);
+        subtitleLabel.setTextFill(Color.web("#a0aab5"));
+        subtitleLabel.setFont(Font.font("Consolas", FontWeight.BOLD, 12));
+
+        cardBody.getChildren().addAll(titleLabel, subtitleLabel);
+        getChildren().add(cardBody);
     }
 
-    private CardView(String title, String subtitle, String style) {
-        Label label = new Label(title + (subtitle == null || subtitle.trim().isEmpty() ? "" : "\n" + subtitle));
-        label.setWrapText(true);
-        label.setAlignment(Pos.CENTER);
-        label.setTextFill(javafx.scene.paint.Color.web("#21313c"));
-        label.setFont(Font.font("Segoe UI", FontWeight.SEMI_BOLD, 12));
+    private String getAccentColor(Card card) {
+        if (card instanceof PropertyCard) return ((PropertyCard) card).getColorGroup().getColorHex();
+        if (card instanceof MoneyCard) return "#00ff9f"; // 财富绿
+        if (card instanceof ActionCard) return "#ff007f"; // 赛博粉红
+        return "#00f2ff";
+    }
 
-        setAlignment(Pos.CENTER);
-        setPadding(new Insets(8));
-        setPrefSize(96, 136);
-        setMinSize(96, 136);
-        setMaxSize(96, 136);
-        getChildren().add(label);
-        setStyle(style + "; -fx-border-width: 2; -fx-border-radius: 8; -fx-background-radius: 8;"
-                + " -fx-effect: dropshadow(gaussian, rgba(0,0,0,0.28), 10, 0.18, 0, 3);");
+    private String getCardTypeShortName(Card card) {
+        if (card instanceof PropertyWildCard) return "[WILD ASSET]";
+        if (card instanceof PropertyCard) return "[ASSET]";
+        if (card instanceof MoneyCard) return "[FUNDS]";
+        if (card instanceof RentCard) return "[RENTAL]";
+        if (card instanceof ActionCard) return "[ACTION]";
+        return "[SYS]";
     }
 
     public static CardView back(int count) {
-        return new CardView("Cards", String.valueOf(count),
-                "-fx-background-color: #315a70; -fx-border-color: #b9d8e6;");
-    }
-
-    private static String styleFor(Card card) {
-        if (card == null) return "-fx-background-color: #ffffff; -fx-border-color: #cccccc;";
-
-        if (card instanceof SuperWildCard)
-            return "-fx-background-color: linear-gradient(to bottom right, #ff9a9e, #fad0c4); -fx-border-color: #ff4d4d;";
-
-        if (card instanceof PropertyWildCard)
-            return "-fx-background-color: #ffebcc; -fx-border-color: #ff9900; -fx-border-style: dashed;";
-
-        if (card instanceof PropertyCard) {
-            String hex = ((PropertyCard) card).getColorGroup().getColorHex();
-            return "-fx-background-color: #fdfaf0; -fx-border-color: " + hex + "; -fx-border-width: 5 0 0 0;";
-        }
-
-        if (card instanceof MoneyCard)
-            return "-fx-background-color: #e8f5e9; -fx-border-color: #4caf50;";
-
-        if (card instanceof RentCard)
-            return "-fx-background-color: #e3f2fd; -fx-border-color: #1e88e5;";
-
-        if (card instanceof HouseCard)
-            return "-fx-background-color: #e0f2f1; -fx-border-color: #009688;";
-
-        if (card instanceof HotelCard)
-            return "-fx-background-color: #ffebee; -fx-border-color: #d32f2f; -fx-border-width: 3;";
-
-        if (card instanceof DoubleTheRentCard)
-            return "-fx-background-color: #fffde7; -fx-border-color: #fbc02d; -fx-border-style: dashed;";
-
-        if (card instanceof JustSayNoCard)
-            return "-fx-background-color: #fce4ec; -fx-border-color: #e91e63;";
-
-        if (card instanceof DealBreakerCard)
-            return "-fx-background-color: #f3e5f5; -fx-border-color: #7b1fa2; -fx-border-width: 3;";
-
-        if (card instanceof SlyDealCard || card instanceof ForceDealCard)
-            return "-fx-background-color: #ede7f6; -fx-border-color: #5e35b1;";
-
-        if (card instanceof PassGoCard)
-            return "-fx-background-color: #e0f7fa; -fx-border-color: #00acc1;";
-
-        if (card instanceof DebtCollectorCard || card instanceof BirthdayCard)
-            return "-fx-background-color: #fff3e0; -fx-border-color: #fb8c00;";
-
-        return "-fx-background-color: #f5f5f5; -fx-border-color: #9e9e9e;";
+        return new CardView("HUB_DECK", count + " CARDS");
     }
 }

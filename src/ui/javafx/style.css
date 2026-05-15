@@ -1,0 +1,64 @@
+/* ui/javafx/style.css */
+.root {
+    -fx-background-color: radial-gradient(center 50% 50%, radius 70%, #151828, #07090f);
+    -fx-font-family: 'Segoe UI', sans-serif;
+}
+
+/* 霓虹按钮设计 */
+.button {
+    -fx-background-color: transparent;
+    -fx-text-fill: #00f2ff;
+    -fx-border-color: #00f2ff;
+    -fx-border-width: 2;
+    -fx-border-radius: 6;
+    -fx-background-radius: 6;
+    -fx-padding: 10 20;
+    -fx-font-family: 'Consolas', monospace;
+    -fx-font-weight: bold;
+    -fx-cursor: hand;
+    -fx-transition: all 0.2s ease;
+}
+
+.button:hover {
+    -fx-background-color: rgba(0, 242, 255, 0.2);
+    -fx-effect: dropshadow(gaussian, #00f2ff, 15, 0.5, 0, 0);
+    -fx-text-fill: #ffffff;
+}
+
+.button:pressed {
+    -fx-background-color: #00f2ff;
+    -fx-text-fill: #000000;
+}
+
+/* 危险操作按钮 (如End Turn) */
+.danger-button {
+    -fx-text-fill: #ff0055;
+    -fx-border-color: #ff0055;
+}
+.danger-button:hover {
+    -fx-background-color: rgba(255, 0, 85, 0.2);
+    -fx-effect: dropshadow(gaussian, #ff0055, 15, 0.5, 0, 0);
+    -fx-text-fill: #ffffff;
+}
+
+/* 控制台日志面板 */
+.list-view {
+    -fx-background-color: rgba(10, 15, 25, 0.8);
+    -fx-border-color: #3b424a;
+    -fx-border-width: 1;
+    -fx-background-radius: 8;
+    -fx-border-radius: 8;
+    -fx-padding: 5;
+}
+
+.list-cell {
+    -fx-background-color: transparent;
+    -fx-text-fill: #ffff; /* 终端黑客绿 */
+    -fx-font-family: 'Consolas', monospace;
+    -fx-font-size: 12px;
+    -fx-padding: 4 8;
+}
+
+.list-cell:empty {
+    -fx-background-color: transparent;
+}

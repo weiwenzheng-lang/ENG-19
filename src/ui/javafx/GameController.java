@@ -69,7 +69,7 @@ public class GameController implements GameObserver {
         opponents.setAlignment(Pos.CENTER);
         opponents.setStyle("-fx-background-color: #1d2b33; -fx-border-color: #43545f;"
                 + "-fx-border-width: 0 0 1 0;");
-        root.setStyle("-fx-background-color: #132127;");
+        root.setStyle("-fx-background-color: #0d0f12;"); // 调整为和 css 一致的暗黑背景
         root.setTop(opponents);
         root.setCenter(createCenter());
         root.setBottom(createPlayerPanel());
@@ -107,62 +107,87 @@ public class GameController implements GameObserver {
                 piles, endTurnButton, gameOverActions);
         center.setAlignment(Pos.CENTER);
         center.setPadding(new Insets(18));
-        center.setStyle("-fx-background-color: #23343b;"
-                + "-fx-border-color: #58716f; -fx-border-width: 0 1 0 1;");
+        center.setStyle("-fx-background-color: #0e2535;"
+                + "-fx-border-color: #3b424a; -fx-border-width: 0 1 0 1;");
         styleInfoLabel(turnLabel, "#f8fbf6");
         styleInfoLabel(deckLabel, "#cfe7dd");
         styleInfoLabel(discardLabel, "#ead8b3");
         return center;
     }
 
+    /**
+     * 优化点1：彻底改造底部布局。
+     * 将原本垂直堆叠的 Bank 和 Properties 拆解开，与 Hand 并排形成横向三列（左、中、右）。
+     * 高度大大缩减，完美容纳一整排卡牌，不需要任何垂直滚动。
+     */
     private ScrollPane createPlayerPanel() {
         Label hand = sectionLabel("Hand", "#ffd7a8");
         Label bank = sectionLabel("Bank", "#ccecc3");
         Label property = sectionLabel("Properties", "#cbd8ff");
 
+        // 将它们拆分为独立的三列
         VBox handColumn = new VBox(8, hand, handView);
-        VBox assetColumn = new VBox(8, bank, bankView, property, propertyView);
-        HBox content = new HBox(12, handColumn, assetColumn);
+        VBox bankColumn = new VBox(8, bank, bankView);
+        VBox propertyColumn = new VBox(8, property, propertyView);
+
+        // 横向并排组合
+        HBox content = new HBox(12, handColumn, bankColumn, propertyColumn);
         HBox.setHgrow(handColumn, Priority.ALWAYS);
-        HBox.setHgrow(assetColumn, Priority.ALWAYS);
-        handColumn.setMinWidth(380);
-        assetColumn.setMinWidth(320);
+        HBox.setHgrow(bankColumn, Priority.ALWAYS);
+        HBox.setHgrow(propertyColumn, Priority.ALWAYS);
+
+        // 配合 100x140 的新版卡牌设定合理的最小宽度
+        handColumn.setMinWidth(360);
+        bankColumn.setMinWidth(220);
+        propertyColumn.setMinWidth(360);
 
         VBox panel = new VBox(content);
         panel.setPadding(new Insets(14));
         panel.setStyle("-fx-background-color: #17262d; -fx-border-color: #314a55;"
                 + "-fx-border-width: 1 0 0 0;");
         panel.setFillWidth(true);
-        handView.setStyle("-fx-background-color: rgba(255,215,168,0.08);"
+
+        handView.setStyle("-fx-background-color: rgba(255,215,168,0.05);"
                 + "-fx-background-radius: 10; -fx-padding: 10;");
-        bankView.setStyle("-fx-background-color: rgba(204,236,195,0.08);"
+        bankView.setStyle("-fx-background-color: rgba(204,236,195,0.05);"
                 + "-fx-background-radius: 10; -fx-padding: 10;");
-        propertyView.setStyle("-fx-background-color: rgba(203,216,255,0.08);"
+        propertyView.setStyle("-fx-background-color: rgba(203,216,255,0.05);"
                 + "-fx-background-radius: 10; -fx-padding: 10;");
+
+        VBox.setVgrow(handView, Priority.ALWAYS);
+        VBox.setVgrow(bankView, Priority.ALWAYS);
         VBox.setVgrow(propertyView, Priority.ALWAYS);
 
         ScrollPane scroll = new ScrollPane(panel);
         scroll.setFitToWidth(true);
         scroll.setHbarPolicy(ScrollPane.ScrollBarPolicy.AS_NEEDED);
         scroll.setVbarPolicy(ScrollPane.ScrollBarPolicy.AS_NEEDED);
-        scroll.setPrefViewportHeight(300);
-        scroll.setMaxHeight(340);
+
+        // 自适应高度调整：240px 刚好完美不留白容纳一排 140px 高度的卡牌与分类标题
+        scroll.setPrefViewportHeight(240);
+        scroll.setMaxHeight(260);
         scroll.setStyle("-fx-background-color: #17262d; -fx-background: #17262d;"
                 + "-fx-border-color: #314a55; -fx-border-width: 1 0 0 0;");
         return scroll;
     }
 
+    /**
+     * 优化点2：修复Log日志框文字颜色和背景。
+     * 移除原先硬编码的黄色背景，使其跟 style.css 的暗黑科技风格融为一体。
+     */
     private VBox createLogPanel() {
         Label logTitle = sectionLabel("Log", "#f7d0d7");
         VBox panel = new VBox(8, logTitle, logView);
         panel.setPadding(new Insets(12));
         panel.setPrefWidth(300);
-        panel.setStyle("-fx-background-color: #202b35; -fx-border-color: #3f5262;"
+        panel.setStyle("-fx-background-color: #0d0f12; -fx-border-color: #3f5262;"
                 + "-fx-border-width: 0 0 0 1;");
-        logView.setStyle("-fx-control-inner-background: #f4ead8;"
-                + "-fx-background-color: #f4ead8; -fx-background-radius: 8;"
-                + "-fx-border-color: #c8a96b; -fx-border-radius: 8;"
-                + "-fx-font-family: 'Segoe UI'; -fx-font-size: 12px;");
+
+        // 将内部背景改成与赛博朋克 css 统一的深色（#16181b），这样 css 里的灰色和绿色高亮文本就能完美看清了！
+        logView.setStyle("-fx-control-inner-background: #16181b; "
+                + "-fx-background-color: #16181b; -fx-background-radius: 8;"
+                + "-fx-border-color: #3b424a; -fx-border-radius: 8;"
+                + "-fx-font-family: 'Consolas'; -fx-font-size: 12px;");
         VBox.setVgrow(logView, Priority.ALWAYS);
         return panel;
     }
@@ -254,7 +279,6 @@ public class GameController implements GameObserver {
                 }
                 rentCard.setSelectedColor(selectedColor);
             } else if (card instanceof cards.SuperWildCard || card instanceof cards.PropertyWildCard) {
-                // 获取可选颜色
                 enums.PropertyColor[] options;
                 if (card instanceof cards.SuperWildCard) {
                     options = ((cards.SuperWildCard) card).getAvailableColors();
@@ -262,7 +286,6 @@ public class GameController implements GameObserver {
                     options = ((cards.PropertyWildCard) card).getAvailableColors();
                 }
 
-                // 弹出选择框
                 enums.PropertyColor selectedColor = chooseColor(options);
 
                 if (selectedColor == null) {
@@ -270,18 +293,15 @@ public class GameController implements GameObserver {
                     return;
                 }
 
-                // 调用各自的 setCurrentColor
                 if (card instanceof cards.SuperWildCard) {
                     ((cards.SuperWildCard) card).setCurrentColor(selectedColor);
                 } else {
                     ((cards.PropertyWildCard) card).setCurrentColor(selectedColor);
                 }
             }
-            // 只有需要目标的卡才弹窗选人，否则直接打出
             if (needsTarget(card)) {
                 TargetInfo target = chooseTarget();
                 if (target == null) {
-                    // 用户取消了选择，不执行任何操作
                     onGameEvent("取消使用 " + card.getCardName());
                     return;
                 }
@@ -296,17 +316,10 @@ public class GameController implements GameObserver {
         menu.show(owner, javafx.geometry.Side.TOP, 0, 0);
     }
 
-    /**
-     * 判断卡牌是否需要选择目标（单个对手）
-     * 注意：RentCard 不需要选人，它会自动向所有对手收租
-     */
     private boolean needsTarget(Card card) {
         return card.requiresTarget();
     }
-    /**
-     * 支持不同数量的选项（2个或10个）
-     * @return 玩家选中的颜色，如果取消则返回 null
-     */
+
     private enums.PropertyColor chooseColor(enums.PropertyColor[] colorOptions) {
         List<enums.PropertyColor> options = java.util.Arrays.asList(colorOptions);
         ChoiceDialog<enums.PropertyColor> dialog = new ChoiceDialog<>(options.get(0), options);

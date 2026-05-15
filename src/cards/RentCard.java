@@ -47,11 +47,10 @@ public class RentCard extends ActionCard {
 
         if (opponents.isEmpty()) return;
 
-        // Wrap in initiateAttack so Just Say No can counter
-        gm.initiateAttack(opponents.get(0), () -> {
-            for (Player opponent : opponents) {
+        // 核心修复：分别对每个对手发起攻击结算，让他们可以独立 Just Say No
+        for (Player opponent : opponents) {
+            gm.initiateAttack(opponent, () -> {
                 int baseRent = 0;
-
                 Rentable set = opponent.getPropertyArea().getPropertySet(selectedColor);
                 if (set != null) {
                     baseRent = set.calculateRent();
@@ -64,9 +63,9 @@ public class RentCard extends ActionCard {
                             opponent.getPlayerName(), finalRent, multiplier);
                     opponent.getBankArea().pay(finalRent, initiator);
                 } else {
-                    System.out.println(opponent.getPlayerName() + " has no matching property, no rent to pay.");
+                    System.out.println(opponent.getPlayerName() + " 没有对应颜色房产，无需交租。");
                 }
-            }
-        });
+            });
+        }
     }
 }
