@@ -14,8 +14,8 @@ public class DecoratorTest {
 
         // 2. 创建一个深蓝色套装并凑齐它
         PropertySet mySet = new PropertySet(PropertyColor.DARK_BLUE);
-        mySet.addProperty(new PropertyCard(1, "The Peak", 4, PropertyColor.DARK_BLUE, false, darkBlueRent));
-        mySet.addProperty(new PropertyCard(2, "Repulse Bay", 4, PropertyColor.DARK_BLUE, false, darkBlueRent));
+        mySet.addProperty(new PropertyCard(1, "The Peak", 4, PropertyColor.DARK_BLUE, darkBlueRent));
+        mySet.addProperty(new PropertyCard(2, "Repulse Bay", 4, PropertyColor.DARK_BLUE, darkBlueRent));
 
         // --- 断言1：基础租金应为 8M ---
         assertEquals(8, mySet.calculateRent(), "基础两张深蓝色的租金应该是 8M");
@@ -43,7 +43,7 @@ public class DecoratorTest {
         PropertySet incompleteSet = new PropertySet(PropertyColor.DARK_BLUE);
 
         // 只加一张牌（不完整）
-        incompleteSet.addProperty(new PropertyCard(1, "The Peak", 4, PropertyColor.DARK_BLUE, false, darkBlueRent));
+        incompleteSet.addProperty(new PropertyCard(1, "The Peak", 4, PropertyColor.DARK_BLUE, darkBlueRent));
 
         assertThrows(IllegalStateException.class, () -> {
             new HouseDecorator(incompleteSet);

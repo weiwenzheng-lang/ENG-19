@@ -8,11 +8,15 @@ public class DebtCollectorCard extends ActionCard {
         super(id, name, value, "DEBT_COLLECTOR");
     }
 
+    @Override public boolean requiresTarget() { return true; }
+
     @Override
     public void executePlayLogic(Player initiator) {
         Player victim = GameManager.getInstance().resolveTargetOrFirstOpponent(initiator);
         if (victim != null) {
-            victim.getBankArea().pay(5, initiator);
+            GameManager.getInstance().initiateAttack(victim, () -> {
+                victim.getBankArea().pay(5, initiator);
+            });
         }
     }
 }

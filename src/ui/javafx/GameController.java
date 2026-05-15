@@ -11,7 +11,9 @@ import javafx.application.Platform;
 import javafx.collections.FXCollections;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
+import javafx.scene.control.Alert;
 import javafx.scene.control.Button;
+import javafx.scene.control.ButtonType;
 import javafx.scene.control.ChoiceDialog;
 import javafx.scene.control.ContextMenu;
 import javafx.scene.control.Label;
@@ -41,6 +43,7 @@ public class GameController implements GameObserver {
     private final Label turnLabel = new Label("Turn");
     private final Label deckLabel = new Label("Deck");
     private final Label discardLabel = new Label("Discard");
+    private final CardView discardPileView = new CardView("Discard", "");
     private final Button endTurnButton = new Button("End Turn");
     private final HBox gameOverActions = new HBox(10);
     private final Runnable newGameAction;
@@ -97,7 +100,7 @@ public class GameController implements GameObserver {
 
         HBox piles = new HBox(18,
                 CardView.back(game.getGameDeck().getDrawPileSize()),
-                new CardView("Discard", "Top card"));
+                discardPileView);
         piles.setAlignment(Pos.CENTER);
 
         VBox center = new VBox(14, title("Table"), turnLabel, deckLabel, discardLabel,
@@ -164,17 +167,37 @@ public class GameController implements GameObserver {
         return panel;
     }
 
+    private boolean winPopupShown = false;
+
     private void renderAll() {
         Player current = game.getCurrentPlayer();
         turnLabel.setText("Current: " + current.getPlayerName()
-                + " | Actions: " + game.getActionsRemaining());
+                + " | Actions: " + game.getActionsRemaining()
+                + " | Sets: " + current.getPropertyArea().countCompletedSets() + "/3");
         deckLabel.setText("Draw pile: " + game.getGameDeck().getDrawPileSize());
         Card discardTop = game.getGameDeck().peekDiscardTop();
         discardLabel.setText("Discard: " + (discardTop == null ? "Empty" : discardTop.getCardName()));
+
+        // Update discard pile visual
+        if (discardTop != null) {
+            discardPileView.getChildren().clear();
+            discardPileView.getChildren().add(new CardView(discardTop));
+        }
+
         boolean gameOver = game.isGameOver();
         endTurnButton.setDisable(gameOver);
         gameOverActions.setVisible(gameOver);
         gameOverActions.setManaged(gameOver);
+
+        if (gameOver && !winPopupShown) {
+            winPopupShown = true;
+            javafx.scene.control.Alert alert = new javafx.scene.control.Alert(
+                    javafx.scene.control.Alert.AlertType.INFORMATION);
+            alert.setTitle("Game Over");
+            alert.setHeaderText(current.getPlayerName() + " Wins!");
+            alert.setContentText("Collected 3 complete property sets!");
+            alert.show();
+        }
 
         renderOpponents(current);
         renderHand(current);
@@ -207,15 +230,30 @@ public class GameController implements GameObserver {
 
     private void showCardMenu(CardView owner, int cardIndex, Card card) {
         ContextMenu menu = new ContextMenu();
+
         MenuItem bank = new MenuItem("Deposit to bank");
         bank.setOnAction(event -> {
             game.depositCardToBank(cardIndex);
             renderAll();
         });
 
+        MenuItem discard = new MenuItem("Discard");
+        discard.setOnAction(event -> {
+            game.discardCard(cardIndex);
+            renderAll();
+        });
+
         MenuItem play = new MenuItem("Play card");
         play.setOnAction(event -> {
-            if (card instanceof cards.SuperWildCard || card instanceof cards.PropertyWildCard) {
+            if (card instanceof cards.RentCard && ((cards.RentCard) card).isMultiColor()) {
+                cards.RentCard rentCard = (cards.RentCard) card;
+                enums.PropertyColor selectedColor = chooseColor(rentCard.getColorOptions());
+                if (selectedColor == null) {
+                    onGameEvent("取消使用 " + card.getCardName());
+                    return;
+                }
+                rentCard.setSelectedColor(selectedColor);
+            } else if (card instanceof cards.SuperWildCard || card instanceof cards.PropertyWildCard) {
                 // 获取可选颜色
                 enums.PropertyColor[] options;
                 if (card instanceof cards.SuperWildCard) {
@@ -254,7 +292,7 @@ public class GameController implements GameObserver {
             renderAll();
         });
 
-        menu.getItems().addAll(bank, play);
+        menu.getItems().addAll(bank, discard, play);
         menu.show(owner, javafx.geometry.Side.TOP, 0, 0);
     }
 
@@ -263,11 +301,7 @@ public class GameController implements GameObserver {
      * 注意：RentCard 不需要选人，它会自动向所有对手收租
      */
     private boolean needsTarget(Card card) {
-        String name = card.getCardName();
-        return name.equals("Sly Deal")
-                || name.equals("Forced Deal")
-                || name.equals("Deal Breaker")
-                || name.equals("Debt Collector");
+        return card.requiresTarget();
     }
     /**
      * 支持不同数量的选项（2个或10个）
@@ -343,7 +377,53 @@ public class GameController implements GameObserver {
         Platform.runLater(() -> {
             logView.getItems().add(0, message);
             renderAll();
+
+            if (message.contains("[INTERRUPT_REQUEST]")) {
+                handleInterruptRequest();
+            }
         });
+    }
+
+    private void handleInterruptRequest() {
+        if (game.getCurrentState() != GameManager.GameState.WAITING_FOR_COUNTER_ACTION) return;
+
+        Player victim = game.getPendingVictim();
+        if (victim == null) return;
+
+        List<Card> hand = victim.getHand().getCards();
+        int jsnIdx = -1;
+        for (int i = 0; i < hand.size(); i++) {
+            if (hand.get(i).getCardName().equals("Just Say No")) {
+                jsnIdx = i;
+                break;
+            }
+        }
+        final int jsnIndex = jsnIdx;
+
+        Alert alert = new Alert(
+                jsnIndex >= 0
+                        ? Alert.AlertType.CONFIRMATION
+                        : Alert.AlertType.INFORMATION);
+        alert.setTitle("Counter Action");
+        alert.setHeaderText(victim.getPlayerName() + " is under attack!");
+
+        if (jsnIndex >= 0) {
+            alert.setContentText("Use Just Say No to counter?");
+            alert.getButtonTypes().setAll(ButtonType.YES, ButtonType.NO);
+            alert.showAndWait().ifPresent(response -> {
+                if (response == ButtonType.YES) {
+                    game.counterAttackWithJustSayNo(jsnIndex);
+                } else {
+                    game.resolvePendingAction();
+                }
+                renderAll();
+            });
+        } else {
+            alert.setContentText("No Just Say No available. The action will proceed.");
+            alert.showAndWait();
+            game.resolvePendingAction();
+            renderAll();
+        }
     }
 
     @Override

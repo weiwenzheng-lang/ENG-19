@@ -15,7 +15,7 @@ class SlyDealTest {
         Player thief = new Player("1", "Thief");
         Player victim = new Player("2", "Victim");
         victim.getPropertyArea().addPropertyCard(
-                new PropertyCard(1, "Boardwalk", 4, PropertyColor.DARK_BLUE, false, new int[]{3, 8}));
+                new PropertyCard(1, "Boardwalk", 4, PropertyColor.DARK_BLUE, new int[]{3, 8}));
 
         boolean moved = victim.getPropertyArea()
                 .stealFirstIncompletePropertyTo(thief.getPropertyArea());
@@ -32,9 +32,9 @@ class SlyDealTest {
         Player victim = new Player("2", "Victim");
         int[] rent = {3, 8};
         victim.getPropertyArea().addPropertyCard(
-                new PropertyCard(1, "Boardwalk", 4, PropertyColor.DARK_BLUE, false, rent));
+                new PropertyCard(1, "Boardwalk", 4, PropertyColor.DARK_BLUE, rent));
         victim.getPropertyArea().addPropertyCard(
-                new PropertyCard(2, "Park Place", 4, PropertyColor.DARK_BLUE, false, rent));
+                new PropertyCard(2, "Park Place", 4, PropertyColor.DARK_BLUE, rent));
 
         boolean moved = victim.getPropertyArea()
                 .stealFirstIncompletePropertyTo(thief.getPropertyArea());

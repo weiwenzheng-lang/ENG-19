@@ -31,9 +31,11 @@ public class PlayerAreaView extends VBox {
     }
 
     public void render(Player player, boolean compact) {
+        int sets = player.getPropertyArea().countCompletedSets();
         title.setText(player.getPlayerName()
                 + " | Bank " + player.getBankArea().calculateTotalFunds() + "M"
-                + " | Hand " + player.getHand().getSize());
+                + " | Hand " + player.getHand().getSize()
+                + " | Sets " + sets + "/3");
         properties.getChildren().clear();
         for (Map.Entry<PropertyColor, Rentable> entry : player.getPropertyArea().getPropertySets().entrySet()) {
             Label set = new Label(entry.getKey() + "\n" + entry.getValue().getDescription());

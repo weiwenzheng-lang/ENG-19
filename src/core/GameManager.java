@@ -85,7 +85,8 @@ public class GameManager {
         if (isGameOver) return;
 
         Player currentPlayer = getCurrentPlayer();
-        actionsRemaining = 3; // 规则：每回合3次机会
+        actionsRemaining = 3;
+        rentMultiplier = 1; // Reset at turn start
 
         notifyTurnChange(currentPlayer.getPlayerName());
 
@@ -136,6 +137,24 @@ public class GameManager {
         }
     }
 
+    /**
+     * 弃牌：不消耗行动力，将手牌直接弃入弃牌堆。
+     * 用于处理手牌超过 7 张时必须弃牌的情况。
+     */
+    public void discardCard(int cardIndex) {
+        if (isGameOver) {
+            notifyEvent("游戏已经结束，请开始新游戏或退出游戏。");
+            return;
+        }
+
+        Player p = getCurrentPlayer();
+        Card selectedCard = p.getHand().removeCard(cardIndex);
+        if (selectedCard != null) {
+            gameDeck.receiveDiscard(selectedCard);
+            notifyEvent(p.getPlayerName() + " 弃掉: " + selectedCard.getCardName());
+        }
+    }
+
     public void depositCardToBank(int cardIndex) {
         if (isGameOver) {
             notifyEvent("游戏已经结束，请开始新游戏或退出游戏。");
@@ -154,6 +173,7 @@ public class GameManager {
             actionsRemaining--;
             notifyEvent(p.getPlayerName() + " 存入银行: " + selectedCard.getCardName()
                     + " (剩余行动: " + actionsRemaining + ")");
+            checkWinCondition();
         }
     }
 
@@ -175,6 +195,9 @@ public class GameManager {
             return;
         }
 
+        // 切换前先检查胜利条件
+        checkWinCondition();
+
         // 切换到下一个玩家
         currentTurnIndex = (currentTurnIndex + 1) % activePlayers.size();
         startNewTurn();
@@ -185,12 +208,13 @@ public class GameManager {
     // ==========================================
 
     private void checkWinCondition() {
-        Player p = getCurrentPlayer();
-        int completedSets = p.getPropertyArea().countCompletedSets();
-
-        if (completedSets >= 3) {
-            isGameOver = true;
-            notifyEvent("🎊 恭喜 " + p.getPlayerName() + " 收集齐 3 套房产，获得胜利！");
+        for (Player p : activePlayers) {
+            int completedSets = p.getPropertyArea().countCompletedSets();
+            if (completedSets >= 3) {
+                isGameOver = true;
+                notifyEvent("Congratulations " + p.getPlayerName() + " collected 3 full property sets and wins!");
+                return;
+            }
         }
     }
 
@@ -300,9 +324,10 @@ public class GameManager {
      */
     public void resolvePendingAction() {
         if (currentState == GameState.WAITING_FOR_COUNTER_ACTION && pendingAction != null) {
-            pendingAction.run(); // 真正执行扣钱或偷牌
+            pendingAction.run();
             notifyEvent("✅ 动作结算完成。");
             resetState();
+            checkWinCondition();
         }
     }
 
@@ -327,6 +352,14 @@ public class GameManager {
         }
     }
 
+    public Player getPendingVictim() {
+        return pendingVictim;
+    }
+
+    public GameState getCurrentState() {
+        return currentState;
+    }
+
     private void resetState() {
         this.currentState = GameState.NORMAL_TURN;
         this.pendingAction = null;
@@ -341,6 +374,19 @@ public class GameManager {
      * 获取除指定玩家以外的所有对手
      * 供 RentCard (收租卡) 等需要遍历对手的卡牌调用
      */
+    /**
+     * 通用攻击入口：解析目标 → null 检查 → 包装进 initiateAttack。
+     * 供 SlyDeal/ForceDeal/DealBreaker/DebtCollector 等卡牌调用。
+     */
+    public void initiateTargetedAttack(Player initiator, java.util.function.Consumer<Player> attackAction) {
+        Player victim = resolveTargetOrFirstOpponent(initiator);
+        if (victim == null) {
+            System.out.println("No valid target for this action.");
+            return;
+        }
+        initiateAttack(victim, () -> attackAction.accept(victim));
+    }
+
     public List<Player> getOpponents(Player player) {
         List<Player> opponents = new ArrayList<>();
         // 遍历所有存活的玩家

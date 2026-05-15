@@ -1,12 +1,6 @@
 package ui.javafx;
 
-import cards.Card;
-import cards.MoneyCard;
-import cards.PropertyCard;
-import cards.SuperWildCard;
-import cards.HouseCard;
-import cards.ActionCard;
-import cards.RentCard;
+import cards.*;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
 import javafx.scene.control.Label;
@@ -14,11 +8,10 @@ import javafx.scene.layout.StackPane;
 import javafx.scene.text.Font;
 import javafx.scene.text.FontWeight;
 
-
 public class CardView extends StackPane {
     public CardView(Card card) {
         this(card == null ? "Empty" : card.getCardName(),
-                card == null ? "" : card.getMonetaryValue() + "M",
+                card instanceof MoneyCard ? "" : (card == null ? "" : card.getMonetaryValue() + "M"),
                 styleFor(card));
     }
 
@@ -51,85 +44,47 @@ public class CardView extends StackPane {
     private static String styleFor(Card card) {
         if (card == null) return "-fx-background-color: #ffffff; -fx-border-color: #cccccc;";
 
-        // 1. 特殊万能牌
-        if (card instanceof cards.SuperWildCard) {
+        if (card instanceof SuperWildCard)
             return "-fx-background-color: linear-gradient(to bottom right, #ff9a9e, #fad0c4); -fx-border-color: #ff4d4d;";
-        }
-        if (card instanceof cards.PropertyWildCard) {
+
+        if (card instanceof PropertyWildCard)
             return "-fx-background-color: #ffebcc; -fx-border-color: #ff9900; -fx-border-style: dashed;";
+
+        if (card instanceof PropertyCard) {
+            String hex = ((PropertyCard) card).getColorGroup().getColorHex();
+            return "-fx-background-color: #fdfaf0; -fx-border-color: " + hex + "; -fx-border-width: 5 0 0 0;";
         }
 
-        // 2. 房产卡 (加入颜色区分逻辑)
-        if (card instanceof cards.PropertyCard) {
-            String colorHex = "#c99f4f"; // 默认
-            try {
-                enums.PropertyColor color = ((cards.PropertyCard) card).getColorGroup();
-                switch (color) {
-                    case DARK_BLUE:
-                        colorHex = "#0d47a1";
-                        break;
-                    case GREEN:
-                        colorHex = "#2e7d32";
-                        break;
-                    case RED:
-                        colorHex = "#c62828";
-                        break;
-                    case YELLOW:
-                        colorHex = "#f9a825";
-                        break;
-                    case PINK:
-                        colorHex = "#ad1457";
-                        break;
-                    case ORANGE:
-                        colorHex = "#ef6c00";
-                        break;
-                    case LIGHT_BLUE:
-                        colorHex = "#0288d1";
-                        break;
-                    case BROWN:
-                        colorHex = "#4e342e";
-                        break;
-                    case RAILROAD:
-                        colorHex = "#37474f";
-                        break;
-                    case UTILITY:
-                        colorHex = "#558b2f";
-                        break;
-                    default:
-                        colorHex = "#c99f4f";
-                        break;
-                }
-            } catch (Exception e) {}
-            return "-fx-background-color: #fdfaf0; -fx-border-color: " + colorHex + "; -fx-border-width: 5 0 0 0;";
-        }
-
-        // 3. 基础卡
-        if (card instanceof cards.MoneyCard) {
+        if (card instanceof MoneyCard)
             return "-fx-background-color: #e8f5e9; -fx-border-color: #4caf50;";
-        }
-        if (card instanceof cards.RentCard) {
+
+        if (card instanceof RentCard)
             return "-fx-background-color: #e3f2fd; -fx-border-color: #1e88e5;";
-        }
 
-        // 4. 建筑与加倍 (新加的部分)
-        if (card instanceof cards.HouseCard) {
+        if (card instanceof HouseCard)
             return "-fx-background-color: #e0f2f1; -fx-border-color: #009688;";
-        }
-        if (card instanceof cards.HotelCard) {
+
+        if (card instanceof HotelCard)
             return "-fx-background-color: #ffebee; -fx-border-color: #d32f2f; -fx-border-width: 3;";
-        }
-        if (card instanceof cards.DoubleTheRentCard) {
+
+        if (card instanceof DoubleTheRentCard)
             return "-fx-background-color: #fffde7; -fx-border-color: #fbc02d; -fx-border-style: dashed;";
-        }
 
-        // 5. 具体行动卡
-        if (card instanceof cards.JustSayNoCard) return "-fx-background-color: #fce4ec; -fx-border-color: #e91e63;";
-        if (card instanceof cards.DealBreakerCard) return "-fx-background-color: #f3e5f5; -fx-border-color: #7b1fa2; -fx-border-width: 3;";
-        if (card instanceof cards.SlyDealCard || card instanceof cards.ForceDealCard) return "-fx-background-color: #ede7f6; -fx-border-color: #5e35b1;";
-        if (card instanceof cards.PassGoCard) return "-fx-background-color: #e0f7fa; -fx-border-color: #00acc1;";
-        if (card instanceof cards.DebtCollectorCard || card instanceof cards.BirthdayCard) return "-fx-background-color: #fff3e0; -fx-border-color: #fb8c00;";
+        if (card instanceof JustSayNoCard)
+            return "-fx-background-color: #fce4ec; -fx-border-color: #e91e63;";
 
-        // 6. 兜底
+        if (card instanceof DealBreakerCard)
+            return "-fx-background-color: #f3e5f5; -fx-border-color: #7b1fa2; -fx-border-width: 3;";
+
+        if (card instanceof SlyDealCard || card instanceof ForceDealCard)
+            return "-fx-background-color: #ede7f6; -fx-border-color: #5e35b1;";
+
+        if (card instanceof PassGoCard)
+            return "-fx-background-color: #e0f7fa; -fx-border-color: #00acc1;";
+
+        if (card instanceof DebtCollectorCard || card instanceof BirthdayCard)
+            return "-fx-background-color: #fff3e0; -fx-border-color: #fb8c00;";
+
         return "-fx-background-color: #f5f5f5; -fx-border-color: #9e9e9e;";
     }
 }

@@ -1,15 +1,21 @@
 package player;
 
 import cards.Card;
+import cards.PropertyCard;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 
 public class BankArea {
     private List<Card> liquidAssets;
+    private Player owner;
 
     public BankArea() {
         this.liquidAssets = new ArrayList<>();
+    }
+
+    void setOwner(Player owner) {
+        this.owner = owner;
     }
 
     public void deposit(Card card) {
@@ -39,7 +45,7 @@ public class BankArea {
                 payee.getBankArea().deposit(card);
                 paidTotal += card.getMonetaryValue();
             }
-            System.out.printf("✅ 支付 %dM 成功，实际支付 %dM（不找零）%n", amount, paidTotal);
+            System.out.printf("Paid %dM successfully, actual %dM (no change).%n", amount, paidTotal);
         } else {
             int totalCash = calculateTotalFunds();
             if (!liquidAssets.isEmpty()) {
@@ -50,29 +56,36 @@ public class BankArea {
                     payee.getBankArea().deposit(card);
                     givenTotal += card.getMonetaryValue();
                 }
-                System.out.printf("⚠️ 现金总额 %dM 不足 %dM，已将全部现金支付。%n", givenTotal, amount);
-            } else {
-                System.out.printf("⚠️ 银行没有任何现金，无法支付 %dM。%n", amount);
+                System.out.printf("Cash %dM insufficient for %dM, paid all cash.%n", givenTotal, amount);
             }
+
             int stillOwe = amount - totalCash;
-            if (stillOwe > 0) {
-                System.out.printf("🏚️ 【待完善】仍需强制抵债 %dM（后续由 GameManager 实现房产抵债）%n", stillOwe);
+            if (stillOwe > 0 && owner != null) {
+                List<PropertyCard> sold = owner.getPropertyArea().forceSellProperties(stillOwe);
+                int soldValue = 0;
+                for (PropertyCard card : sold) {
+                    soldValue += card.getMonetaryValue();
+                    payee.getBankArea().deposit(card);
+                }
+                if (soldValue > 0) {
+                    System.out.printf("Mortgaged properties worth %dM to cover debt.%n", soldValue);
+                }
+                int finalOwe = stillOwe - soldValue;
+                if (finalOwe > 0) {
+                    System.out.printf("Still owe %dM after mortgaging all properties.%n", finalOwe);
+                }
+            } else if (stillOwe > 0) {
+                System.out.printf("Owe %dM, no properties to mortgage.%n", stillOwe);
             }
         }
     }
 
-    /**
-     * 找到总金额 >= required 且超额最小的卡片组合（不找零）
-     * 如果所有卡片总和仍小于 required，返回 null。
-     */
     private List<Card> selectOptimalCardsForPayment(int required) {
         if (liquidAssets.isEmpty()) return null;
 
-        // 收集所有卡的面额及其索引（支持重复面额）
         List<Card> sorted = new ArrayList<>(liquidAssets);
         int n = sorted.size();
 
-        // 回溯搜索最优组合
         BestCombination best = new BestCombination();
         search(0, required, 0, 0, new ArrayList<>(), sorted, best);
 
@@ -91,9 +104,7 @@ public class BankArea {
         }
         if (idx == allCards.size()) return;
 
-        // 不选当前卡
         search(idx + 1, required, curSum, curCount, current, allCards, best);
-        // 选当前卡
         Card card = allCards.get(idx);
         current.add(card);
         search(idx + 1, required, curSum + card.getMonetaryValue(), curCount + 1, current, allCards, best);

@@ -4,7 +4,6 @@ import cards.Card;
 public class Player {
     private String playerId;
     private String playerName;
-    private int actionsRemaining; // 核心：剩余行动步数
 
     private Hand hand;
     private BankArea bankArea;
@@ -15,21 +14,8 @@ public class Player {
         this.playerName = playerName;
         this.hand = new Hand();
         this.bankArea = new BankArea();
+        this.bankArea.setOwner(this);
         this.propertyArea = new PropertyArea();
-        this.actionsRemaining = 0;
-    }
-
-    // --- 修正爆红的方法 ---
-    public void resetActions() {
-        this.actionsRemaining = 3; // 每个回合开始重置为 3 点
-    }
-
-    public int getActionsRemaining() {
-        return actionsRemaining;
-    }
-
-    public void useAction() {
-        this.actionsRemaining--;
     }
 
     public String getPlayerName() { return playerName; }

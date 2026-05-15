@@ -4,13 +4,11 @@ import player.Player;
 
 public class PropertyCard extends Card {
     protected PropertyColor colorGroup;
-    private boolean isWildcard;
-    private int[] rentTiers; // 存储租金阶梯的数组，例如 [1, 2, 4]
+    protected int[] rentTiers;
 
-    public PropertyCard(int id, String name, int value, PropertyColor color, boolean isWildcard,int[] rentTiers) {
+    public PropertyCard(int id, String name, int value, PropertyColor color, int[] rentTiers) {
         super(id, name, value);
         this.colorGroup = color;
-        this.isWildcard = isWildcard;
         this.rentTiers = rentTiers;
     }
 
