@@ -1,9 +1,10 @@
 package cards;
 
+import core.GameManager;
+import enums.PropertyColor;
 import player.Player;
 import player.Rentable;
-import enums.PropertyColor;
-import core.GameManager;
+
 import java.util.List;
 
 public class RentCard extends ActionCard {
@@ -44,28 +45,24 @@ public class RentCard extends ActionCard {
         GameManager gm = GameManager.getInstance();
         int multiplier = gm.getAndResetRentMultiplier();
         List<Player> opponents = gm.getOpponents(initiator);
-
-        if (opponents.isEmpty()) return;
-
-        // 核心修复：分别对每个对手发起攻击结算，让他们可以独立 Just Say No
-        for (Player opponent : opponents) {
-            gm.initiateAttack(opponent, () -> {
-                int baseRent = 0;
-                Rentable set = opponent.getPropertyArea().getPropertySet(selectedColor);
-                if (set != null) {
-                    baseRent = set.calculateRent();
-                }
-
-                int finalRent = baseRent * multiplier;
-
-                if (finalRent > 0) {
-                    System.out.printf("[Rent] %s pays %dM (multiplier: %dx)%n",
-                            opponent.getPlayerName(), finalRent, multiplier);
-                    opponent.getBankArea().pay(finalRent, initiator);
-                } else {
-                    System.out.println(opponent.getPlayerName() + " 没有对应颜色房产，无需交租。");
-                }
-            });
+        if (opponents.isEmpty()) {
+            return;
         }
+
+        Rentable set = initiator.getPropertyArea().getPropertySet(selectedColor);
+        if (set == null) {
+            throw new IllegalStateException("you do not own " + selectedColor + " property.");
+        }
+
+        int finalRent = set.calculateRent() * multiplier;
+        if (finalRent <= 0) {
+            throw new IllegalStateException("selected property has no rent to collect.");
+        }
+
+        gm.initiateGroupAttack(opponents, () -> {
+            for (Player opponent : opponents) {
+                opponent.getBankArea().pay(finalRent, initiator);
+            }
+        });
     }
 }

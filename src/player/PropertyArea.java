@@ -30,6 +30,15 @@ public class PropertyArea {
         return false;
     }
 
+    public boolean addHouseToCompleteSet(PropertyColor color) {
+        Rentable current = propertySets.get(color);
+        if (current != null && current.isComplete() && !current.isDecorated()) {
+            propertySets.put(color, new HouseDecorator(current));
+            return true;
+        }
+        return false;
+    }
+
     public boolean addHotelToCompleteSet() {
         for (Map.Entry<PropertyColor, Rentable> entry : propertySets.entrySet()) {
             PropertyColor color = entry.getKey();
@@ -47,6 +56,17 @@ public class PropertyArea {
         return false;
     }
 
+    public boolean addHotelToCompleteSet(PropertyColor color) {
+        Rentable current = propertySets.get(color);
+        if (current != null && current.isComplete()
+                && (current instanceof HouseDecorator)
+                && !(current instanceof HotelDecorator)) {
+            propertySets.put(color, new HotelDecorator(current));
+            return true;
+        }
+        return false;
+    }
+
     public Optional<PropertyColor> findSetToImprove() {
         for (Map.Entry<PropertyColor, Rentable> entry : propertySets.entrySet()) {
             Rentable set = entry.getValue();
@@ -55,6 +75,60 @@ public class PropertyArea {
             }
         }
         return Optional.empty();
+    }
+
+    public List<PropertyColor> getHouseEligibleColors() {
+        List<PropertyColor> colors = new ArrayList<>();
+        for (Map.Entry<PropertyColor, Rentable> entry : propertySets.entrySet()) {
+            Rentable set = entry.getValue();
+            if (set.isComplete() && !set.isDecorated()) {
+                colors.add(entry.getKey());
+            }
+        }
+        return colors;
+    }
+
+    public List<PropertyColor> getHotelEligibleColors() {
+        List<PropertyColor> colors = new ArrayList<>();
+        for (Map.Entry<PropertyColor, Rentable> entry : propertySets.entrySet()) {
+            Rentable set = entry.getValue();
+            if (set.isComplete() && set instanceof HouseDecorator && !(set instanceof HotelDecorator)) {
+                colors.add(entry.getKey());
+            }
+        }
+        return colors;
+    }
+
+    public List<PropertyColor> getStealableIncompleteColors() {
+        List<PropertyColor> colors = new ArrayList<>();
+        for (Map.Entry<PropertyColor, Rentable> entry : propertySets.entrySet()) {
+            Rentable set = entry.getValue();
+            PropertySet root = unwrap(set);
+            if (!set.isComplete() && root != null && !root.getCards().isEmpty()) {
+                colors.add(entry.getKey());
+            }
+        }
+        return colors;
+    }
+
+    public List<PropertyColor> getPropertyColorsWithCards() {
+        List<PropertyColor> colors = new ArrayList<>();
+        for (Map.Entry<PropertyColor, Rentable> entry : propertySets.entrySet()) {
+            PropertySet root = unwrap(entry.getValue());
+            if (root != null && !root.getCards().isEmpty()) {
+                colors.add(entry.getKey());
+            }
+        }
+        return colors;
+    }
+
+    public List<PropertyCard> getCards(PropertyColor color) {
+        Rentable rentable = propertySets.get(color);
+        PropertySet root = rentable == null ? null : unwrap(rentable);
+        if (root == null) {
+            return Collections.emptyList();
+        }
+        return root.getCards();
     }
 
     public Rentable getPropertySet(PropertyColor color) {
@@ -71,6 +145,15 @@ public class PropertyArea {
 
     public boolean stealFirstIncompletePropertyTo(PropertyArea recipient) {
         PropertyCard card = detachFirstIncompleteProperty();
+        if (card == null) {
+            return false;
+        }
+        recipient.addPropertyCard(card);
+        return true;
+    }
+
+    public boolean stealIncompletePropertyTo(PropertyArea recipient, PropertyColor color, int cardIndex) {
+        PropertyCard card = detachProperty(color, cardIndex, false);
         if (card == null) {
             return false;
         }
@@ -114,6 +197,24 @@ public class PropertyArea {
         return true;
     }
 
+    public boolean forceSwapProperty(PropertyArea other, PropertyColor myColor, int myIndex,
+                                     PropertyColor theirColor, int theirIndex) {
+        PropertyCard mine = detachProperty(myColor, myIndex, true);
+        if (mine == null) {
+            return false;
+        }
+
+        PropertyCard theirs = other.detachProperty(theirColor, theirIndex, true);
+        if (theirs == null) {
+            addPropertyCard(mine);
+            return false;
+        }
+
+        addPropertyCard(theirs);
+        other.addPropertyCard(mine);
+        return true;
+    }
+
     private PropertyCard detachFirstIncompleteProperty() {
         PropertyColor selectedColor = null;
         PropertySet selectedRoot = null;
@@ -137,6 +238,26 @@ public class PropertyArea {
         }
         selectedRoot.removeProperty(selectedCard);
         removeColorIfEmpty(selectedColor, selectedRoot);
+        return selectedCard;
+    }
+
+    private PropertyCard detachProperty(PropertyColor color, int cardIndex, boolean allowComplete) {
+        Rentable rentable = propertySets.get(color);
+        if (rentable == null || (!allowComplete && rentable.isComplete())) {
+            return null;
+        }
+
+        PropertySet root = unwrap(rentable);
+        if (root == null || cardIndex < 0 || cardIndex >= root.getCards().size()) {
+            return null;
+        }
+
+        PropertyCard selectedCard = root.getCards().get(cardIndex);
+        root.removeProperty(selectedCard);
+        if (rentable.isDecorated() && !root.isComplete()) {
+            propertySets.put(color, root);
+        }
+        removeColorIfEmpty(color, root);
         return selectedCard;
     }
 
