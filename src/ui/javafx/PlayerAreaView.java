@@ -41,10 +41,18 @@ public class PlayerAreaView extends VBox {
     }
 
     public void render(Player player, boolean compact) {
+        render(player, compact, -1);
+    }
+
+    public void render(Player player, boolean compact, int actionsRemaining) {
         nameLabel.setText("TERMINAL_ID: " + player.getPlayerName().toUpperCase());
 
         // 高亮显示关键数据
-        statsLabel.setText(String.format("BANK: %dM  |  ASSET SETS: %d/3  |  HAND: %d",
+        String actionText = actionsRemaining >= 0
+                ? String.format("ACTIONS: %d  |  ", actionsRemaining)
+                : "";
+        statsLabel.setText(String.format("%sBANK: %dM  |  ASSET SETS: %d/3  |  HAND: %d",
+                actionText,
                 player.getBankArea().calculateTotalFunds(),
                 player.getPropertyArea().countCompletedSets(),
                 player.getHand().getSize()));

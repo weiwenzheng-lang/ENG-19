@@ -4,72 +4,64 @@ import cards.*;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
 import javafx.scene.control.Label;
+import javafx.scene.effect.DropShadow;
+import javafx.scene.layout.Pane;
 import javafx.scene.layout.Priority;
-import javafx.scene.layout.VBox;
-import javafx.scene.layout.StackPane;
 import javafx.scene.layout.Region;
+import javafx.scene.layout.StackPane;
+import javafx.scene.layout.VBox;
+import javafx.scene.paint.Color;
+import javafx.scene.shape.Line;
 import javafx.scene.text.Font;
 import javafx.scene.text.FontWeight;
-import javafx.scene.paint.Color;
-import javafx.scene.effect.DropShadow;
 
 public class CardView extends StackPane {
 
     public CardView(Card card) {
-        // 优化1：尺寸适当缩小，防止撑出界面的滚动条
         setPrefSize(100, 140);
         setMinSize(100, 140);
         setMaxSize(100, 140);
 
-        // 卡牌主面板：毛玻璃+暗金质感
         VBox cardBody = new VBox();
         cardBody.setAlignment(Pos.TOP_CENTER);
-        cardBody.setStyle("-fx-background-color: linear-gradient(to bottom right, #2a2d34, #141518); "
+        cardBody.setStyle("-fx-background-color: " + getCardBackground(card) + "; "
                 + "-fx-background-radius: 10; "
                 + "-fx-border-color: " + getAccentColor(card) + "; "
                 + "-fx-border-width: 2; "
                 + "-fx-border-radius: 10;");
 
-        // 增加阴影发光特效
         DropShadow glow = new DropShadow();
         glow.setColor(Color.web(getAccentColor(card)).deriveColor(1, 1, 1, 0.6));
         glow.setRadius(10);
         glow.setSpread(0.2);
         cardBody.setEffect(glow);
 
-        // 顶部高亮条
         Region headerBar = new Region();
-        headerBar.setPrefHeight(6); // 略微调细
-        headerBar.setStyle("-fx-background-color: " + getAccentColor(card) + "; "
+        headerBar.setPrefHeight(6);
+        headerBar.setStyle("-fx-background-color: " + getHeaderColor(card) + "; "
                 + "-fx-background-radius: 8 8 0 0;");
 
-        // 卡牌名称
         Label nameLabel = new Label(card.getCardName());
         nameLabel.setWrapText(true);
         nameLabel.setAlignment(Pos.CENTER);
-        nameLabel.setFont(Font.font("Segoe UI", FontWeight.BOLD, 12)); // 字体微调
-        nameLabel.setTextFill(Color.WHITE);
+        nameLabel.setFont(Font.font("Segoe UI", FontWeight.BOLD, 12));
+        nameLabel.setTextFill(Color.web(getPrimaryTextColor(card)));
         nameLabel.setPadding(new Insets(8, 3, 2, 3));
 
-        // 卡牌类型标签
         Label typeLabel = new Label(getCardTypeShortName(card));
         typeLabel.setFont(Font.font("Consolas", FontWeight.NORMAL, 10));
-        typeLabel.setTextFill(Color.web("#a0aab5"));
+        typeLabel.setTextFill(Color.web(getSecondaryTextColor(card)));
 
-        // 优化2：动态弹簧！把价值文本永远“挤”到最下面，不用死板的 padding
         Region spacer = new Region();
         VBox.setVgrow(spacer, Priority.ALWAYS);
 
-        // 卡牌价值 (底部发光的货币价值)
         Label valueLabel = new Label("¥ " + card.getMonetaryValue() + "M");
         valueLabel.setFont(Font.font("Consolas", FontWeight.BLACK, 14));
-        valueLabel.setTextFill(Color.web("#00ff9f")); // 荧光绿
-        valueLabel.setPadding(new Insets(0, 0, 8, 0)); // 只有底部留白
+        valueLabel.setTextFill(Color.web(getValueTextColor(card)));
+        valueLabel.setPadding(new Insets(0, 0, 8, 0));
 
-        // 注意这里加入了 spacer
         cardBody.getChildren().addAll(headerBar, nameLabel, typeLabel, spacer, valueLabel);
 
-        // 鼠标悬停动画效果
         this.setOnMouseEntered(e -> {
             this.setTranslateY(-10);
             glow.setRadius(20);
@@ -80,9 +72,9 @@ public class CardView extends StackPane {
         });
 
         getChildren().add(cardBody);
+        addDualColorBorder(card);
     }
 
-    // 重载用于背面/牌堆
     public CardView(String title, String subtitle) {
         setPrefSize(100, 140);
         setMinSize(100, 140);
@@ -97,7 +89,6 @@ public class CardView extends StackPane {
         titleLabel.setTextFill(Color.web("#00f2ff"));
         titleLabel.setFont(Font.font("Consolas", FontWeight.BLACK, 14));
 
-        // 优化3：修复了之前你代码里漏掉的 subtitle（剩余卡牌数）
         Label subtitleLabel = new Label(subtitle);
         subtitleLabel.setTextFill(Color.web("#a0aab5"));
         subtitleLabel.setFont(Font.font("Consolas", FontWeight.BOLD, 12));
@@ -107,10 +98,61 @@ public class CardView extends StackPane {
     }
 
     private String getAccentColor(Card card) {
+        if (card instanceof PropertyWildCard) return ((PropertyWildCard) card).getColorA().getColorHex();
         if (card instanceof PropertyCard) return ((PropertyCard) card).getColorGroup().getColorHex();
-        if (card instanceof MoneyCard) return "#00ff9f"; // 财富绿
-        if (card instanceof ActionCard) return "#ff007f"; // 赛博粉红
+        if (card instanceof MoneyCard) return "#00ff9f";
+        if (card instanceof ActionCard) return "#ff007f";
         return "#00f2ff";
+    }
+
+    private String getHeaderColor(Card card) {
+        return getAccentColor(card);
+    }
+
+    private String getCardBackground(Card card) {
+        return "linear-gradient(to bottom right, #2a2d34, #141518)";
+    }
+
+    private String getPrimaryTextColor(Card card) {
+        return "#ffffff";
+    }
+
+    private String getSecondaryTextColor(Card card) {
+        return "#a0aab5";
+    }
+
+    private String getValueTextColor(Card card) {
+        return "#00ff9f";
+    }
+
+    private void addDualColorBorder(Card card) {
+        if (!(card instanceof PropertyWildCard)) return;
+
+        PropertyWildCard wildCard = (PropertyWildCard) card;
+        String firstColor = wildCard.getColorA().getColorHex();
+        String secondColor = wildCard.getColorB().getColorHex();
+
+        Pane overlay = new Pane();
+        overlay.setMinSize(100, 140);
+        overlay.setPrefSize(100, 140);
+        overlay.setMaxSize(100, 140);
+        overlay.setMouseTransparent(true);
+
+        overlay.getChildren().addAll(
+                borderLine(2, 1, 98, 1, firstColor),
+                borderLine(1, 2, 1, 138, firstColor),
+                borderLine(99, 2, 99, 138, secondColor),
+                borderLine(2, 139, 98, 139, secondColor));
+
+        getChildren().add(overlay);
+    }
+
+    private Line borderLine(double startX, double startY, double endX, double endY, String color) {
+        Line line = new Line(startX, startY, endX, endY);
+        line.setStroke(Color.web(color));
+        line.setStrokeWidth(3);
+        line.setMouseTransparent(true);
+        return line;
     }
 
     private String getCardTypeShortName(Card card) {

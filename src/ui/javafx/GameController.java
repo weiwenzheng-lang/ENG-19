@@ -502,7 +502,7 @@ public class GameController implements GameObserver {
     private void renderProperties(Player current) {
         propertyView.getChildren().clear();
         PlayerAreaView view = new PlayerAreaView();
-        view.render(current, false);
+        view.render(current, false, game.getActionsRemaining());
         propertyView.getChildren().add(view);
     }
 
