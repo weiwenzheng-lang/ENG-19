@@ -1,6 +1,8 @@
 package cards;
 
 import core.GameManager;
+import core.TargetInfo;
+import enums.PropertyColor;
 import player.Player;
 
 public class HotelCard extends ActionCard {
@@ -11,15 +13,14 @@ public class HotelCard extends ActionCard {
 
     @Override
     public void executePlayLogic(Player initiator) {
-        // 酒店逻辑：尝试在玩家的地产区放置酒店
-        // 这里的 addHotelToCompleteSet 是你 PropertyArea 类里需要实现的方法
-        boolean success = initiator.getPropertyArea().addHotelToCompleteSet();
+        TargetInfo target = GameManager.getInstance().getCurrentTargetInfo();
+        PropertyColor color = target == null ? null : target.getImprovementColor();
+        boolean success = color == null
+                ? initiator.getPropertyArea().addHotelToCompleteSet()
+                : initiator.getPropertyArea().addHotelToCompleteSet(color);
 
-        if (success) {
-            System.out.println("[Hotel] " + initiator.getPlayerName() + " added a Hotel to a complete set!");
-        } else {
-            System.out.println("[Hotel] No eligible set — depositing as money instead.");
-            initiator.getBankArea().deposit(this);
+        if (!success) {
+            throw new IllegalStateException("choose a complete set with a house and without a hotel.");
         }
     }
 }
