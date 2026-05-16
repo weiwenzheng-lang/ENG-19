@@ -1,6 +1,8 @@
 package core;
 
 import cards.MoneyCard;
+import cards.PropertyCard;
+import enums.PropertyColor;
 import player.BankArea;
 import player.Player;
 import org.junit.jupiter.api.BeforeEach;
@@ -55,5 +57,21 @@ class BankAreaTest {
         bankA.pay(0, bob);
         assertEquals(before, bankA.calculateTotalFunds());
         assertEquals(0, bankB.calculateTotalFunds());
+    }
+
+    @Test
+    void testMortgagedPropertiesMoveToPayeePropertyArea() {
+        PropertyCard property = new PropertyCard(6, "Brown Property", 1,
+                PropertyColor.BROWN, new int[]{1, 2});
+        alice.getPropertyArea().addPropertyCard(property);
+        bankA.deposit(new MoneyCard(7, "1M", 1));
+
+        bankA.pay(5, bob);
+
+        assertEquals(0, bankA.calculateTotalFunds());
+        assertEquals(1, bankB.calculateTotalFunds());
+        assertTrue(alice.getPropertyArea().getCards(PropertyColor.BROWN).isEmpty());
+        assertEquals(1, bob.getPropertyArea().getCards(PropertyColor.BROWN).size());
+        assertTrue(bankB.getAssets().stream().noneMatch(card -> card instanceof PropertyCard));
     }
 }

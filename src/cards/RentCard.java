@@ -59,10 +59,6 @@ public class RentCard extends ActionCard {
             throw new IllegalStateException("selected property has no rent to collect.");
         }
 
-        gm.initiateGroupAttack(opponents, () -> {
-            for (Player opponent : opponents) {
-                opponent.getBankArea().pay(finalRent, initiator);
-            }
-        });
+        gm.initiateGroupAttack(opponents, opponent -> opponent.getBankArea().pay(finalRent, initiator));
     }
 }

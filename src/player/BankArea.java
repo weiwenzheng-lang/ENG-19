@@ -65,7 +65,7 @@ public class BankArea {
                 int soldValue = 0;
                 for (PropertyCard card : sold) {
                     soldValue += card.getMonetaryValue();
-                    payee.getBankArea().deposit(card);
+                    payee.getPropertyArea().addPropertyCard(card);
                 }
                 if (soldValue > 0) {
                     System.out.printf("Mortgaged properties worth %dM to cover debt.%n", soldValue);

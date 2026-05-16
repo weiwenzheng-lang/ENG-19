@@ -15,12 +15,9 @@ public class BirthdayCard extends ActionCard {
         List<Player> opponents = GameManager.getInstance().getOpponents(initiator);
         if (opponents.isEmpty()) return;
 
-        // 核心修复：遍历所有对手，让他们每个人都有机会独立触发 Just Say No 机制
-        for (Player victim : opponents) {
-            GameManager.getInstance().initiateAttack(victim, () -> {
-                victim.getBankArea().pay(2, initiator);
-                System.out.println("🎂 " + victim.getPlayerName() + " 向 " + initiator.getPlayerName() + " 支付了 2M 生日礼金！");
-            });
-        }
+        GameManager.getInstance().initiateGroupAttack(opponents, victim -> {
+            victim.getBankArea().pay(2, initiator);
+            System.out.println(victim.getPlayerName() + " paid " + initiator.getPlayerName() + " 2M birthday money.");
+        });
     }
 }

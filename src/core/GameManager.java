@@ -28,6 +28,7 @@ public class GameManager {
 
     private GameState currentState = GameState.NORMAL_TURN;
     private Runnable pendingAction;
+    private Consumer<Player> pendingGroupAction;
     private Player pendingVictim;
     private List<Player> pendingVictims;
     private int pendingVictimIndex;
@@ -325,6 +326,7 @@ public class GameManager {
     public void initiateAttack(Player victim, Runnable action) {
         this.currentState = GameState.WAITING_FOR_COUNTER_ACTION;
         this.pendingAction = action;
+        this.pendingGroupAction = null;
         this.pendingVictim = victim;
         this.pendingVictims = null;
         this.pendingVictimIndex = 0;
@@ -338,34 +340,63 @@ public class GameManager {
         }
         this.currentState = GameState.WAITING_FOR_COUNTER_ACTION;
         this.pendingAction = action;
+        this.pendingGroupAction = null;
+        this.pendingVictims = null;
+        this.pendingVictimIndex = 0;
+        this.pendingVictim = victims.get(0);
+        notifyEvent("[INTERRUPT_REQUEST] " + pendingVictim.getPlayerName()
+                + " may use Just Say No.");
+    }
+
+    public void initiateGroupAttack(List<Player> victims, Consumer<Player> action) {
+        if (victims == null || victims.isEmpty()) {
+            return;
+        }
+        this.currentState = GameState.WAITING_FOR_COUNTER_ACTION;
+        this.pendingAction = null;
+        this.pendingGroupAction = action;
         this.pendingVictims = new ArrayList<>(victims);
         this.pendingVictimIndex = 0;
         this.pendingVictim = this.pendingVictims.get(0);
         notifyEvent("[INTERRUPT_REQUEST] " + pendingVictim.getPlayerName()
-                + " may use Just Say No. If any player counters, the whole card is cancelled.");
+                + " may use Just Say No.");
     }
 
     public void resolvePendingAction() {
-        if (currentState != GameState.WAITING_FOR_COUNTER_ACTION || pendingAction == null) {
-            return;
-        }
-        if (pendingVictims != null && pendingVictimIndex < pendingVictims.size() - 1) {
-            pendingVictimIndex++;
-            pendingVictim = pendingVictims.get(pendingVictimIndex);
-            notifyEvent("[INTERRUPT_REQUEST] " + pendingVictim.getPlayerName()
-                    + " may use Just Say No. If any player counters, the whole card is cancelled.");
+        if (currentState != GameState.WAITING_FOR_COUNTER_ACTION
+                || (pendingAction == null && pendingGroupAction == null)) {
             return;
         }
 
         try {
+            if (pendingGroupAction != null) {
+                pendingGroupAction.accept(pendingVictim);
+                notifyEvent("Action resolved for " + pendingVictim.getPlayerName() + ".");
+                checkWinCondition();
+                advancePendingVictimOrReset();
+                return;
+            }
+
             pendingAction.run();
             notifyEvent("Action resolved.");
             checkWinCondition();
+            resetState();
         } catch (IllegalStateException ex) {
             notifyEvent("Action failed: " + ex.getMessage());
-        } finally {
             resetState();
         }
+    }
+
+    private void advancePendingVictimOrReset() {
+        if (pendingVictims != null && pendingVictimIndex < pendingVictims.size() - 1) {
+            pendingVictimIndex++;
+            pendingVictim = pendingVictims.get(pendingVictimIndex);
+            notifyEvent("[INTERRUPT_REQUEST] " + pendingVictim.getPlayerName()
+                    + " may use Just Say No.");
+            return;
+        }
+
+        resetState();
     }
 
     public void counterAttackWithJustSayNo(int cardIndex) {
@@ -377,8 +408,13 @@ public class GameManager {
         if (card != null && card.getCardName().equals("Just Say No")) {
             pendingVictim.getHand().removeCard(cardIndex);
             gameDeck.receiveDiscard(card);
-            notifyEvent(pendingVictim.getPlayerName() + " used Just Say No. The action is cancelled.");
-            resetState();
+            notifyEvent(pendingVictim.getPlayerName() + " used Just Say No.");
+            if (pendingGroupAction != null) {
+                advancePendingVictimOrReset();
+            } else {
+                notifyEvent("The action is cancelled.");
+                resetState();
+            }
         } else {
             notifyEvent("Invalid counter card.");
         }
@@ -395,6 +431,7 @@ public class GameManager {
     private void resetState() {
         this.currentState = GameState.NORMAL_TURN;
         this.pendingAction = null;
+        this.pendingGroupAction = null;
         this.pendingVictim = null;
         this.pendingVictims = null;
         this.pendingVictimIndex = 0;
