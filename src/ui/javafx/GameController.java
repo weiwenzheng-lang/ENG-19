@@ -465,7 +465,8 @@ public class GameController implements GameObserver {
         java.util.List<Integer> rentIndexes = new java.util.ArrayList<>();
         java.util.List<String> choices = new java.util.ArrayList<>();
         for (int i = 0; i < hand.size(); i++) {
-            if (i != doubleCardIndex && hand.get(i) instanceof cards.RentCard) {
+            if (i != doubleCardIndex
+                    && (hand.get(i) instanceof cards.RentCard || hand.get(i) instanceof cards.WildRentCard)) {
                 rentIndexes.add(i);
                 choices.add(i + ": " + hand.get(i).getCardName());
             }
@@ -491,8 +492,24 @@ public class GameController implements GameObserver {
                 return;
             }
             rentCard.setSelectedColor(selectedColor);
+        } else if (rent instanceof cards.WildRentCard) {
+            cards.WildRentCard wildRentCard = (cards.WildRentCard) rent;
+            enums.PropertyColor selectedColor = chooseColor(wildRentCard.getAvailableColors());
+            if (selectedColor == null) {
+                return;
+            }
+            wildRentCard.setSelectedColor(selectedColor);
         }
-        game.executeDoubleRentAction(doubleCardIndex, rentCardIndex, null);
+
+        TargetInfo targetInfo = null;
+        if (needsTarget(rent)) {
+            targetInfo = chooseTarget(rent);
+            if (targetInfo == null) {
+                onGameEvent("Cancelled " + rent.getCardName());
+                return;
+            }
+        }
+        game.executeDoubleRentAction(doubleCardIndex, rentCardIndex, targetInfo);
     }
 
     private static class PropertyPick {

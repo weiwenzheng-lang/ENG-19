@@ -31,6 +31,8 @@ public class GameManager {
     private Consumer<Player> pendingGroupAction;
     private Player pendingVictim;
     private Player pendingAttacker; // original attacker (for JSN chaining)
+    private Player pendingActionTarget;
+    private boolean pendingActionNegated;
     private List<Player> pendingVictims;
     private int pendingVictimIndex;
 
@@ -146,7 +148,7 @@ public class GameManager {
         Player player = getCurrentPlayer();
         Card doubleCard = player.getHand().getCard(doubleCardIndex);
         Card rentCard = player.getHand().getCard(rentCardIndex);
-        if (!(doubleCard instanceof cards.DoubleTheRentCard) || !(rentCard instanceof cards.RentCard)) {
+        if (!(doubleCard instanceof cards.DoubleTheRentCard) || !isRentCard(rentCard)) {
             notifyEvent("Double The Rent must be paired with a rent card.");
             return;
         }
@@ -173,6 +175,10 @@ public class GameManager {
         notifyEvent(player.getPlayerName() + " played Double The Rent with "
                 + rentCard.getCardName() + " (actions left: " + actionsRemaining + ")");
         checkWinCondition();
+    }
+
+    private boolean isRentCard(Card card) {
+        return card instanceof cards.RentCard || card instanceof cards.WildRentCard;
     }
 
     public void discardCard(int cardIndex) {
@@ -328,9 +334,16 @@ public class GameManager {
     }
 
     public void initiateAttack(Player victim, Runnable action) {
+        initiateAttack(getCurrentPlayer(), victim, action);
+    }
+
+    public void initiateAttack(Player attacker, Player victim, Runnable action) {
         this.currentState = GameState.WAITING_FOR_COUNTER_ACTION;
         this.pendingAction = action;
         this.pendingGroupAction = null;
+        this.pendingAttacker = attacker;
+        this.pendingActionTarget = victim;
+        this.pendingActionNegated = false;
         this.pendingVictim = victim;
         this.pendingVictims = null;
         this.pendingVictimIndex = 0;
@@ -338,15 +351,22 @@ public class GameManager {
     }
 
     public void initiateGroupAttack(List<Player> victims, Consumer<Player> action) {
+        initiateGroupAttack(getCurrentPlayer(), victims, action);
+    }
+
+    public void initiateGroupAttack(Player attacker, List<Player> victims, Consumer<Player> action) {
         if (victims == null || victims.isEmpty()) {
             return;
         }
         this.currentState = GameState.WAITING_FOR_COUNTER_ACTION;
         this.pendingAction = null;
         this.pendingGroupAction = action;
+        this.pendingAttacker = attacker;
         this.pendingVictims = new ArrayList<>(victims);
         this.pendingVictimIndex = 0;
-        this.pendingVictim = this.pendingVictims.get(0);
+        this.pendingActionTarget = this.pendingVictims.get(0);
+        this.pendingActionNegated = false;
+        this.pendingVictim = this.pendingActionTarget;
         notifyEvent("[INTERRUPT_REQUEST] " + pendingVictim.getPlayerName()
                 + " may use Just Say No.");
     }
@@ -358,9 +378,20 @@ public class GameManager {
         }
 
         try {
+            if (pendingActionNegated) {
+                notifyEvent("Action cancelled"
+                        + (pendingActionTarget == null ? "." : " for " + pendingActionTarget.getPlayerName() + "."));
+                if (pendingGroupAction != null) {
+                    advancePendingVictimOrReset();
+                } else {
+                    resetState();
+                }
+                return;
+            }
+
             if (pendingGroupAction != null) {
-                pendingGroupAction.accept(pendingVictim);
-                notifyEvent("Action resolved for " + pendingVictim.getPlayerName() + ".");
+                pendingGroupAction.accept(pendingActionTarget);
+                notifyEvent("Action resolved for " + pendingActionTarget.getPlayerName() + ".");
                 checkWinCondition();
                 advancePendingVictimOrReset();
                 return;
@@ -379,7 +410,9 @@ public class GameManager {
     private void advancePendingVictimOrReset() {
         if (pendingVictims != null && pendingVictimIndex < pendingVictims.size() - 1) {
             pendingVictimIndex++;
-            pendingVictim = pendingVictims.get(pendingVictimIndex);
+            pendingActionTarget = pendingVictims.get(pendingVictimIndex);
+            pendingActionNegated = false;
+            pendingVictim = pendingActionTarget;
             notifyEvent("[INTERRUPT_REQUEST] " + pendingVictim.getPlayerName()
                     + " may use Just Say No.");
             return;
@@ -398,30 +431,43 @@ public class GameManager {
             pendingVictim.getHand().removeCard(cardIndex);
             gameDeck.receiveDiscard(card);
             notifyEvent(pendingVictim.getPlayerName() + " used Just Say No.");
-            if (pendingGroupAction != null) {
-                advancePendingVictimOrReset();
-            } else {
-                // Just Say No chaining: swap roles, let original attacker counter
-                if (pendingAttacker != null && pendingAttacker != pendingVictim) {
-                    boolean attackerHasJSN = pendingAttacker.getHand().getCards().stream()
-                            .anyMatch(c -> c.getCardName().equals("Just Say No"));
-                    if (attackerHasJSN) {
-                        Player originalAttacker = pendingAttacker;
-                        pendingAttacker = pendingVictim;
-                        notifyEvent("[INTERRUPT_REQUEST] " + originalAttacker.getPlayerName()
-                                + " may use Just Say No to counter!");
-                        pendingVictim = originalAttacker;
-                        return;
-                    }
+
+            pendingActionNegated = !pendingActionNegated;
+            Player nextResponder = getNextJustSayNoResponder(pendingVictim);
+            if (nextResponder != null && hasJustSayNo(nextResponder)) {
+                pendingVictim = nextResponder;
+                notifyEvent("[INTERRUPT_REQUEST] " + nextResponder.getPlayerName()
+                        + " may use Just Say No to counter!");
+                return;
+            }
+
+            if (pendingActionNegated) {
+                notifyEvent("The action is cancelled"
+                        + (pendingActionTarget == null ? "." : " for " + pendingActionTarget.getPlayerName() + "."));
+                if (pendingGroupAction != null) {
+                    advancePendingVictimOrReset();
+                } else {
+                    resetState();
+                    checkWinCondition();
                 }
-                notifyEvent("The action is cancelled.");
-                resetState();
-                pendingAttacker = null;
-                checkWinCondition();
+            } else {
+                resolvePendingAction();
             }
         } else {
             notifyEvent("Invalid counter card.");
         }
+    }
+
+    private Player getNextJustSayNoResponder(Player currentResponder) {
+        if (pendingAttacker == null || pendingActionTarget == null) {
+            return null;
+        }
+        return currentResponder == pendingAttacker ? pendingActionTarget : pendingAttacker;
+    }
+
+    private boolean hasJustSayNo(Player player) {
+        return player.getHand().getCards().stream()
+                .anyMatch(card -> card.getCardName().equals("Just Say No"));
     }
 
     public Player getPendingVictim() {
@@ -437,6 +483,9 @@ public class GameManager {
         this.pendingAction = null;
         this.pendingGroupAction = null;
         this.pendingVictim = null;
+        this.pendingAttacker = null;
+        this.pendingActionTarget = null;
+        this.pendingActionNegated = false;
         this.pendingVictims = null;
         this.pendingVictimIndex = 0;
     }
@@ -446,8 +495,7 @@ public class GameManager {
         if (victim == null) {
             throw new IllegalStateException("no valid target for this action.");
         }
-        this.pendingAttacker = initiator;
-        initiateAttack(victim, () -> attackAction.accept(victim));
+        initiateAttack(initiator, victim, () -> attackAction.accept(victim));
     }
 
     public List<Player> getOpponents(Player player) {

@@ -38,21 +38,22 @@ public class WildRentCard extends ActionCard {
         Player victim = gm.resolveTargetOrFirstOpponent(initiator);
 
         if (victim == null) {
-            System.out.println("No valid target for Wild Rent.");
-            return;
+            throw new IllegalStateException("no valid target for Wild Rent.");
+        }
+        if (selectedColor == null) {
+            throw new IllegalStateException("no color selected for Wild Rent.");
         }
 
-        Rentable set = victim.getPropertyArea().getPropertySet(selectedColor);
+        Rentable set = initiator.getPropertyArea().getPropertySet(selectedColor);
         int baseRent = (set != null) ? set.calculateRent() : 0;
         if (baseRent <= 0) {
-            System.out.println(victim.getPlayerName() + " has no " + selectedColor + " property, no rent.");
-            return;
+            throw new IllegalStateException("you do not own " + selectedColor + " property with rent to collect.");
         }
 
         int multiplier = gm.getAndResetRentMultiplier();
         int finalRent = baseRent * multiplier;
 
-        gm.initiateAttack(victim, () -> {
+        gm.initiateAttack(initiator, victim, () -> {
             victim.getBankArea().pay(finalRent, initiator);
             System.out.printf("[WildRent] %s pays %dM for %s (multiplier: %dx)%n",
                     victim.getPlayerName(), finalRent, selectedColor, multiplier);

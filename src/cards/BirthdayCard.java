@@ -15,7 +15,7 @@ public class BirthdayCard extends ActionCard {
         List<Player> opponents = GameManager.getInstance().getOpponents(initiator);
         if (opponents.isEmpty()) return;
 
-        GameManager.getInstance().initiateGroupAttack(opponents, victim -> {
+        GameManager.getInstance().initiateGroupAttack(initiator, opponents, victim -> {
             victim.getBankArea().pay(2, initiator);
             System.out.println(victim.getPlayerName() + " paid " + initiator.getPlayerName() + " 2M birthday money.");
         });

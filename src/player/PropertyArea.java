@@ -304,7 +304,7 @@ public class PropertyArea {
 
     /**
      * 强制变卖房产以抵债。
-     * 优先变卖非完整套装的牌，再变卖完整套装（已装修的先拆装修）。
+     * 优先变卖非完整套装的牌，不够时再拆完整套装（已装修的先拆装修）。
      * @param amount 需要筹集的金额
      * @return 变卖的牌列表（调用方应将其放入弃牌堆）
      */
@@ -314,8 +314,10 @@ public class PropertyArea {
 
         int raised = 0;
 
-        // Only sell from incomplete sets — complete sets cannot be broken for payment
         raised = sellFromSets(sold, raised, amount, false);
+        if (raised < amount) {
+            raised = sellFromSets(sold, raised, amount, true);
+        }
 
         return sold;
     }
@@ -342,8 +344,7 @@ public class PropertyArea {
             List<PropertyCard> cards = new ArrayList<>(root.getCards());
             for (PropertyCard card : cards) {
                 if (raised >= target) break;
-                // Wild cards (SuperWildCard, PropertyWildCard) cannot be used for payment
-                if (card instanceof cards.SuperWildCard || card instanceof cards.PropertyWildCard) continue;
+                if (card.getMonetaryValue() <= 0) continue;
                 root.removeProperty(card);
                 sold.add(card);
                 raised += card.getMonetaryValue();
