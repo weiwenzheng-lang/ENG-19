@@ -1,10 +1,11 @@
 package core;
 
+import cards.MoneyCard;
 import core.GameManager;
-import player.Player;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import java.util.Arrays;
+import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.*;
 
@@ -13,31 +14,35 @@ class GameManagerTest {
 
     @BeforeEach
     void setUp() {
-        // 重置单例状态并初始化
         game = GameManager.getInstance();
         game.initializeGame(Arrays.asList("Alice", "Bob"));
+        // Replace random hand with known cards so tests are deterministic
+        game.getCurrentPlayer().getHand().getCards();
+        // Clear hand and add money cards
+        while (game.getCurrentPlayer().getHand().getSize() > 0) {
+            game.getCurrentPlayer().getHand().removeCard(0);
+        }
+        game.getCurrentPlayer().getHand().addCards(List.of(
+                new MoneyCard(1, "Money 1M", 1),
+                new MoneyCard(2, "Money 1M", 1),
+                new MoneyCard(3, "Money 1M", 1),
+                new MoneyCard(4, "Money 1M", 1)
+        ));
     }
 
     @Test
     void testActionPointsDeduction() {
-        // 1. 初始化时应该是 3 点
-        assertEquals(3, game.getActionsRemaining(), "新回合开始应有 3 点行动力");
+        assertEquals(3, game.getActionsRemaining(), "New turn should start with 3 actions");
 
-        // 2. 模拟打出一张牌（假设手牌索引为 0）
-        game.handlePlayCard(0);
+        game.depositCardToBank(0);
+        assertEquals(2, game.getActionsRemaining(), "After 1 deposit, actions should be 2");
 
-        // 3. 断言：行动力应该变成 2
-        assertEquals(2, game.getActionsRemaining(), "打出一张牌后，行动力应扣除 1 点");
+        game.depositCardToBank(0);
+        game.depositCardToBank(0);
+        assertEquals(0, game.getActionsRemaining(), "After 3 deposits, actions should be 0");
 
-        // 4. 连续打完剩下的 2 次
-        game.handlePlayCard(0);
-        game.handlePlayCard(0);
-
-        // 5. 核心测试：断言行动力耗尽
-        assertEquals(0, game.getActionsRemaining(), "打出 3 张牌后，行动力必须为 0");
-
-        // 6. 额外测试：尝试打第 4 张牌，行动力不应变成负数，仍应为 0
-        game.handlePlayCard(0);
-        assertEquals(0, game.getActionsRemaining(), "行动力耗尽后继续出牌，行动力不应继续减少");
+        // Try a 4th deposit -- should fail
+        game.depositCardToBank(0);
+        assertEquals(0, game.getActionsRemaining(), "Actions should not go negative");
     }
 }

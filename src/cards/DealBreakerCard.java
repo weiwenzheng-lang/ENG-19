@@ -1,6 +1,8 @@
 package cards;
 
 import core.GameManager;
+import core.TargetInfo;
+import enums.PropertyColor;
 import player.Player;
 
 public class DealBreakerCard extends ActionCard {
@@ -12,9 +14,19 @@ public class DealBreakerCard extends ActionCard {
 
     @Override
     public void executePlayLogic(Player initiator) {
-        GameManager.getInstance().initiateTargetedAttack(initiator, victim -> {
-            boolean moved = victim.getPropertyArea()
-                    .transferFirstCompletedSetTo(initiator.getPropertyArea());
+        GameManager gm = GameManager.getInstance();
+        TargetInfo target = gm.getCurrentTargetInfo();
+        PropertyColor chosenColor = (target != null) ? target.getImprovementColor() : null;
+
+        gm.initiateTargetedAttack(initiator, victim -> {
+            boolean moved;
+            if (chosenColor != null) {
+                moved = victim.getPropertyArea()
+                        .transferCompletedSet(initiator.getPropertyArea(), chosenColor);
+            } else {
+                moved = victim.getPropertyArea()
+                        .transferFirstCompletedSetTo(initiator.getPropertyArea());
+            }
             if (!moved) {
                 throw new IllegalStateException("Deal Breaker failed: target has no complete set.");
             }

@@ -30,6 +30,7 @@ public class GameManager {
     private Runnable pendingAction;
     private Consumer<Player> pendingGroupAction;
     private Player pendingVictim;
+    private Player pendingAttacker; // original attacker (for JSN chaining)
     private List<Player> pendingVictims;
     private int pendingVictimIndex;
 
@@ -80,7 +81,7 @@ public class GameManager {
 
         notifyTurnChange(currentPlayer.getPlayerName());
 
-        List<Card> drawn = gameDeck.drawCards(2);
+        List<Card> drawn = gameDeck.drawCards(currentPlayer.getHand().getSize() == 0 ? 5 : 2);
         currentPlayer.getHand().addCards(drawn);
         notifyEvent(currentPlayer.getPlayerName() + " drew " + drawn.size() + " card(s).");
         checkDrawStalemate();
@@ -203,9 +204,9 @@ public class GameManager {
         if (selectedCard == null) {
             return;
         }
-        if (selectedCard instanceof cards.HouseCard || selectedCard instanceof cards.HotelCard) {
-            player.getHand().addCards(Collections.singletonList(selectedCard));
-            notifyEvent("House/Hotel cannot be banked from this menu; play it on a complete set.");
+        if (selectedCard instanceof cards.PropertyCard) {
+            player.getHand().addCards(java.util.Collections.singletonList(selectedCard));
+            notifyEvent("Property cards cannot be deposited to bank.");
             return;
         }
 
@@ -238,17 +239,20 @@ public class GameManager {
             return;
         }
 
+        resetState();
+        currentTargetInfo = null;
+
         currentTurnIndex = (currentTurnIndex + 1) % activePlayers.size();
         startNewTurn();
     }
 
     private void checkWinCondition() {
         for (Player player : activePlayers) {
-            int completedSets = player.getPropertyArea().countCompletedSets();
-            if (completedSets >= 3) {
+            int distinctColors = player.getPropertyArea().getCompletedColors().size();
+            if (distinctColors >= 3) {
                 isGameOver = true;
                 notifyEvent("Congratulations " + player.getPlayerName()
-                        + " collected 3 full property sets and wins!");
+                        + " collected 3 complete property sets of different colors and wins!");
                 return;
             }
         }
@@ -333,21 +337,6 @@ public class GameManager {
         notifyEvent("[INTERRUPT_REQUEST] " + victim.getPlayerName() + " may use Just Say No.");
     }
 
-    public void initiateGroupAttack(List<Player> victims, Runnable action) {
-        if (victims == null || victims.isEmpty()) {
-            action.run();
-            return;
-        }
-        this.currentState = GameState.WAITING_FOR_COUNTER_ACTION;
-        this.pendingAction = action;
-        this.pendingGroupAction = null;
-        this.pendingVictims = null;
-        this.pendingVictimIndex = 0;
-        this.pendingVictim = victims.get(0);
-        notifyEvent("[INTERRUPT_REQUEST] " + pendingVictim.getPlayerName()
-                + " may use Just Say No.");
-    }
-
     public void initiateGroupAttack(List<Player> victims, Consumer<Player> action) {
         if (victims == null || victims.isEmpty()) {
             return;
@@ -412,8 +401,23 @@ public class GameManager {
             if (pendingGroupAction != null) {
                 advancePendingVictimOrReset();
             } else {
+                // Just Say No chaining: swap roles, let original attacker counter
+                if (pendingAttacker != null && pendingAttacker != pendingVictim) {
+                    boolean attackerHasJSN = pendingAttacker.getHand().getCards().stream()
+                            .anyMatch(c -> c.getCardName().equals("Just Say No"));
+                    if (attackerHasJSN) {
+                        Player originalAttacker = pendingAttacker;
+                        pendingAttacker = pendingVictim;
+                        notifyEvent("[INTERRUPT_REQUEST] " + originalAttacker.getPlayerName()
+                                + " may use Just Say No to counter!");
+                        pendingVictim = originalAttacker;
+                        return;
+                    }
+                }
                 notifyEvent("The action is cancelled.");
                 resetState();
+                pendingAttacker = null;
+                checkWinCondition();
             }
         } else {
             notifyEvent("Invalid counter card.");
@@ -442,6 +446,7 @@ public class GameManager {
         if (victim == null) {
             throw new IllegalStateException("no valid target for this action.");
         }
+        this.pendingAttacker = initiator;
         initiateAttack(victim, () -> attackAction.accept(victim));
     }
 
@@ -453,14 +458,6 @@ public class GameManager {
             }
         }
         return opponents;
-    }
-
-    public void processGlobalPayment(Player initiator, int amount) {
-        List<Player> opponents = getOpponents(initiator);
-        for (Player victim : opponents) {
-            victim.getBankArea().pay(amount, initiator);
-        }
-        notifyEvent("Global payment complete.");
     }
 
     public void drawCardsForPlayer(Player player, int count) {

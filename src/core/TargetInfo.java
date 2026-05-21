@@ -28,6 +28,12 @@ public class TargetInfo {
         return new TargetInfo(null, null, -1, null, -1, improvementColor);
     }
 
+    /** Returns a copy of this TargetInfo with the target player set. */
+    public TargetInfo withTarget(Player player) {
+        return new TargetInfo(player, initiatorPropertyColor, initiatorPropertyIndex,
+                targetPropertyColor, targetPropertyIndex, improvementColor);
+    }
+
     private TargetInfo(Player targetPlayer, PropertyColor initiatorPropertyColor, int initiatorPropertyIndex,
                        PropertyColor targetPropertyColor, int targetPropertyIndex, PropertyColor improvementColor) {
         this.targetPlayer = targetPlayer;

@@ -16,9 +16,14 @@ public class PropertyArea {
         propertySets = new HashMap<>();
     }
 
+    private boolean canBuildOn(PropertyColor color) {
+        return color != PropertyColor.RAILROAD && color != PropertyColor.UTILITY;
+    }
+
     public boolean addHouseToCompleteSet() {
         for (Map.Entry<PropertyColor, Rentable> entry : propertySets.entrySet()) {
             PropertyColor color = entry.getKey();
+            if (!canBuildOn(color)) continue;
             Rentable current = entry.getValue();
             if (current.isComplete() && !current.isDecorated()) {
                 Rentable houseDecorated = new HouseDecorator(current);
@@ -31,6 +36,7 @@ public class PropertyArea {
     }
 
     public boolean addHouseToCompleteSet(PropertyColor color) {
+        if (!canBuildOn(color)) return false;
         Rentable current = propertySets.get(color);
         if (current != null && current.isComplete() && !current.isDecorated()) {
             propertySets.put(color, new HouseDecorator(current));
@@ -42,6 +48,7 @@ public class PropertyArea {
     public boolean addHotelToCompleteSet() {
         for (Map.Entry<PropertyColor, Rentable> entry : propertySets.entrySet()) {
             PropertyColor color = entry.getKey();
+            if (!canBuildOn(color)) continue;
             Rentable current = entry.getValue();
             if (current.isComplete() &&
                     (current instanceof HouseDecorator) &&
@@ -57,6 +64,7 @@ public class PropertyArea {
     }
 
     public boolean addHotelToCompleteSet(PropertyColor color) {
+        if (!canBuildOn(color)) return false;
         Rentable current = propertySets.get(color);
         if (current != null && current.isComplete()
                 && (current instanceof HouseDecorator)
@@ -180,6 +188,26 @@ public class PropertyArea {
         return true;
     }
 
+    /** Transfers a specific completed set by color. Returns false if no such completed set exists. */
+    public boolean transferCompletedSet(PropertyArea recipient, PropertyColor color) {
+        Rentable set = propertySets.get(color);
+        if (set == null || !set.isComplete()) return false;
+        propertySets.remove(color);
+        recipient.updatePropertySet(color, set);
+        return true;
+    }
+
+    /** Returns the list of colors that have completed sets (for Deal Breaker target selection). */
+    public List<PropertyColor> getCompletedColorsList() {
+        List<PropertyColor> list = new java.util.ArrayList<>();
+        for (Map.Entry<PropertyColor, Rentable> entry : propertySets.entrySet()) {
+            if (entry.getValue().isComplete()) {
+                list.add(entry.getKey());
+            }
+        }
+        return list;
+    }
+
     public boolean forceSwapFirstAvailableProperty(PropertyArea other) {
         PropertyCard mine = detachFirstIncompleteProperty();
         if (mine == null) {
@@ -199,12 +227,12 @@ public class PropertyArea {
 
     public boolean forceSwapProperty(PropertyArea other, PropertyColor myColor, int myIndex,
                                      PropertyColor theirColor, int theirIndex) {
-        PropertyCard mine = detachProperty(myColor, myIndex, true);
+        PropertyCard mine = detachProperty(myColor, myIndex, false);
         if (mine == null) {
             return false;
         }
 
-        PropertyCard theirs = other.detachProperty(theirColor, theirIndex, true);
+        PropertyCard theirs = other.detachProperty(theirColor, theirIndex, false);
         if (theirs == null) {
             addPropertyCard(mine);
             return false;
@@ -286,12 +314,8 @@ public class PropertyArea {
 
         int raised = 0;
 
-        // 第一轮：非完整套装
+        // Only sell from incomplete sets — complete sets cannot be broken for payment
         raised = sellFromSets(sold, raised, amount, false);
-        // 第二轮：还不够就变卖完整套装
-        if (raised < amount) {
-            sellFromSets(sold, raised, amount, true);
-        }
 
         return sold;
     }
@@ -318,6 +342,8 @@ public class PropertyArea {
             List<PropertyCard> cards = new ArrayList<>(root.getCards());
             for (PropertyCard card : cards) {
                 if (raised >= target) break;
+                // Wild cards (SuperWildCard, PropertyWildCard) cannot be used for payment
+                if (card instanceof cards.SuperWildCard || card instanceof cards.PropertyWildCard) continue;
                 root.removeProperty(card);
                 sold.add(card);
                 raised += card.getMonetaryValue();
@@ -333,8 +359,7 @@ public class PropertyArea {
     public void addPropertyCard(cards.PropertyCard card) {
         PropertyColor color = card.getColorGroup();
         if (color == PropertyColor.WILD) {
-            System.err.println("Error: Cannot add a WILD card without a specific color!");
-            return;
+            throw new IllegalStateException("Super wild card must have a color set before playing.");
         }
 
         propertySets.computeIfAbsent(color, k -> new PropertySet(color));
@@ -354,6 +379,17 @@ public class PropertyArea {
             }
         }
         return count;
+    }
+
+    /** Returns the set of distinct colors that have completed sets (for win condition check). */
+    public java.util.Set<PropertyColor> getCompletedColors() {
+        java.util.Set<PropertyColor> colors = new java.util.HashSet<>();
+        for (Map.Entry<PropertyColor, Rentable> entry : propertySets.entrySet()) {
+            if (entry.getValue().isComplete()) {
+                colors.add(entry.getKey());
+            }
+        }
+        return colors;
     }
 
     public void swapWildCardColor(cards.PropertyCard card, PropertyColor newColor) {

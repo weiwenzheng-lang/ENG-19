@@ -11,5 +11,4 @@ public interface Rentable {
     void addProperty(PropertyCard card);
 
     default boolean isDecorated() { return false; }
-    default PropertySet asPropertySet() { return (PropertySet) this; }
 }

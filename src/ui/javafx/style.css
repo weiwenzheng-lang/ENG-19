@@ -1,6 +1,6 @@
 /* ui/javafx/style.css */
 .root {
-    -fx-background-color: radial-gradient(center 50% 50%, radius 70%, #151828, #07090f);
+    -fx-background-color: radial-gradient(center 50% 50%, radius 80%, #0c1119, #05080e);
     -fx-font-family: 'Segoe UI', sans-serif;
 }
 

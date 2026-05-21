@@ -61,14 +61,11 @@ public class GameController implements GameObserver {
         game.initializeGame(playerNames);
     }
 
-    public GameController() {
-        this(Arrays.asList("Player A", "Player B", "Player C"));
-    }
-
     public BorderPane createContent() {
         opponents.setPadding(new Insets(10));
         opponents.setAlignment(Pos.CENTER);
-        opponents.setStyle("-fx-background-color: #1d2b33; -fx-border-color: #43545f;"
+        opponents.setStyle("-fx-background-color: #111827; "
+                + "-fx-border-color: transparent transparent rgba(0,242,255,0.12) transparent;"
                 + "-fx-border-width: 0 0 1 0;");
         root.setStyle("-fx-background-color: #0d0f12;"); // 璋冩暣涓哄拰 css 涓€鑷寸殑鏆楅粦鑳屾櫙
         ScrollPane opponentScroll = new ScrollPane(opponents);
@@ -114,8 +111,8 @@ public class GameController implements GameObserver {
                 piles, endTurnButton, gameOverActions);
         center.setAlignment(Pos.CENTER);
         center.setPadding(new Insets(18));
-        center.setStyle("-fx-background-color: #0e2535;"
-                + "-fx-border-color: #3b424a; -fx-border-width: 0 1 0 1;");
+        center.setStyle("-fx-background-color: #0f1722;"
+                + "-fx-border-color: #2a3040; -fx-border-width: 0 1 0 1;");
         styleInfoLabel(turnLabel, "#f8fbf6");
         styleInfoLabel(deckLabel, "#cfe7dd");
         styleInfoLabel(discardLabel, "#ead8b3");
@@ -150,8 +147,8 @@ public class GameController implements GameObserver {
 
         VBox panel = new VBox(content);
         panel.setPadding(new Insets(14));
-        panel.setStyle("-fx-background-color: #17262d; -fx-border-color: #314a55;"
-                + "-fx-border-width: 1 0 0 0;");
+        panel.setStyle("-fx-background-color: linear-gradient(to bottom, #0d1117, #090d14); "
+                + "-fx-border-color: #1e2a3a; -fx-border-width: 1 0 0 0;");
         panel.setFillWidth(true);
 
         handView.setStyle("-fx-background-color: rgba(255,215,168,0.05);"
@@ -187,8 +184,8 @@ public class GameController implements GameObserver {
         VBox panel = new VBox(8, logTitle, logView);
         panel.setPadding(new Insets(12));
         panel.setPrefWidth(300);
-        panel.setStyle("-fx-background-color: #0d0f12; -fx-border-color: #3f5262;"
-                + "-fx-border-width: 0 0 0 1;");
+        panel.setStyle("-fx-background-color: #070a10; "
+                + "-fx-border-color: rgba(0,242,255,0.08); -fx-border-width: 0 0 0 1;");
 
         // 灏嗗唴閮ㄨ儗鏅敼鎴愪笌璧涘崥鏈嬪厠 css 缁熶竴鐨勬繁鑹诧紙#16181b锛夛紝杩欐牱 css 閲岀殑鐏拌壊鍜岀豢鑹查珮浜枃鏈氨鑳藉畬缇庣湅娓呬簡锛?
         logView.setStyle("-fx-control-inner-background: #16181b; "
@@ -310,6 +307,14 @@ public class GameController implements GameObserver {
                     return;
                 }
                 rentCard.setSelectedColor(selectedColor);
+            } else if (card instanceof cards.WildRentCard) {
+                cards.WildRentCard wrCard = (cards.WildRentCard) card;
+                enums.PropertyColor selectedColor = chooseColor(wrCard.getAvailableColors());
+                if (selectedColor == null) {
+                    onGameEvent("Cancelled " + card.getCardName());
+                    return;
+                }
+                wrCard.setSelectedColor(selectedColor);
             } else if (card instanceof cards.SuperWildCard || card instanceof cards.PropertyWildCard) {
                 enums.PropertyColor[] options;
                 if (card instanceof cards.SuperWildCard) {
@@ -342,7 +347,11 @@ public class GameController implements GameObserver {
             renderAll();
         });
 
-        menu.getItems().addAll(bank, discard, play);
+        if (card instanceof cards.MoneyCard) {
+            menu.getItems().addAll(bank, discard);
+        } else {
+            menu.getItems().addAll(bank, discard, play);
+        }
         menu.show(owner, javafx.geometry.Side.TOP, 0, 0);
     }
 
@@ -408,6 +417,15 @@ public class GameController implements GameObserver {
                 return null;
             }
             return new TargetInfo(target, mine.color, mine.index, theirs.color, theirs.index);
+        }
+        if (card instanceof cards.DealBreakerCard) {
+            java.util.List<enums.PropertyColor> completed = target.getPropertyArea().getCompletedColorsList();
+            if (completed.size() > 1) {
+                enums.PropertyColor chosen = chooseColor(completed.toArray(new enums.PropertyColor[0]));
+                if (chosen == null) return null;
+                return TargetInfo.forImprovement(chosen).withTarget(target);
+            }
+            return new TargetInfo(target);
         }
         return new TargetInfo(target);
     }

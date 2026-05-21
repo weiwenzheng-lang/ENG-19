@@ -43,7 +43,6 @@ public class RentCard extends ActionCard {
     @Override
     public void executePlayLogic(Player initiator) {
         GameManager gm = GameManager.getInstance();
-        int multiplier = gm.getAndResetRentMultiplier();
         List<Player> opponents = gm.getOpponents(initiator);
         if (opponents.isEmpty()) {
             return;
@@ -54,10 +53,13 @@ public class RentCard extends ActionCard {
             throw new IllegalStateException("you do not own " + selectedColor + " property.");
         }
 
-        int finalRent = set.calculateRent() * multiplier;
-        if (finalRent <= 0) {
+        int baseRent = set.calculateRent();
+        if (baseRent <= 0) {
             throw new IllegalStateException("selected property has no rent to collect.");
         }
+
+        int multiplier = gm.getAndResetRentMultiplier();
+        int finalRent = baseRent * multiplier;
 
         gm.initiateGroupAttack(opponents, opponent -> opponent.getBankArea().pay(finalRent, initiator));
     }

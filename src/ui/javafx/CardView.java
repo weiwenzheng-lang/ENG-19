@@ -37,7 +37,7 @@ public class CardView extends StackPane {
         cardBody.setEffect(glow);
 
         Region headerBar = new Region();
-        headerBar.setPrefHeight(6);
+        headerBar.setPrefHeight(10);
         headerBar.setStyle("-fx-background-color: " + getHeaderColor(card) + "; "
                 + "-fx-background-radius: 8 8 0 0;");
 
@@ -100,7 +100,16 @@ public class CardView extends StackPane {
     private String getAccentColor(Card card) {
         if (card instanceof PropertyWildCard) return ((PropertyWildCard) card).getColorA().getColorHex();
         if (card instanceof PropertyCard) return ((PropertyCard) card).getColorGroup().getColorHex();
-        if (card instanceof MoneyCard) return "#00ff9f";
+        if (card instanceof MoneyCard) return "#c9a44b";
+        if (card instanceof DealBreakerCard) return "#9b59b6";
+        if (card instanceof JustSayNoCard) return "#e91e63";
+        if (card instanceof SlyDealCard || card instanceof ForceDealCard) return "#5e35b1";
+        if (card instanceof DebtCollectorCard || card instanceof BirthdayCard) return "#fb8c00";
+        if (card instanceof PassGoCard) return "#00acc1";
+        if (card instanceof DoubleTheRentCard) return "#c9a44b";
+        if (card instanceof HouseCard) return "#009688";
+        if (card instanceof HotelCard) return "#d32f2f";
+        if (card instanceof RentCard || card instanceof WildRentCard) return "#1e88e5";
         if (card instanceof ActionCard) return "#ff007f";
         return "#00f2ff";
     }
@@ -110,7 +119,9 @@ public class CardView extends StackPane {
     }
 
     private String getCardBackground(Card card) {
-        return "linear-gradient(to bottom right, #2a2d34, #141518)";
+        if (card instanceof MoneyCard)
+            return "linear-gradient(to bottom, #1a1608, #0d0a04)";
+        return "linear-gradient(to bottom right, #1e2230, #10131c)";
     }
 
     private String getPrimaryTextColor(Card card) {
@@ -122,6 +133,8 @@ public class CardView extends StackPane {
     }
 
     private String getValueTextColor(Card card) {
+        if (card instanceof MoneyCard) return "#ffd700";
+        if (card instanceof ActionCard) return "#00f2ff";
         return "#00ff9f";
     }
 

@@ -20,7 +20,7 @@ public class HotelCard extends ActionCard {
                 : initiator.getPropertyArea().addHotelToCompleteSet(color);
 
         if (!success) {
-            throw new IllegalStateException("choose a complete set with a house and without a hotel.");
+            initiator.getBankArea().deposit(this);
         }
     }
 }

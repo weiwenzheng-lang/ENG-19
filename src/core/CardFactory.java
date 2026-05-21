@@ -50,8 +50,8 @@ public class CardFactory {
         deck.add(new PropertyWildCard(id++, "Light Blue/Railroad Wild", 4, PropertyColor.LIGHT_BLUE, PropertyColor.RAILROAD, threeSetRent, fourSetRent));
         deck.add(new PropertyWildCard(id++, "Railroad/Green Wild", 4, PropertyColor.RAILROAD, PropertyColor.GREEN, fourSetRent, threeSetRent));
         deck.add(new PropertyWildCard(id++, "Blue/Green Wild", 4, PropertyColor.DARK_BLUE, PropertyColor.GREEN, darkBlueRent, threeSetRent));
+        deck.add(new PropertyWildCard(id++, "Orange/Red Wild", 3, PropertyColor.ORANGE, PropertyColor.RED, threeSetRent, threeSetRent));
         for (int i = 0; i < 2; i++) deck.add(new SuperWildCard(id++, "Multi-Color Wild", 0));
-        deck.add(new SuperWildCard(id++, "10-Color Special Wild", 0));
 
         return id;
     }
@@ -89,10 +89,8 @@ public class CardFactory {
             deck.add(new RentCard(id++, "Green/Dark Blue Rent", 1, PropertyColor.GREEN, PropertyColor.DARK_BLUE));
             deck.add(new RentCard(id++, "Railroad/Utility Rent", 1, PropertyColor.RAILROAD, PropertyColor.UTILITY));
         }
-        // 单色租金卡 (3 张)
-        deck.add(new RentCard(id++, "Brown Rent", 1, PropertyColor.BROWN, PropertyColor.BROWN));
-        deck.add(new RentCard(id++, "Red Rent", 1, PropertyColor.RED, PropertyColor.RED));
-        deck.add(new RentCard(id++, "Green Rent", 1, PropertyColor.GREEN, PropertyColor.GREEN));
+        // Any Rent 万能租金卡 (3 张) — 选一人 + 选颜色
+        for (int i = 0; i < 3; i++) deck.add(new WildRentCard(id++, "Any Rent", 3));
 
         return id;
     }
