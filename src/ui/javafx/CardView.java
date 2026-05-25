@@ -1,17 +1,16 @@
 package ui.javafx;
 
 import cards.*;
+import enums.PropertyColor;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
 import javafx.scene.control.Label;
 import javafx.scene.effect.DropShadow;
-import javafx.scene.layout.Pane;
 import javafx.scene.layout.Priority;
 import javafx.scene.layout.Region;
 import javafx.scene.layout.StackPane;
 import javafx.scene.layout.VBox;
 import javafx.scene.paint.Color;
-import javafx.scene.shape.Line;
 import javafx.scene.text.Font;
 import javafx.scene.text.FontWeight;
 
@@ -26,12 +25,12 @@ public class CardView extends StackPane {
         cardBody.setAlignment(Pos.TOP_CENTER);
         cardBody.setStyle("-fx-background-color: " + getCardBackground(card) + "; "
                 + "-fx-background-radius: 10; "
-                + "-fx-border-color: " + getAccentColor(card) + "; "
+                + "-fx-border-color: " + getBorderColor(card) + "; "
                 + "-fx-border-width: 2; "
                 + "-fx-border-radius: 10;");
 
         DropShadow glow = new DropShadow();
-        glow.setColor(Color.web(getAccentColor(card)).deriveColor(1, 1, 1, 0.6));
+        glow.setColor(Color.web(getGlowColor(card)).deriveColor(1, 1, 1, 0.6));
         glow.setRadius(10);
         glow.setSpread(0.2);
         cardBody.setEffect(glow);
@@ -72,7 +71,6 @@ public class CardView extends StackPane {
         });
 
         getChildren().add(cardBody);
-        addDualColorBorder(card);
     }
 
     public CardView(String title, String subtitle) {
@@ -115,6 +113,23 @@ public class CardView extends StackPane {
     }
 
     private String getHeaderColor(Card card) {
+        PropertyColor[] colors = getCardColors(card);
+        if (colors != null) {
+            return getColorGradient(colors);
+        }
+        return getAccentColor(card);
+    }
+
+    private String getBorderColor(Card card) {
+        PropertyColor[] colors = getCardColors(card);
+        if (colors != null) {
+            return getColorGradient(colors);
+        }
+        return getAccentColor(card);
+    }
+
+    private String getGlowColor(Card card) {
+        if (getCardColors(card) != null) return "#e8f5ff";
         return getAccentColor(card);
     }
 
@@ -138,37 +153,49 @@ public class CardView extends StackPane {
         return "#00ff9f";
     }
 
-    private void addDualColorBorder(Card card) {
-        if (!(card instanceof PropertyWildCard)) return;
-
-        PropertyWildCard wildCard = (PropertyWildCard) card;
-        String firstColor = wildCard.getColorA().getColorHex();
-        String secondColor = wildCard.getColorB().getColorHex();
-
-        Pane overlay = new Pane();
-        overlay.setMinSize(100, 140);
-        overlay.setPrefSize(100, 140);
-        overlay.setMaxSize(100, 140);
-        overlay.setMouseTransparent(true);
-
-        overlay.getChildren().addAll(
-                borderLine(2, 1, 98, 1, firstColor),
-                borderLine(1, 2, 1, 138, firstColor),
-                borderLine(99, 2, 99, 138, secondColor),
-                borderLine(2, 139, 98, 139, secondColor));
-
-        getChildren().add(overlay);
+    private PropertyColor[] getCardColors(Card card) {
+        if (card instanceof SuperWildCard) {
+            return ((SuperWildCard) card).getAvailableColors();
+        }
+        if (card instanceof PropertyWildCard) {
+            PropertyWildCard wildCard = (PropertyWildCard) card;
+            return new PropertyColor[]{wildCard.getColorA(), wildCard.getColorB()};
+        }
+        if (card instanceof RentCard && ((RentCard) card).isMultiColor()) {
+            return ((RentCard) card).getColorOptions();
+        }
+        return null;
     }
 
-    private Line borderLine(double startX, double startY, double endX, double endY, String color) {
-        Line line = new Line(startX, startY, endX, endY);
-        line.setStroke(Color.web(color));
-        line.setStrokeWidth(3);
-        line.setMouseTransparent(true);
-        return line;
+    private String getColorGradient(PropertyColor[] colors) {
+        StringBuilder gradient = new StringBuilder("linear-gradient(to right");
+        double segment = 100.0 / colors.length;
+        for (int i = 0; i < colors.length; i++) {
+            double start = i * segment;
+            double end = (i + 1) * segment;
+            gradient.append(", ")
+                    .append(colors[i].getColorHex())
+                    .append(" ")
+                    .append(formatPercent(start))
+                    .append("%, ")
+                    .append(colors[i].getColorHex())
+                    .append(" ")
+                    .append(formatPercent(end))
+                    .append("%");
+        }
+        gradient.append(")");
+        return gradient.toString();
+    }
+
+    private String formatPercent(double value) {
+        if (value == Math.rint(value)) {
+            return String.valueOf((int) value);
+        }
+        return String.format(java.util.Locale.US, "%.1f", value);
     }
 
     private String getCardTypeShortName(Card card) {
+        if (card instanceof SuperWildCard) return "[WILD ASSET]";
         if (card instanceof PropertyWildCard) return "[WILD ASSET]";
         if (card instanceof PropertyCard) return "[ASSET]";
         if (card instanceof MoneyCard) return "[FUNDS]";
