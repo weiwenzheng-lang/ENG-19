@@ -61,6 +61,6 @@ public class RentCard extends ActionCard {
         int multiplier = gm.getAndResetRentMultiplier();
         int finalRent = baseRent * multiplier;
 
-        gm.initiateGroupAttack(opponents, opponent -> opponent.getBankArea().pay(finalRent, initiator));
+        gm.initiateGroupAttack(initiator, opponents, opponent -> opponent.getBankArea().pay(finalRent, initiator));
     }
 }

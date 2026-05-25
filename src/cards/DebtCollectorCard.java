@@ -14,7 +14,7 @@ public class DebtCollectorCard extends ActionCard {
     public void executePlayLogic(Player initiator) {
         Player victim = GameManager.getInstance().resolveTargetOrFirstOpponent(initiator);
         if (victim != null) {
-            GameManager.getInstance().initiateAttack(victim, () -> {
+            GameManager.getInstance().initiateAttack(initiator, victim, () -> {
                 victim.getBankArea().pay(5, initiator);
             });
         }

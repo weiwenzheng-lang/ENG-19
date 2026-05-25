@@ -199,7 +199,7 @@ public class CardView extends StackPane {
         if (card instanceof PropertyWildCard) return "[WILD ASSET]";
         if (card instanceof PropertyCard) return "[ASSET]";
         if (card instanceof MoneyCard) return "[FUNDS]";
-        if (card instanceof RentCard) return "[RENTAL]";
+        if (card instanceof RentCard || card instanceof WildRentCard) return "[RENTAL]";
         if (card instanceof ActionCard) return "[ACTION]";
         return "[SYS]";
     }
