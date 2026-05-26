@@ -2,15 +2,43 @@ package player;
 
 import cards.PropertyCard;
 import enums.PropertyColor;
+
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.Comparator;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 
 public class PropertyArea {
-    private Map<PropertyColor, Rentable> propertySets;
+    private final Map<PropertyColor, List<Rentable>> propertySets;
+
+    public static class PropertySetEntry {
+        private final PropertyColor color;
+        private final int setIndex;
+        private final Rentable rentable;
+
+        public PropertySetEntry(PropertyColor color, int setIndex, Rentable rentable) {
+            this.color = color;
+            this.setIndex = setIndex;
+            this.rentable = rentable;
+        }
+
+        public PropertyColor getColor() {
+            return color;
+        }
+
+        public int getSetIndex() {
+            return setIndex;
+        }
+
+        public Rentable getRentable() {
+            return rentable;
+        }
+    }
 
     public PropertyArea() {
         propertySets = new HashMap<>();
@@ -21,14 +49,8 @@ public class PropertyArea {
     }
 
     public boolean addHouseToCompleteSet() {
-        for (Map.Entry<PropertyColor, Rentable> entry : propertySets.entrySet()) {
-            PropertyColor color = entry.getKey();
-            if (!canBuildOn(color)) continue;
-            Rentable current = entry.getValue();
-            if (current.isComplete() && !current.isDecorated()) {
-                Rentable houseDecorated = new HouseDecorator(current);
-                propertySets.put(color, houseDecorated);
-                System.out.println("System: Added a House to " + color + " set.");
+        for (PropertySetEntry entry : getPropertySetEntries()) {
+            if (addHouseToCompleteSet(entry.getColor())) {
                 return true;
             }
         }
@@ -37,26 +59,21 @@ public class PropertyArea {
 
     public boolean addHouseToCompleteSet(PropertyColor color) {
         if (!canBuildOn(color)) return false;
-        Rentable current = propertySets.get(color);
-        if (current != null && current.isComplete() && !current.isDecorated()) {
-            propertySets.put(color, new HouseDecorator(current));
-            return true;
+        List<Rentable> sets = propertySets.get(color);
+        if (sets == null) return false;
+        for (int i = 0; i < sets.size(); i++) {
+            Rentable current = sets.get(i);
+            if (current.isComplete() && !current.isDecorated()) {
+                sets.set(i, new HouseDecorator(current));
+                return true;
+            }
         }
         return false;
     }
 
     public boolean addHotelToCompleteSet() {
-        for (Map.Entry<PropertyColor, Rentable> entry : propertySets.entrySet()) {
-            PropertyColor color = entry.getKey();
-            if (!canBuildOn(color)) continue;
-            Rentable current = entry.getValue();
-            if (current.isComplete() &&
-                    (current instanceof HouseDecorator) &&
-                    !(current instanceof HotelDecorator)) {
-
-                Rentable hotelDecorated = new HotelDecorator(current);
-                propertySets.put(color, hotelDecorated);
-                System.out.println("System: Added a Hotel to " + color + " set.");
+        for (PropertySetEntry entry : getPropertySetEntries()) {
+            if (addHotelToCompleteSet(entry.getColor())) {
                 return true;
             }
         }
@@ -65,21 +82,25 @@ public class PropertyArea {
 
     public boolean addHotelToCompleteSet(PropertyColor color) {
         if (!canBuildOn(color)) return false;
-        Rentable current = propertySets.get(color);
-        if (current != null && current.isComplete()
-                && (current instanceof HouseDecorator)
-                && !(current instanceof HotelDecorator)) {
-            propertySets.put(color, new HotelDecorator(current));
-            return true;
+        List<Rentable> sets = propertySets.get(color);
+        if (sets == null) return false;
+        for (int i = 0; i < sets.size(); i++) {
+            Rentable current = sets.get(i);
+            if (current.isComplete()
+                    && current instanceof HouseDecorator
+                    && !(current instanceof HotelDecorator)) {
+                sets.set(i, new HotelDecorator(current));
+                return true;
+            }
         }
         return false;
     }
 
     public Optional<PropertyColor> findSetToImprove() {
-        for (Map.Entry<PropertyColor, Rentable> entry : propertySets.entrySet()) {
-            Rentable set = entry.getValue();
-            if (!set.isDecorated() && set.isComplete()) {
-                return Optional.of(entry.getKey());
+        for (PropertySetEntry entry : getPropertySetEntries()) {
+            Rentable set = entry.getRentable();
+            if (canBuildOn(entry.getColor()) && !set.isDecorated() && set.isComplete()) {
+                return Optional.of(entry.getColor());
             }
         }
         return Optional.empty();
@@ -87,10 +108,11 @@ public class PropertyArea {
 
     public List<PropertyColor> getHouseEligibleColors() {
         List<PropertyColor> colors = new ArrayList<>();
-        for (Map.Entry<PropertyColor, Rentable> entry : propertySets.entrySet()) {
-            Rentable set = entry.getValue();
-            if (set.isComplete() && !set.isDecorated()) {
-                colors.add(entry.getKey());
+        for (PropertySetEntry entry : getPropertySetEntries()) {
+            Rentable set = entry.getRentable();
+            if (canBuildOn(entry.getColor()) && set.isComplete() && !set.isDecorated()
+                    && !colors.contains(entry.getColor())) {
+                colors.add(entry.getColor());
             }
         }
         return colors;
@@ -98,10 +120,14 @@ public class PropertyArea {
 
     public List<PropertyColor> getHotelEligibleColors() {
         List<PropertyColor> colors = new ArrayList<>();
-        for (Map.Entry<PropertyColor, Rentable> entry : propertySets.entrySet()) {
-            Rentable set = entry.getValue();
-            if (set.isComplete() && set instanceof HouseDecorator && !(set instanceof HotelDecorator)) {
-                colors.add(entry.getKey());
+        for (PropertySetEntry entry : getPropertySetEntries()) {
+            Rentable set = entry.getRentable();
+            if (canBuildOn(entry.getColor())
+                    && set.isComplete()
+                    && set instanceof HouseDecorator
+                    && !(set instanceof HotelDecorator)
+                    && !colors.contains(entry.getColor())) {
+                colors.add(entry.getColor());
             }
         }
         return colors;
@@ -109,11 +135,12 @@ public class PropertyArea {
 
     public List<PropertyColor> getStealableIncompleteColors() {
         List<PropertyColor> colors = new ArrayList<>();
-        for (Map.Entry<PropertyColor, Rentable> entry : propertySets.entrySet()) {
-            Rentable set = entry.getValue();
+        for (PropertySetEntry entry : getPropertySetEntries()) {
+            Rentable set = entry.getRentable();
             PropertySet root = unwrap(set);
-            if (!set.isComplete() && root != null && !root.getCards().isEmpty()) {
-                colors.add(entry.getKey());
+            if (!set.isComplete() && root != null && !root.getCards().isEmpty()
+                    && !colors.contains(entry.getColor())) {
+                colors.add(entry.getColor());
             }
         }
         return colors;
@@ -121,34 +148,85 @@ public class PropertyArea {
 
     public List<PropertyColor> getPropertyColorsWithCards() {
         List<PropertyColor> colors = new ArrayList<>();
-        for (Map.Entry<PropertyColor, Rentable> entry : propertySets.entrySet()) {
-            PropertySet root = unwrap(entry.getValue());
-            if (root != null && !root.getCards().isEmpty()) {
-                colors.add(entry.getKey());
+        for (PropertySetEntry entry : getPropertySetEntries()) {
+            Rentable set = entry.getRentable();
+            PropertySet root = unwrap(set);
+            if (!set.isComplete() && root != null && !root.getCards().isEmpty()
+                    && !colors.contains(entry.getColor())) {
+                colors.add(entry.getColor());
             }
         }
         return colors;
     }
 
     public List<PropertyCard> getCards(PropertyColor color) {
-        Rentable rentable = propertySets.get(color);
-        PropertySet root = rentable == null ? null : unwrap(rentable);
-        if (root == null) {
+        return getCards(color, true);
+    }
+
+    public List<PropertyCard> getCards(PropertyColor color, boolean includeComplete) {
+        List<PropertyCard> cards = new ArrayList<>();
+        List<Rentable> sets = propertySets.get(color);
+        if (sets == null) {
             return Collections.emptyList();
         }
-        return root.getCards();
+        for (Rentable rentable : sets) {
+            if (!includeComplete && rentable.isComplete()) {
+                continue;
+            }
+            PropertySet root = unwrap(rentable);
+            if (root != null) {
+                cards.addAll(root.getCards());
+            }
+        }
+        return Collections.unmodifiableList(cards);
+    }
+
+    public List<PropertyCard> getAllPropertyCards() {
+        List<PropertyCard> cards = new ArrayList<>();
+        for (PropertySetEntry entry : getPropertySetEntries()) {
+            PropertySet root = unwrap(entry.getRentable());
+            if (root != null) {
+                cards.addAll(root.getCards());
+            }
+        }
+        return Collections.unmodifiableList(cards);
     }
 
     public Rentable getPropertySet(PropertyColor color) {
-        return propertySets.get(color);
+        return getBestSet(propertySets.get(color));
     }
 
     public Map<PropertyColor, Rentable> getPropertySets() {
-        return Collections.unmodifiableMap(propertySets);
+        Map<PropertyColor, Rentable> bestByColor = new HashMap<>();
+        for (PropertyColor color : sortedColors()) {
+            Rentable best = getPropertySet(color);
+            if (best != null) {
+                bestByColor.put(color, best);
+            }
+        }
+        return Collections.unmodifiableMap(bestByColor);
+    }
+
+    public List<PropertySetEntry> getPropertySetEntries() {
+        List<PropertySetEntry> entries = new ArrayList<>();
+        for (PropertyColor color : sortedColors()) {
+            List<Rentable> sets = propertySets.get(color);
+            if (sets == null) continue;
+            for (int i = 0; i < sets.size(); i++) {
+                entries.add(new PropertySetEntry(color, i, sets.get(i)));
+            }
+        }
+        return Collections.unmodifiableList(entries);
     }
 
     public void updatePropertySet(PropertyColor color, Rentable decoratedSet) {
-        propertySets.put(color, decoratedSet);
+        List<Rentable> sets = mutableSets(color);
+        int bestIndex = getBestSetIndex(sets);
+        if (bestIndex >= 0) {
+            sets.set(bestIndex, decoratedSet);
+        } else {
+            sets.add(decoratedSet);
+        }
     }
 
     public boolean stealFirstIncompletePropertyTo(PropertyArea recipient) {
@@ -169,43 +247,62 @@ public class PropertyArea {
         return true;
     }
 
-    public boolean transferFirstCompletedSetTo(PropertyArea recipient) {
-        PropertyColor completedColor = null;
-        Rentable completedSet = null;
-        for (Map.Entry<PropertyColor, Rentable> entry : propertySets.entrySet()) {
-            Rentable rentable = entry.getValue();
-            if (rentable.isComplete()) {
-                completedColor = entry.getKey();
-                completedSet = rentable;
-                break;
-            }
-        }
-        if (completedColor == null) {
+    public boolean transferPropertyCardTo(PropertyArea recipient, PropertyCard card, boolean allowComplete) {
+        if (recipient == null || card == null) {
             return false;
         }
-        propertySets.remove(completedColor);
-        recipient.updatePropertySet(completedColor, completedSet);
+        PropertyCard detached = detachSpecificProperty(card, allowComplete);
+        if (detached == null) {
+            return false;
+        }
+        recipient.addPropertyCard(detached);
         return true;
     }
 
-    /** Transfers a specific completed set by color. Returns false if no such completed set exists. */
-    public boolean transferCompletedSet(PropertyArea recipient, PropertyColor color) {
-        Rentable set = propertySets.get(color);
-        if (set == null || !set.isComplete()) return false;
-        propertySets.remove(color);
-        recipient.updatePropertySet(color, set);
-        return true;
-    }
-
-    /** Returns the list of colors that have completed sets (for Deal Breaker target selection). */
-    public List<PropertyColor> getCompletedColorsList() {
-        List<PropertyColor> list = new java.util.ArrayList<>();
-        for (Map.Entry<PropertyColor, Rentable> entry : propertySets.entrySet()) {
-            if (entry.getValue().isComplete()) {
-                list.add(entry.getKey());
+    public boolean transferFirstCompletedSetTo(PropertyArea recipient) {
+        for (PropertySetEntry entry : getPropertySetEntries()) {
+            if (entry.getRentable().isComplete()) {
+                removeRentable(entry.getColor(), entry.getSetIndex());
+                recipient.receiveTransferredSet(entry.getColor(), entry.getRentable());
+                return true;
             }
         }
-        return list;
+        return false;
+    }
+
+    public boolean transferCompletedSet(PropertyArea recipient, PropertyColor color) {
+        List<Rentable> sets = propertySets.get(color);
+        if (sets == null) return false;
+        for (int i = 0; i < sets.size(); i++) {
+            Rentable set = sets.get(i);
+            if (set.isComplete()) {
+                removeRentable(color, i);
+                recipient.receiveTransferredSet(color, set);
+                return true;
+            }
+        }
+        return false;
+    }
+
+    public void receiveTransferredSet(PropertyColor color, Rentable transferredSet) {
+        if (transferredSet == null) return;
+        PropertySet root = unwrap(transferredSet);
+        if (root == null || root.getCards().isEmpty()) return;
+
+        if (transferredSet.isComplete() || transferredSet.isDecorated()) {
+            mutableSets(color).add(transferredSet);
+            return;
+        }
+
+        for (PropertyCard card : new ArrayList<>(root.getCards())) {
+            addPropertyCard(card);
+        }
+    }
+
+    public List<PropertyColor> getCompletedColorsList() {
+        List<PropertyColor> colors = new ArrayList<>(getCompletedColors());
+        colors.sort(Comparator.comparingInt(Enum::ordinal));
+        return colors;
     }
 
     public boolean forceSwapFirstAvailableProperty(PropertyArea other) {
@@ -244,103 +341,97 @@ public class PropertyArea {
     }
 
     private PropertyCard detachFirstIncompleteProperty() {
-        PropertyColor selectedColor = null;
-        PropertySet selectedRoot = null;
-        PropertyCard selectedCard = null;
-        for (Map.Entry<PropertyColor, Rentable> entry : propertySets.entrySet()) {
-            Rentable rentable = entry.getValue();
-            if (rentable.isComplete()) {
+        for (PropertyColor color : sortedColors()) {
+            PropertyCard card = detachProperty(color, 0, false);
+            if (card != null) {
+                return card;
+            }
+        }
+        return null;
+    }
+
+    private PropertyCard detachProperty(PropertyColor color, int cardIndex, boolean allowComplete) {
+        List<Rentable> sets = propertySets.get(color);
+        if (sets == null) return null;
+
+        int flattenedIndex = 0;
+        for (int setIndex = 0; setIndex < sets.size(); setIndex++) {
+            Rentable rentable = sets.get(setIndex);
+            if (!allowComplete && rentable.isComplete()) {
                 continue;
             }
 
             PropertySet root = unwrap(rentable);
-            if (root != null && !root.getCards().isEmpty()) {
-                selectedColor = entry.getKey();
-                selectedRoot = root;
-                selectedCard = root.getCards().get(0);
-                break;
+            if (root == null) continue;
+            List<PropertyCard> cards = root.getCards();
+            if (cardIndex < flattenedIndex + cards.size()) {
+                PropertyCard selectedCard = cards.get(cardIndex - flattenedIndex);
+                root.removeProperty(selectedCard);
+                if (rentable.isDecorated() && !root.isComplete()) {
+                    sets.set(setIndex, root);
+                }
+                removeSetIfEmpty(color, root);
+                return selectedCard;
             }
+            flattenedIndex += cards.size();
         }
-        if (selectedCard == null) {
-            return null;
-        }
-        selectedRoot.removeProperty(selectedCard);
-        removeColorIfEmpty(selectedColor, selectedRoot);
-        return selectedCard;
+        return null;
     }
 
-    private PropertyCard detachProperty(PropertyColor color, int cardIndex, boolean allowComplete) {
-        Rentable rentable = propertySets.get(color);
-        if (rentable == null || (!allowComplete && rentable.isComplete())) {
-            return null;
-        }
+    private PropertyCard detachSpecificProperty(PropertyCard card, boolean allowComplete) {
+        PropertyColor color = card.getColorGroup();
+        List<Rentable> sets = propertySets.get(color);
+        if (sets == null) return null;
 
-        PropertySet root = unwrap(rentable);
-        if (root == null || cardIndex < 0 || cardIndex >= root.getCards().size()) {
-            return null;
-        }
+        for (int i = 0; i < sets.size(); i++) {
+            Rentable rentable = sets.get(i);
+            if (!allowComplete && rentable.isComplete()) {
+                continue;
+            }
 
-        PropertyCard selectedCard = root.getCards().get(cardIndex);
-        root.removeProperty(selectedCard);
-        if (rentable.isDecorated() && !root.isComplete()) {
-            propertySets.put(color, root);
+            PropertySet root = unwrap(rentable);
+            if (root == null || !root.getCards().contains(card)) {
+                continue;
+            }
+
+            root.removeProperty(card);
+            if (rentable.isDecorated() && !root.isComplete()) {
+                sets.set(i, root);
+            }
+            removeSetIfEmpty(color, root);
+            return card;
         }
-        removeColorIfEmpty(color, root);
-        return selectedCard;
+        return null;
     }
 
-    private PropertySet unwrap(Rentable rentable) {
-        if (rentable.isDecorated()) {
-            return ((SetDecorator) rentable).getRootSet();
-        }
-        return (PropertySet) rentable;
-    }
-
-    private void removeColorIfEmpty(PropertyColor color, PropertySet root) {
-        if (root.getCardsCount() == 0) {
-            propertySets.remove(color);
-        }
-    }
-
-    /**
-     * 强制变卖房产以抵债。
-     * 优先变卖非完整套装的牌，不够时再拆完整套装（已装修的先拆装修）。
-     * @param amount 需要筹集的金额
-     * @return 变卖的牌列表（调用方应将其放入弃牌堆）
-     */
     public List<PropertyCard> forceSellProperties(int amount) {
         List<PropertyCard> sold = new ArrayList<>();
         if (amount <= 0) return sold;
 
         int raised = 0;
-
         raised = sellFromSets(sold, raised, amount, false);
         if (raised < amount) {
-            raised = sellFromSets(sold, raised, amount, true);
+            sellFromSets(sold, raised, amount, true);
         }
 
         return sold;
     }
 
     private int sellFromSets(List<PropertyCard> sold, int raised, int target, boolean includeComplete) {
-        for (Map.Entry<PropertyColor, Rentable> entry : new ArrayList<>(propertySets.entrySet())) {
+        for (PropertySetEntry entry : new ArrayList<>(getPropertySetEntries())) {
             if (raised >= target) break;
-
-            Rentable rentable = entry.getValue();
-            boolean isComplete = rentable.isComplete();
-
-            if (isComplete != includeComplete) continue;
+            Rentable rentable = entry.getRentable();
+            if (rentable.isComplete() != includeComplete) continue;
 
             PropertySet root = unwrap(rentable);
             if (root == null || root.getCards().isEmpty()) continue;
 
-            // 拆除装饰器（房子/酒店）
+            List<Rentable> sets = propertySets.get(entry.getColor());
+            if (sets == null || entry.getSetIndex() >= sets.size()) continue;
             if (rentable.isDecorated()) {
-                propertySets.put(entry.getKey(), root);
-                rentable = root;
+                sets.set(entry.getSetIndex(), root);
             }
 
-            // 从该套装中逐一卖牌
             List<PropertyCard> cards = new ArrayList<>(root.getCards());
             for (PropertyCard card : cards) {
                 if (raised >= target) break;
@@ -350,64 +441,44 @@ public class PropertyArea {
                 raised += card.getMonetaryValue();
             }
 
-            if (root.getCardsCount() == 0) {
-                propertySets.remove(entry.getKey());
-            }
+            removeSetIfEmpty(entry.getColor(), root);
         }
         return raised;
     }
 
-    public void addPropertyCard(cards.PropertyCard card) {
+    public void addPropertyCard(PropertyCard card) {
         PropertyColor color = card.getColorGroup();
         if (color == PropertyColor.WILD) {
             throw new IllegalStateException("Super wild card must have a color set before playing.");
         }
 
-        propertySets.computeIfAbsent(color, k -> new PropertySet(color));
-        Rentable current = propertySets.get(color);
-
-        PropertySet root = unwrap(current);
-        if (root != null) {
-            root.addProperty(card);
+        PropertySet target = findBestIncompleteSetFor(color);
+        if (target == null) {
+            target = new PropertySet(color);
+            mutableSets(color).add(target);
         }
+        target.addProperty(card);
     }
 
     public int countCompletedSets() {
-        int count = 0;
-        for (Rentable set : propertySets.values()) {
-            if (set.isComplete()) {
-                count++;
-            }
-        }
-        return count;
+        return getCompletedColors().size();
     }
 
-    /** Returns the set of distinct colors that have completed sets (for win condition check). */
-    public java.util.Set<PropertyColor> getCompletedColors() {
-        java.util.Set<PropertyColor> colors = new java.util.HashSet<>();
-        for (Map.Entry<PropertyColor, Rentable> entry : propertySets.entrySet()) {
-            if (entry.getValue().isComplete()) {
-                colors.add(entry.getKey());
+    public Set<PropertyColor> getCompletedColors() {
+        Set<PropertyColor> colors = new HashSet<>();
+        for (PropertySetEntry entry : getPropertySetEntries()) {
+            if (entry.getRentable().isComplete()) {
+                colors.add(entry.getColor());
             }
         }
         return colors;
     }
 
-    public void swapWildCardColor(cards.PropertyCard card, PropertyColor newColor) {
+    public void swapWildCardColor(PropertyCard card, PropertyColor newColor) {
         PropertyColor oldColor = card.getColorGroup();
         if (oldColor == newColor) return;
 
-        Rentable oldRentable = propertySets.get(oldColor);
-        if (oldRentable != null) {
-            PropertySet oldRoot = unwrap(oldRentable);
-            oldRoot.removeProperty(card);
-
-            removeColorIfEmpty(oldColor, oldRoot);
-            if (oldRentable.isDecorated() && !oldRoot.isComplete()) {
-                System.out.println("System: " + oldColor + " set is no longer complete. Buildings removed.");
-                propertySets.put(oldColor, oldRoot);
-            }
-        }
+        removeCardFromColor(card, oldColor);
 
         if (card instanceof cards.SuperWildCard) {
             ((cards.SuperWildCard) card).setCurrentColor(newColor);
@@ -415,7 +486,106 @@ public class PropertyArea {
             ((cards.PropertyWildCard) card).setCurrentColor(newColor);
         }
 
-        this.addPropertyCard(card);
+        addPropertyCard(card);
     }
 
+    private void removeCardFromColor(PropertyCard card, PropertyColor color) {
+        List<Rentable> sets = propertySets.get(color);
+        if (sets == null) return;
+        for (int i = 0; i < sets.size(); i++) {
+            Rentable rentable = sets.get(i);
+            PropertySet root = unwrap(rentable);
+            if (root == null || !root.getCards().contains(card)) continue;
+            root.removeProperty(card);
+            if (rentable.isDecorated() && !root.isComplete()) {
+                sets.set(i, root);
+            }
+            removeSetIfEmpty(color, root);
+            return;
+        }
+    }
+
+    private PropertySet findBestIncompleteSetFor(PropertyColor color) {
+        List<Rentable> sets = propertySets.get(color);
+        if (sets == null) return null;
+        PropertySet best = null;
+        int bestCount = -1;
+        for (Rentable rentable : sets) {
+            if (rentable.isComplete()) continue;
+            PropertySet root = unwrap(rentable);
+            if (root == null) continue;
+            int count = root.getCardsCount();
+            if (count < color.getRequiredCount() && count > bestCount) {
+                best = root;
+                bestCount = count;
+            }
+        }
+        return best;
+    }
+
+    private Rentable getBestSet(List<Rentable> sets) {
+        int index = getBestSetIndex(sets);
+        return index < 0 ? null : sets.get(index);
+    }
+
+    private int getBestSetIndex(List<Rentable> sets) {
+        if (sets == null || sets.isEmpty()) return -1;
+        int bestIndex = 0;
+        for (int i = 1; i < sets.size(); i++) {
+            Rentable best = sets.get(bestIndex);
+            Rentable candidate = sets.get(i);
+            if (isBetterSet(candidate, best)) {
+                bestIndex = i;
+            }
+        }
+        return bestIndex;
+    }
+
+    private boolean isBetterSet(Rentable candidate, Rentable current) {
+        if (candidate.isComplete() != current.isComplete()) {
+            return candidate.isComplete();
+        }
+        return candidate.calculateRent() > current.calculateRent();
+    }
+
+    private List<Rentable> mutableSets(PropertyColor color) {
+        return propertySets.computeIfAbsent(color, ignored -> new ArrayList<>());
+    }
+
+    private void removeRentable(PropertyColor color, int setIndex) {
+        List<Rentable> sets = propertySets.get(color);
+        if (sets == null || setIndex < 0 || setIndex >= sets.size()) return;
+        sets.remove(setIndex);
+        if (sets.isEmpty()) {
+            propertySets.remove(color);
+        }
+    }
+
+    private void removeSetIfEmpty(PropertyColor color, PropertySet root) {
+        if (root.getCardsCount() > 0) return;
+        removeSetByRoot(color, root);
+    }
+
+    private void removeSetByRoot(PropertyColor color, PropertySet root) {
+        List<Rentable> sets = propertySets.get(color);
+        if (sets == null) return;
+        sets.removeIf(rentable -> unwrap(rentable) == root);
+        if (sets.isEmpty()) {
+            propertySets.remove(color);
+        }
+    }
+
+    private PropertySet unwrap(Rentable rentable) {
+        if (rentable == null) return null;
+        if (rentable.isDecorated()) {
+            return ((SetDecorator) rentable).getRootSet();
+        }
+        return (PropertySet) rentable;
+    }
+
+    private List<PropertyColor> sortedColors() {
+        List<PropertyColor> colors = new ArrayList<>(propertySets.keySet());
+        colors.sort(Comparator.comparingInt(Enum::ordinal));
+        return colors;
+    }
 }

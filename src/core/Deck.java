@@ -16,6 +16,8 @@ public class Deck {
 
     // 将生成的牌放入牌堆并洗牌
     public void initializeDeck(List<Card> allCards) {
+        drawPile.clear();
+        discardPile.clear();
         drawPile.addAll(allCards);
         shuffle();
     }

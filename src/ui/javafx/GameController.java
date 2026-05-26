@@ -14,8 +14,10 @@ import javafx.geometry.Pos;
 import javafx.scene.control.Alert;
 import javafx.scene.control.Button;
 import javafx.scene.control.ButtonType;
+import javafx.scene.control.CheckBox;
 import javafx.scene.control.ChoiceDialog;
 import javafx.scene.control.ContextMenu;
+import javafx.scene.control.Dialog;
 import javafx.scene.control.Label;
 import javafx.scene.control.ListView;
 import javafx.scene.control.MenuItem;
@@ -29,6 +31,7 @@ import javafx.scene.text.Font;
 import javafx.scene.text.FontWeight;
 
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
 
@@ -57,6 +60,7 @@ public class GameController implements GameObserver {
     public GameController(List<String> playerNames, Runnable newGameAction, Runnable exitGameAction) {
         this.newGameAction = newGameAction;
         this.exitGameAction = exitGameAction;
+        player.BankArea.setPaymentResolver(this::choosePaymentCardsForPayment);
         game.addObserver(this);
         game.initializeGame(playerNames);
     }
@@ -192,6 +196,20 @@ public class GameController implements GameObserver {
                 + "-fx-background-color: #16181b; -fx-background-radius: 8;"
                 + "-fx-border-color: #3b424a; -fx-border-radius: 8;"
                 + "-fx-font-family: 'Consolas'; -fx-font-size: 12px;");
+        logView.setCellFactory(list -> {
+            javafx.scene.control.ListCell<String> cell = new javafx.scene.control.ListCell<String>() {
+            @Override
+            protected void updateItem(String item, boolean empty) {
+                super.updateItem(item, empty);
+                setText(empty ? null : item);
+                setWrapText(true);
+                setStyle("-fx-text-fill: #f8fbf6; -fx-background-color: #16181b;"
+                        + "-fx-font-family: 'Consolas'; -fx-font-size: 12px;");
+            }
+            };
+            cell.prefWidthProperty().bind(list.widthProperty().subtract(24));
+            return cell;
+        });
         VBox.setVgrow(logView, Priority.ALWAYS);
         return panel;
     }
@@ -398,7 +416,7 @@ public class GameController implements GameObserver {
         Player target = selected.get();
         if (card instanceof cards.SlyDealCard) {
             PropertyPick targetCard = choosePropertyCard(target, target.getPropertyArea().getStealableIncompleteColors(),
-                    "Choose property to steal");
+                    "Choose property to steal", false);
             if (targetCard == null) {
                 return null;
             }
@@ -407,12 +425,12 @@ public class GameController implements GameObserver {
         if (card instanceof cards.ForceDealCard) {
             PropertyPick mine = choosePropertyCard(game.getCurrentPlayer(),
                     game.getCurrentPlayer().getPropertyArea().getPropertyColorsWithCards(),
-                    "Choose your property to give");
+                    "Choose your property to give", false);
             if (mine == null) {
                 return null;
             }
             PropertyPick theirs = choosePropertyCard(target, target.getPropertyArea().getPropertyColorsWithCards(),
-                    "Choose target property to receive");
+                    "Choose target property to receive", false);
             if (theirs == null) {
                 return null;
             }
@@ -443,9 +461,14 @@ public class GameController implements GameObserver {
     }
 
     private PropertyPick choosePropertyCard(Player owner, List<enums.PropertyColor> colors, String title) {
+        return choosePropertyCard(owner, colors, title, true);
+    }
+
+    private PropertyPick choosePropertyCard(Player owner, List<enums.PropertyColor> colors, String title,
+                                            boolean includeComplete) {
         java.util.List<PropertyPick> picks = new java.util.ArrayList<>();
         for (enums.PropertyColor color : colors) {
-            List<cards.PropertyCard> cards = owner.getPropertyArea().getCards(color);
+            List<cards.PropertyCard> cards = owner.getPropertyArea().getCards(color, includeComplete);
             for (int i = 0; i < cards.size(); i++) {
                 picks.add(new PropertyPick(color, i, color + " - " + cards.get(i).getCardName()));
             }
@@ -510,6 +533,68 @@ public class GameController implements GameObserver {
             }
         }
         game.executeDoubleRentAction(doubleCardIndex, rentCardIndex, targetInfo);
+    }
+
+    private List<Card> choosePaymentCardsForPayment(Player payer, Player payee, int amount,
+                                                    List<Card> bankCards,
+                                                    List<cards.PropertyCard> propertyCards) {
+        java.util.List<Card> options = new java.util.ArrayList<>();
+        options.addAll(bankCards);
+        options.addAll(propertyCards);
+        if (options.isEmpty()) {
+            return Collections.emptyList();
+        }
+
+        int totalAvailable = options.stream().mapToInt(Card::getMonetaryValue).sum();
+        Dialog<List<Card>> dialog = new Dialog<>();
+        dialog.setTitle("Payment");
+        dialog.setHeaderText(payer.getPlayerName() + " owes " + payee.getPlayerName() + " " + amount + "M");
+
+        VBox content = new VBox(8);
+        content.setPadding(new Insets(8));
+        Label selectedTotal = new Label();
+        java.util.List<CheckBox> boxes = new java.util.ArrayList<>();
+
+        for (Card card : options) {
+            boolean fromBank = bankCards.contains(card);
+            CheckBox box = new CheckBox((fromBank ? "Bank: " : "Property: ")
+                    + card.getCardName() + " (" + card.getMonetaryValue() + "M)");
+            box.setWrapText(true);
+            boxes.add(box);
+            content.getChildren().add(box);
+        }
+        content.getChildren().add(selectedTotal);
+        dialog.getDialogPane().setContent(content);
+        dialog.getDialogPane().getButtonTypes().setAll(ButtonType.OK);
+
+        Button okButton = (Button) dialog.getDialogPane().lookupButton(ButtonType.OK);
+        Runnable updateSelection = () -> {
+            int selected = 0;
+            for (int i = 0; i < boxes.size(); i++) {
+                if (boxes.get(i).isSelected()) {
+                    selected += options.get(i).getMonetaryValue();
+                }
+            }
+            selectedTotal.setText("Selected: " + selected + "M / Owed: " + amount + "M");
+            boolean enough = selected >= amount || (totalAvailable < amount && selected == totalAvailable);
+            okButton.setDisable(!enough);
+        };
+        boxes.forEach(box -> box.selectedProperty().addListener((ignored, oldValue, newValue) -> updateSelection.run()));
+        updateSelection.run();
+
+        dialog.setResultConverter(button -> {
+            if (button != ButtonType.OK) {
+                return Collections.emptyList();
+            }
+            java.util.List<Card> selected = new java.util.ArrayList<>();
+            for (int i = 0; i < boxes.size(); i++) {
+                if (boxes.get(i).isSelected()) {
+                    selected.add(options.get(i));
+                }
+            }
+            return selected;
+        });
+        return dialog.showAndWait().orElse(Collections.emptyList());
     }
 
     private static class PropertyPick {
@@ -632,6 +717,7 @@ public class GameController implements GameObserver {
     }
 
     public void dispose() {
+        player.BankArea.setPaymentResolver(null);
         game.removeObserver(this);
     }
 }

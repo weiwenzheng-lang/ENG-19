@@ -128,11 +128,20 @@ public class GameManager {
         }
 
         player.getHand().removeCard(cardIndex);
-        gameDeck.receiveDiscard(selectedCard);
+        if (shouldDiscardAfterPlay(selectedCard)) {
+            gameDeck.receiveDiscard(selectedCard);
+        }
         actionsRemaining--;
         notifyEvent(player.getPlayerName() + " played " + selectedCard.getCardName()
                 + " (actions left: " + actionsRemaining + ")");
         checkWinCondition();
+    }
+
+    private boolean shouldDiscardAfterPlay(Card card) {
+        return !(card instanceof cards.PropertyCard
+                || card instanceof cards.MoneyCard
+                || card instanceof cards.HouseCard
+                || card instanceof cards.HotelCard);
     }
 
     public void executeDoubleRentAction(int doubleCardIndex, int rentCardIndex, TargetInfo target) {
@@ -325,6 +334,10 @@ public class GameManager {
         for (GameObserver observer : observers) {
             observer.onGameEvent(message);
         }
+    }
+
+    public void logEvent(String message) {
+        notifyEvent(message);
     }
 
     private void notifyTurnChange(String playerName) {

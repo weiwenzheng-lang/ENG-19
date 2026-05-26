@@ -18,7 +18,6 @@ import javafx.scene.layout.VBox;
 import javafx.scene.text.Font;
 import javafx.scene.text.FontWeight;
 import javafx.scene.paint.Color;
-import java.util.Map;
 
 public class PlayerAreaView extends VBox {
     private final Label nameLabel = new Label();
@@ -70,21 +69,21 @@ public class PlayerAreaView extends VBox {
                 player.getHand().getSize()));
 
         properties.getChildren().clear();
-        for (Map.Entry<PropertyColor, Rentable> entry : player.getPropertyArea().getPropertySets().entrySet()) {
+        for (player.PropertyArea.PropertySetEntry entry : player.getPropertyArea().getPropertySetEntries()) {
             VBox setBox = new VBox(5);
             setBox.setPadding(new Insets(8));
             setBox.setStyle("-fx-background-color: #1c212b; -fx-background-radius: 6; "
-                    + "-fx-border-color: " + entry.getKey().getColorHex() + "; -fx-border-width: 0 0 0 5;");
+                    + "-fx-border-color: " + entry.getColor().getColorHex() + "; -fx-border-width: 0 0 0 5;");
 
-            Label title = new Label(entry.getKey().toString() + " SET");
+            Label title = new Label(entry.getColor().toString() + " SET");
             title.setTextFill(Color.WHITE);
             title.setFont(Font.font("Segoe UI", FontWeight.BOLD, 12));
 
             // Progress bar — StackPane overlay for reliable rendering
-            Rentable rentable = entry.getValue();
+            Rentable rentable = entry.getRentable();
             PropertySet root = getRoot(rentable);
             int cardCount = root != null ? root.getCardsCount() : 0;
-            int required = entry.getKey().getRequiredCount();
+            int required = entry.getColor().getRequiredCount();
             double ratio = Math.min(1.0, (double) cardCount / required);
 
             StackPane progressBar = new StackPane();
@@ -101,7 +100,7 @@ public class PlayerAreaView extends VBox {
             double fillW = Math.max(0, 120 * ratio);
             progressFill.setMinSize(fillW, 8);
             progressFill.setMaxSize(fillW, 8);
-            progressFill.setStyle("-fx-background-color: " + (ratio >= 1.0 ? "#00ff9f" : entry.getKey().getColorHex())
+            progressFill.setStyle("-fx-background-color: " + (ratio >= 1.0 ? "#00ff9f" : entry.getColor().getColorHex())
                     + "; -fx-background-radius: 4;");
             StackPane.setAlignment(progressFill, Pos.CENTER_LEFT);
             progressBar.getChildren().addAll(progressBg, progressFill);
