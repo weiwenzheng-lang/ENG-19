@@ -95,6 +95,7 @@
 
 .dialog-pane.game-dialog > .button-bar > .container {
     -fx-padding: 10 22 20 22;
+    -fx-spacing: 16;
 }
 
 .game-dialog-message,
@@ -186,6 +187,9 @@
     -fx-font-weight: bold;
     -fx-padding: 8 22;
     -fx-cursor: hand;
+    -fx-min-width: 118;
+    -fx-pref-width: 118;
+    -fx-min-height: 46;
 }
 
 .game-dialog .game-dialog-button-primary {
