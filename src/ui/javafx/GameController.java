@@ -11,11 +11,10 @@ import javafx.application.Platform;
 import javafx.collections.FXCollections;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
-import javafx.scene.control.Alert;
 import javafx.scene.control.Button;
+import javafx.scene.control.ButtonBar;
 import javafx.scene.control.ButtonType;
 import javafx.scene.control.CheckBox;
-import javafx.scene.control.ChoiceDialog;
 import javafx.scene.control.ContextMenu;
 import javafx.scene.control.Dialog;
 import javafx.scene.control.Label;
@@ -242,12 +241,9 @@ public class GameController implements GameObserver {
 
         if (gameOver && !winPopupShown) {
             winPopupShown = true;
-            javafx.scene.control.Alert alert = new javafx.scene.control.Alert(
-                    javafx.scene.control.Alert.AlertType.INFORMATION);
-            alert.setTitle("Game Over");
-            alert.setHeaderText(current.getPlayerName() + " Wins!");
-            alert.setContentText("Collected 3 complete property sets!");
-            alert.show();
+            GameDialogs.showMessage("Game Over",
+                    current.getPlayerName() + " Wins!",
+                    "Collected 3 complete property sets!");
         }
 
         renderOpponents(current);
@@ -379,13 +375,11 @@ public class GameController implements GameObserver {
 
     private enums.PropertyColor chooseColor(enums.PropertyColor[] colorOptions) {
         List<enums.PropertyColor> options = java.util.Arrays.asList(colorOptions);
-        ChoiceDialog<enums.PropertyColor> dialog = new ChoiceDialog<>(options.get(0), options);
-        dialog.setTitle("Select Color");
-        dialog.setHeaderText("Choose the color for this card");
-        dialog.setContentText("Color:");
-
-        Optional<enums.PropertyColor> result = dialog.showAndWait();
-        return result.orElse(null);
+        return GameDialogs.showChoice("Select Color",
+                "Choose the color for this card",
+                "Color",
+                options,
+                options.get(0)).orElse(null);
     }
 
     private TargetInfo chooseTarget(Card card) {
@@ -404,11 +398,11 @@ public class GameController implements GameObserver {
             onGameEvent("No available opponent.");
             return null;
         }
-        ChoiceDialog<Player> dialog = new ChoiceDialog<>(choices.get(0), FXCollections.observableArrayList(choices));
-        dialog.setTitle("Choose Target");
-        dialog.setHeaderText("Select a player to perform the action on");
-        dialog.setContentText("Target:");
-        Optional<Player> selected = dialog.showAndWait();
+        Optional<Player> selected = GameDialogs.showChoice("Choose Target",
+                "Select a player to perform the action on",
+                "Target",
+                FXCollections.observableArrayList(choices),
+                choices.get(0));
         if (!selected.isPresent()) {
             return null;
         }
@@ -452,11 +446,11 @@ public class GameController implements GameObserver {
         if (colors.isEmpty()) {
             return null;
         }
-        ChoiceDialog<enums.PropertyColor> dialog = new ChoiceDialog<>(colors.get(0), colors);
-        dialog.setTitle("Choose Property Set");
-        dialog.setHeaderText("Select a set");
-        dialog.setContentText("Set:");
-        Optional<enums.PropertyColor> selected = dialog.showAndWait();
+        Optional<enums.PropertyColor> selected = GameDialogs.showChoice("Choose Property Set",
+                "Select a set",
+                "Set",
+                colors,
+                colors.get(0));
         return selected.map(TargetInfo::forImprovement).orElse(null);
     }
 
@@ -476,11 +470,11 @@ public class GameController implements GameObserver {
         if (picks.isEmpty()) {
             return null;
         }
-        ChoiceDialog<PropertyPick> dialog = new ChoiceDialog<>(picks.get(0), picks);
-        dialog.setTitle(title);
-        dialog.setHeaderText(owner.getPlayerName());
-        dialog.setContentText("Property:");
-        return dialog.showAndWait().orElse(null);
+        return GameDialogs.showChoice(title,
+                owner.getPlayerName(),
+                "Property",
+                picks,
+                picks.get(0)).orElse(null);
     }
 
     private void playDoubleRent(int doubleCardIndex) {
@@ -498,11 +492,11 @@ public class GameController implements GameObserver {
             onGameEvent("Double The Rent must be paired with a rent card.");
             return;
         }
-        ChoiceDialog<String> dialog = new ChoiceDialog<>(choices.get(0), choices);
-        dialog.setTitle("Double The Rent");
-        dialog.setHeaderText("Choose a rent card to play with it");
-        dialog.setContentText("Rent:");
-        Optional<String> selected = dialog.showAndWait();
+        Optional<String> selected = GameDialogs.showChoice("Double The Rent",
+                "Choose a rent card to play with it",
+                "Rent",
+                choices,
+                choices.get(0));
         if (!selected.isPresent()) {
             return;
         }
@@ -546,28 +540,27 @@ public class GameController implements GameObserver {
         }
 
         int totalAvailable = options.stream().mapToInt(Card::getMonetaryValue).sum();
-        Dialog<List<Card>> dialog = new Dialog<>();
-        dialog.setTitle("Payment");
-        dialog.setHeaderText(payer.getPlayerName() + " owes " + payee.getPlayerName() + " " + amount + "M");
+        Dialog<List<Card>> dialog = GameDialogs.create("Payment",
+                payer.getPlayerName() + " owes " + payee.getPlayerName() + " " + amount + "M");
 
-        VBox content = new VBox(8);
-        content.setPadding(new Insets(8));
-        Label selectedTotal = new Label();
+        VBox content = GameDialogs.contentBox();
+        Label selectedTotal = GameDialogs.statusLabel();
         java.util.List<CheckBox> boxes = new java.util.ArrayList<>();
 
         for (Card card : options) {
             boolean fromBank = bankCards.contains(card);
-            CheckBox box = new CheckBox((fromBank ? "Bank: " : "Property: ")
+            CheckBox box = GameDialogs.checkBox((fromBank ? "Bank: " : "Property: ")
                     + card.getCardName() + " (" + card.getMonetaryValue() + "M)");
-            box.setWrapText(true);
             boxes.add(box);
             content.getChildren().add(box);
         }
         content.getChildren().add(selectedTotal);
         dialog.getDialogPane().setContent(content);
-        dialog.getDialogPane().getButtonTypes().setAll(ButtonType.OK);
+        ButtonType payButtonType = new ButtonType("Pay", ButtonBar.ButtonData.OK_DONE);
+        dialog.getDialogPane().getButtonTypes().setAll(payButtonType);
+        GameDialogs.styleButtons(dialog);
 
-        Button okButton = (Button) dialog.getDialogPane().lookupButton(ButtonType.OK);
+        Button okButton = (Button) dialog.getDialogPane().lookupButton(payButtonType);
         Runnable updateSelection = () -> {
             int selected = 0;
             for (int i = 0; i < boxes.size(); i++) {
@@ -583,7 +576,7 @@ public class GameController implements GameObserver {
         updateSelection.run();
 
         dialog.setResultConverter(button -> {
-            if (button != ButtonType.OK) {
+            if (button != payButtonType) {
                 return Collections.emptyList();
             }
             java.util.List<Card> selected = new java.util.ArrayList<>();
@@ -682,27 +675,20 @@ public class GameController implements GameObserver {
         }
         final int jsnIndex = jsnIdx;
 
-        Alert alert = new Alert(
-                jsnIndex >= 0
-                        ? Alert.AlertType.CONFIRMATION
-                        : Alert.AlertType.INFORMATION);
-        alert.setTitle("Counter Action");
-        alert.setHeaderText(victim.getPlayerName() + " is under attack!");
-
         if (jsnIndex >= 0) {
-            alert.setContentText("Use Just Say No to counter?");
-            alert.getButtonTypes().setAll(ButtonType.YES, ButtonType.NO);
-            alert.showAndWait().ifPresent(response -> {
-                if (response == ButtonType.YES) {
-                    game.counterAttackWithJustSayNo(jsnIndex);
-                } else {
-                    game.resolvePendingAction();
-                }
-                renderAll();
-            });
+            boolean counter = GameDialogs.showConfirmation("Counter Action",
+                    victim.getPlayerName() + " is under attack!",
+                    "Use Just Say No to counter?");
+            if (counter) {
+                game.counterAttackWithJustSayNo(jsnIndex);
+            } else {
+                game.resolvePendingAction();
+            }
+            renderAll();
         } else {
-            alert.setContentText("No Just Say No available. The action will proceed.");
-            alert.showAndWait();
+            GameDialogs.showMessage("Counter Action",
+                    victim.getPlayerName() + " is under attack!",
+                    "No Just Say No available. The action will proceed.");
             game.resolvePendingAction();
             renderAll();
         }

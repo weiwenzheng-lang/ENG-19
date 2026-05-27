@@ -85,26 +85,23 @@ public class MainApp extends Application {
     }
 
     private int choosePlayerCount() {
-        ChoiceDialog<Integer> dialog = new ChoiceDialog<>(3, 2, 3, 4, 5);
-        dialog.setTitle("Players");
-        dialog.setHeaderText("How many players?");
-        dialog.setContentText("Select number (2-5):");
-        return dialog.showAndWait().orElse(-1);
+        return GameDialogs.showChoice("Players",
+                "How many players?",
+                "Players",
+                java.util.Arrays.asList(2, 3, 4, 5),
+                3).orElse(-1);
     }
 
     private Optional<String> askPlayerName(int number) {
-        TextInputDialog dialog = new TextInputDialog("Player " + number);
-        dialog.setTitle("Player Name");
-        dialog.setHeaderText("Enter name for Player " + number);
-        dialog.setContentText("Name:");
-        return dialog.showAndWait();
+        return GameDialogs.showTextInput("Player Name",
+                "Enter name for Player " + number,
+                "Name",
+                "Player " + number);
     }
 
     private void showHelp() {
-        Alert alert = new Alert(Alert.AlertType.INFORMATION);
-        alert.setTitle("How to Play");
-        alert.setHeaderText("Monopoly Deal Rules");
-        alert.setContentText(
+        GameDialogs.showMessage("How to Play",
+                "Monopoly Deal Rules",
             "Goal: Collect 3 complete property sets of DIFFERENT colors.\n\n" +
             "Each turn: Draw 2 cards (or 5 if hand empty) → Play up to 3 cards → Discard to 7 max.\n\n" +
             "Card types:\n" +
@@ -116,7 +113,6 @@ public class MainApp extends Application {
             "No change is given.\n\n" +
             "Just Say No: Counter any action played against you."
         );
-        alert.showAndWait();
     }
 
     private Button styledButton(String text) {
