@@ -28,6 +28,8 @@ import javafx.scene.layout.Priority;
 import javafx.scene.layout.VBox;
 import javafx.scene.text.Font;
 import javafx.scene.text.FontWeight;
+import javafx.scene.text.Text;
+import javafx.scene.text.TextFlow;
 
 import java.util.Arrays;
 import java.util.Collections;
@@ -42,7 +44,7 @@ public class GameController implements GameObserver {
     private final FlowPane bankView = new FlowPane(6, 6);
     private final FlowPane propertyView = new FlowPane(8, 8);
     private final ListView<String> logView = new ListView<>();
-    private final Label turnLabel = new Label("Turn");
+    private final TextFlow turnStatus = new TextFlow();
     private final Label deckLabel = new Label("Deck");
     private final Label discardLabel = new Label("Discard");
     private final CardView drawPileView = CardView.back(0);
@@ -110,13 +112,14 @@ public class GameController implements GameObserver {
                 discardPileView);
         piles.setAlignment(Pos.CENTER);
 
-        VBox center = new VBox(14, title("Table"), turnLabel, deckLabel, discardLabel,
+        VBox center = new VBox(18, title("Table"), turnStatus, deckLabel, discardLabel,
                 piles, endTurnButton, gameOverActions);
         center.setAlignment(Pos.CENTER);
         center.setPadding(new Insets(18));
         center.setStyle("-fx-background-color: #0f1722;"
                 + "-fx-border-color: #2a3040; -fx-border-width: 0 1 0 1;");
-        styleInfoLabel(turnLabel, "#f8fbf6");
+        turnStatus.setTextAlignment(javafx.scene.text.TextAlignment.CENTER);
+        turnStatus.setStyle("-fx-padding: 2 0 2 0;");
         styleInfoLabel(deckLabel, "#cfe7dd");
         styleInfoLabel(discardLabel, "#ead8b3");
         return center;
@@ -217,9 +220,7 @@ public class GameController implements GameObserver {
 
     private void renderAll() {
         Player current = game.getCurrentPlayer();
-        turnLabel.setText("Current: " + current.getPlayerName()
-                + " | Actions: " + game.getActionsRemaining()
-                + " | Sets: " + current.getPropertyArea().countCompletedSets() + "/3");
+        renderTurnStatus(current);
         deckLabel.setText("Draw pile: " + game.getGameDeck().getDrawPileSize());
         drawPileView.getChildren().clear();
         drawPileView.getChildren().add(CardView.back(game.getGameDeck().getDrawPileSize()));
@@ -619,10 +620,28 @@ public class GameController implements GameObserver {
         propertyView.getChildren().add(view);
     }
 
+    private void renderTurnStatus(Player current) {
+        int completedSets = current.getPropertyArea().countCompletedSets();
+        turnStatus.getChildren().setAll(
+                statusText("Current: ", "#f7efe1", FontWeight.BOLD),
+                statusText(current.getPlayerName(), "#00f2ff", FontWeight.EXTRA_BOLD),
+                statusText("  |  Actions: ", "#f7efe1", FontWeight.BOLD),
+                statusText(String.valueOf(game.getActionsRemaining()), "#ff5f8f", FontWeight.EXTRA_BOLD),
+                statusText("  |  Sets: ", "#f7efe1", FontWeight.BOLD),
+                statusText(completedSets + "/3", "#00ff9f", FontWeight.EXTRA_BOLD));
+    }
+
+    private Text statusText(String text, String color, FontWeight weight) {
+        Text node = new Text(text);
+        node.setFill(javafx.scene.paint.Color.web(color));
+        node.setFont(Font.font("Segoe UI", weight, 24));
+        return node;
+    }
+
     private Label title(String text) {
         Label label = new Label(text);
         label.setTextFill(javafx.scene.paint.Color.web("#f7efe1"));
-        label.setFont(Font.font("Segoe UI", FontWeight.BOLD, 24));
+        label.setFont(Font.font("Segoe UI", FontWeight.BOLD, 40));
         return label;
     }
 
@@ -636,15 +655,15 @@ public class GameController implements GameObserver {
 
     private void styleInfoLabel(Label label, String color) {
         label.setTextFill(javafx.scene.paint.Color.web(color));
-        label.setFont(Font.font("Segoe UI", FontWeight.SEMI_BOLD, 13));
+        label.setFont(Font.font("Segoe UI", FontWeight.BOLD, 22));
     }
 
     private void styleButton(Button button) {
         button.setTextFill(javafx.scene.paint.Color.web("#1b2a31"));
-        button.setFont(Font.font("Segoe UI", FontWeight.BOLD, 13));
+        button.setFont(Font.font("Segoe UI", FontWeight.BOLD, 17));
         button.setStyle("-fx-background-color: #f0c978; -fx-background-radius: 8;"
                 + "-fx-border-color: #ffe0a1; -fx-border-radius: 8;"
-                + "-fx-padding: 8 18 8 18;");
+                + "-fx-padding: 10 24 10 24;");
     }
 
     @Override
