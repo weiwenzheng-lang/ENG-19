@@ -1,0 +1,25 @@
+package network;
+
+import java.util.List;
+
+public interface LanGameListener {
+    void onStatusChanged(String status);
+
+    void onPlayersChanged(List<String> players);
+
+    default void onRoomStateChanged(LanRoomState roomState) {
+    }
+
+    default void onGameStarted() {
+    }
+
+    default void onGameMessage(LanGameMessage message) {
+    }
+
+    default void onReconnecting(int attempt, int maxAttempts) {
+    }
+
+    void onLogMessage(String message);
+
+    void onDisconnected();
+}

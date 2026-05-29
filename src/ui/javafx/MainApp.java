@@ -23,6 +23,7 @@ import java.util.Optional;
 
 public class MainApp extends Application {
     private GameController currentController;
+    private NetworkLobbyController networkController;
     private Stage primaryStage;
 
     @Override
@@ -31,7 +32,14 @@ public class MainApp extends Application {
         showMainMenu();
     }
 
+    @Override
+    public void stop() {
+        disposeCurrentViews();
+    }
+
     private void showMainMenu() {
+        disposeCurrentViews();
+
         StackPane screen = new StackPane();
         ImageView background = new ImageView(loadResourceImage("/assets/ui/backgrounds/menu.png"));
         background.fitWidthProperty().bind(screen.widthProperty());
@@ -42,8 +50,7 @@ public class MainApp extends Application {
         VBox menu = new VBox(18);
         menu.setAlignment(Pos.CENTER);
         menu.setMaxWidth(340);
-        menu.setStyle("-fx-background-color: rgba(4, 10, 14, 0.42);"
-                + "-fx-background-radius: 18; -fx-padding: 28 34 30 34;");
+        menu.setStyle("-fx-padding: 28 34 30 34;");
 
         Label title = new Label("Monopoly Deal");
         title.setFont(Font.font("Segoe UI", FontWeight.BOLD, 36));
@@ -52,13 +59,16 @@ public class MainApp extends Application {
         Button startBtn = styledButton("Start Game");
         startBtn.setOnAction(e -> startGame());
 
+        Button lanBtn = styledButton("Local WiFi Game");
+        lanBtn.setOnAction(e -> showLanLobby());
+
         Button helpBtn = styledButton("How to Play");
         helpBtn.setOnAction(e -> showHelp());
 
         Button exitBtn = styledButton("Exit");
         exitBtn.setOnAction(e -> Platform.exit());
 
-        menu.getChildren().addAll(title, startBtn, helpBtn, exitBtn);
+        menu.getChildren().addAll(title, startBtn, lanBtn, helpBtn, exitBtn);
         screen.getChildren().addAll(background, menu);
         Scene scene = new Scene(screen, 1180, 664);
         primaryStage.setTitle("Monopoly Deal");
@@ -92,16 +102,43 @@ public class MainApp extends Application {
                 Platform::exit);
 
         Scene scene = new Scene(currentController.createContent(), 1366, 768);
+        applyStylesheet(scene);
+
+        primaryStage.setTitle("Monopoly Deal");
+        primaryStage.setScene(scene);
+        primaryStage.show();
+    }
+
+    private void showLanLobby() {
+        disposeCurrentViews();
+
+        networkController = new NetworkLobbyController(this::showMainMenu);
+        Scene scene = new Scene(networkController.createContent(), 900, 600);
+        applyStylesheet(scene);
+
+        primaryStage.setTitle("Monopoly Deal - Local WiFi Game");
+        primaryStage.setScene(scene);
+        primaryStage.show();
+    }
+
+    private void disposeCurrentViews() {
+        if (currentController != null) {
+            currentController.dispose();
+            currentController = null;
+        }
+        if (networkController != null) {
+            networkController.dispose();
+            networkController = null;
+        }
+    }
+
+    private void applyStylesheet(Scene scene) {
         try {
             String cssPath = getClass().getResource("style.css").toExternalForm();
             scene.getStylesheets().add(cssPath);
         } catch (NullPointerException e) {
             System.err.println("Warning: style.css not found.");
         }
-
-        primaryStage.setTitle("Monopoly Deal");
-        primaryStage.setScene(scene);
-        primaryStage.show();
     }
 
     private int choosePlayerCount() {
