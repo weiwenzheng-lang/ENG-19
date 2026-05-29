@@ -5,11 +5,18 @@ import javafx.application.Platform;
 import javafx.geometry.Pos;
 import javafx.scene.Scene;
 import javafx.scene.control.*;
+import javafx.scene.image.Image;
+import javafx.scene.image.ImageView;
+import javafx.scene.layout.StackPane;
 import javafx.scene.layout.VBox;
 import javafx.scene.text.Font;
 import javafx.scene.text.FontWeight;
 import javafx.stage.Stage;
 
+import java.net.URL;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
@@ -25,13 +32,22 @@ public class MainApp extends Application {
     }
 
     private void showMainMenu() {
-        VBox menu = new VBox(20);
+        StackPane screen = new StackPane();
+        ImageView background = new ImageView(loadResourceImage("/assets/ui/backgrounds/menu.png"));
+        background.fitWidthProperty().bind(screen.widthProperty());
+        background.fitHeightProperty().bind(screen.heightProperty());
+        background.setPreserveRatio(false);
+        background.setSmooth(true);
+
+        VBox menu = new VBox(18);
         menu.setAlignment(Pos.CENTER);
-        menu.setStyle("-fx-background-color: #132127;");
+        menu.setMaxWidth(340);
+        menu.setStyle("-fx-background-color: rgba(4, 10, 14, 0.42);"
+                + "-fx-background-radius: 18; -fx-padding: 28 34 30 34;");
 
         Label title = new Label("Monopoly Deal");
         title.setFont(Font.font("Segoe UI", FontWeight.BOLD, 36));
-        title.setTextFill(javafx.scene.paint.Color.web("#f0c978"));
+        title.setTextFill(javafx.scene.paint.Color.web("#ffe4a1"));
 
         Button startBtn = styledButton("Start Game");
         startBtn.setOnAction(e -> startGame());
@@ -43,7 +59,8 @@ public class MainApp extends Application {
         exitBtn.setOnAction(e -> Platform.exit());
 
         menu.getChildren().addAll(title, startBtn, helpBtn, exitBtn);
-        Scene scene = new Scene(menu, 600, 450);
+        screen.getChildren().addAll(background, menu);
+        Scene scene = new Scene(screen, 1180, 664);
         primaryStage.setTitle("Monopoly Deal");
         primaryStage.setScene(scene);
         primaryStage.show();
@@ -60,7 +77,10 @@ public class MainApp extends Application {
         List<String> playerNames = new ArrayList<>();
         for (int i = 1; i <= playerCount; i++) {
             Optional<String> name = askPlayerName(i);
-            if (name.isPresent() && !name.get().trim().isEmpty()) {
+            if (!name.isPresent()) {
+                return;
+            }
+            if (!name.get().trim().isEmpty()) {
                 playerNames.add(name.get().trim());
             } else {
                 playerNames.add("Player " + i);
@@ -71,7 +91,7 @@ public class MainApp extends Application {
                 this::showMainMenu,
                 Platform::exit);
 
-        Scene scene = new Scene(currentController.createContent(), 1180, 760);
+        Scene scene = new Scene(currentController.createContent(), 1366, 768);
         try {
             String cssPath = getClass().getResource("style.css").toExternalForm();
             scene.getStylesheets().add(cssPath);
@@ -119,8 +139,36 @@ public class MainApp extends Application {
         Button btn = new Button(text);
         btn.setPrefWidth(220);
         btn.setFont(Font.font("Segoe UI", FontWeight.BOLD, 16));
-        btn.setStyle("-fx-background-color: #f0c978; -fx-text-fill: #1b2a31;"
-                + "-fx-background-radius: 8; -fx-padding: 12 24 12 24;");
+        applyButtonStyle(btn, false);
+        btn.setOnMouseEntered(event -> {
+            applyButtonStyle(btn, true);
+            btn.setScaleX(1.04);
+            btn.setScaleY(1.04);
+        });
+        btn.setOnMouseExited(event -> {
+            applyButtonStyle(btn, false);
+            btn.setScaleX(1.0);
+            btn.setScaleY(1.0);
+        });
         return btn;
+    }
+
+    private void applyButtonStyle(Button btn, boolean hover) {
+        btn.setStyle((hover
+                ? "-fx-background-color: linear-gradient(to bottom, #fff2bd, #e0ad46);"
+                : "-fx-background-color: linear-gradient(to bottom, #ffe6a5, #c89432);")
+                + "-fx-text-fill: #172028; -fx-background-radius: 22;"
+                + "-fx-border-color: #fff0bc; -fx-border-radius: 22;"
+                + "-fx-font-weight: bold; -fx-padding: 12 24 12 24;"
+                + (hover ? "-fx-effect: dropshadow(gaussian, rgba(255,230,165,0.62), 18, 0.28, 0, 0);" : ""));
+    }
+
+    private Image loadResourceImage(String path) {
+        URL resource = getClass().getResource(path);
+        if (resource != null) {
+            return new Image(resource.toExternalForm(), 0, 0, true, true);
+        }
+        Path filePath = Paths.get(System.getProperty("user.dir"), "src", path.replaceFirst("^/", ""));
+        return Files.isRegularFile(filePath) ? new Image(filePath.toUri().toString(), 0, 0, true, true) : null;
     }
 }

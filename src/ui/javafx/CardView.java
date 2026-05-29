@@ -6,20 +6,87 @@ import javafx.geometry.Insets;
 import javafx.geometry.Pos;
 import javafx.scene.control.Label;
 import javafx.scene.effect.DropShadow;
+import javafx.scene.image.Image;
+import javafx.scene.image.ImageView;
 import javafx.scene.layout.Priority;
 import javafx.scene.layout.Region;
 import javafx.scene.layout.StackPane;
 import javafx.scene.layout.VBox;
 import javafx.scene.paint.Color;
+import javafx.scene.shape.Rectangle;
 import javafx.scene.text.Font;
 import javafx.scene.text.FontWeight;
 
+import java.net.URL;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
+import java.util.ArrayList;
+import java.util.List;
+
 public class CardView extends StackPane {
+    public static final double DEFAULT_CARD_WIDTH = 86;
+    public static final double DEFAULT_CARD_HEIGHT = 142;
+    private static final String CARD_IMAGE_RESOURCE_DIR = "/Card Library/Card Library/";
+    private static final String CARD_IMAGE_FILE_DIR = "src/Card Library/Card Library";
+    private final double cardWidth;
+    private final double cardHeight;
 
     public CardView(Card card) {
-        setPrefSize(100, 140);
-        setMinSize(100, 140);
-        setMaxSize(100, 140);
+        this(card, DEFAULT_CARD_WIDTH, DEFAULT_CARD_HEIGHT);
+    }
+
+    public CardView(Card card, double width, double height) {
+        this.cardWidth = width;
+        this.cardHeight = height;
+        applyFixedCardSize();
+
+        Image cardImage = loadCardImage(card);
+        if (cardImage != null) {
+            getChildren().add(createImageCard(cardImage, card));
+            return;
+        }
+
+        getChildren().add(createFallbackCard(card));
+    }
+
+    private StackPane createImageCard(Image cardImage, Card card) {
+        ImageView imageView = new ImageView(cardImage);
+        imageView.setFitWidth(cardWidth);
+        imageView.setFitHeight(cardHeight);
+        imageView.setPreserveRatio(true);
+        imageView.setSmooth(true);
+        imageView.setCache(true);
+
+        StackPane imageCard = new StackPane(imageView);
+        imageCard.setPrefSize(cardWidth, cardHeight);
+        imageCard.setMinSize(cardWidth, cardHeight);
+        imageCard.setMaxSize(cardWidth, cardHeight);
+
+        Rectangle clip = new Rectangle(cardWidth, cardHeight);
+        clip.setArcWidth(Math.max(10, cardWidth * 0.12));
+        clip.setArcHeight(Math.max(10, cardWidth * 0.12));
+        imageCard.setClip(clip);
+
+        DropShadow glow = new DropShadow();
+        glow.setColor(Color.web(getGlowColor(card)).deriveColor(1, 1, 1, 0.45));
+        glow.setRadius(8);
+        glow.setSpread(0.16);
+        imageCard.setEffect(glow);
+
+        this.setOnMouseEntered(e -> {
+            this.setTranslateY(-8);
+            glow.setRadius(18);
+        });
+        this.setOnMouseExited(e -> {
+            this.setTranslateY(0);
+            glow.setRadius(8);
+        });
+
+        return imageCard;
+    }
+
+    private VBox createFallbackCard(Card card) {
 
         VBox cardBody = new VBox();
         cardBody.setAlignment(Pos.TOP_CENTER);
@@ -70,13 +137,17 @@ public class CardView extends StackPane {
             glow.setRadius(10);
         });
 
-        getChildren().add(cardBody);
+        return cardBody;
     }
 
     public CardView(String title, String subtitle) {
-        setPrefSize(100, 140);
-        setMinSize(100, 140);
-        setMaxSize(100, 140);
+        this(title, subtitle, DEFAULT_CARD_WIDTH, DEFAULT_CARD_HEIGHT);
+    }
+
+    public CardView(String title, String subtitle, double width, double height) {
+        this.cardWidth = width;
+        this.cardHeight = height;
+        applyFixedCardSize();
 
         VBox cardBody = new VBox(8);
         cardBody.setAlignment(Pos.CENTER);
@@ -93,6 +164,119 @@ public class CardView extends StackPane {
 
         cardBody.getChildren().addAll(titleLabel, subtitleLabel);
         getChildren().add(cardBody);
+    }
+
+    private void applyFixedCardSize() {
+        setPrefSize(cardWidth, cardHeight);
+        setMinSize(cardWidth, cardHeight);
+        setMaxSize(cardWidth, cardHeight);
+    }
+
+    private Image loadCardImage(Card card) {
+        for (String baseName : getImageBaseNameCandidates(card)) {
+            for (String extension : new String[]{".png", ".jpg", ".jpeg"}) {
+                Image image = loadImage(baseName + extension);
+                if (image != null) {
+                    return image;
+                }
+            }
+        }
+        return null;
+    }
+
+    private Image loadImage(String fileName) {
+        URL resource = CardView.class.getResource(CARD_IMAGE_RESOURCE_DIR + fileName);
+        if (resource != null) {
+            Image image = new Image(resource.toExternalForm(), 0, 0, true, true);
+            return image.isError() ? null : image;
+        }
+
+        Path filePath = Paths.get(System.getProperty("user.dir"), CARD_IMAGE_FILE_DIR, fileName);
+        if (Files.isRegularFile(filePath)) {
+            Image image = new Image(filePath.toUri().toString(), 0, 0, true, true);
+            return image.isError() ? null : image;
+        }
+
+        return null;
+    }
+
+    private List<String> getImageBaseNameCandidates(Card card) {
+        List<String> names = new ArrayList<>();
+        names.add(card.getCardName());
+
+        String mappedName = getMappedImageBaseName(card);
+        if (mappedName != null && !names.contains(mappedName)) {
+            names.add(mappedName);
+        }
+
+        addSanitizedNames(names, card.getCardName());
+        if (mappedName != null) {
+            addSanitizedNames(names, mappedName);
+        }
+
+        return names;
+    }
+
+    private void addSanitizedNames(List<String> names, String baseName) {
+        String hyphen = baseName.replace("/", "-");
+        String underscore = baseName.replace("/", "_");
+        String space = baseName.replace("/", " ");
+        for (String candidate : new String[]{hyphen, underscore, space}) {
+            if (!names.contains(candidate)) {
+                names.add(candidate);
+            }
+        }
+    }
+
+    private String getMappedImageBaseName(Card card) {
+        if (card instanceof SuperWildCard) {
+            return "Property Wild Card";
+        }
+
+        if (card instanceof WildRentCard) {
+            return "Rent_Rainbow";
+        }
+
+        if (card instanceof RentCard) {
+            RentCard rentCard = (RentCard) card;
+            PropertyColor[] colors = rentCard.getColorOptions();
+            if (hasColors(colors, PropertyColor.BROWN, PropertyColor.LIGHT_BLUE)) {
+                return "Brown-Light Blue Rent";
+            }
+            if (hasColors(colors, PropertyColor.PINK, PropertyColor.ORANGE)) {
+                return "Pink-Orange Rent";
+            }
+            if (hasColors(colors, PropertyColor.RED, PropertyColor.YELLOW)) {
+                return "Red-Yellow Rent";
+            }
+            if (hasColors(colors, PropertyColor.GREEN, PropertyColor.DARK_BLUE)) {
+                return "Rent_GreenDeepblue";
+            }
+            if (hasColors(colors, PropertyColor.RAILROAD, PropertyColor.UTILITY)) {
+                return "Railroad-Utility Rent";
+            }
+        }
+
+        if (card instanceof PropertyWildCard) {
+            PropertyWildCard wildCard = (PropertyWildCard) card;
+            PropertyColor[] colors = wildCard.getAvailableColors();
+            if (hasColors(colors, PropertyColor.BROWN, PropertyColor.LIGHT_BLUE)) return "Property Wild card_BlueBrown";
+            if (hasColors(colors, PropertyColor.PINK, PropertyColor.ORANGE)) return "Property Wild Card_OrangePink";
+            if (hasColors(colors, PropertyColor.RED, PropertyColor.YELLOW)) return "Property Wild Card_YellowRed";
+            if (hasColors(colors, PropertyColor.GREEN, PropertyColor.DARK_BLUE)) return "Property Wild card_GreenDeepblue";
+            if (hasColors(colors, PropertyColor.RAILROAD, PropertyColor.UTILITY)) return "Property Wild Card_EnterpriseRailroad";
+            if (hasColors(colors, PropertyColor.LIGHT_BLUE, PropertyColor.RAILROAD)) return "Property Wild Card_BlueRailroad";
+            if (hasColors(colors, PropertyColor.RAILROAD, PropertyColor.GREEN)) return "Property Wild Card_RailroadGreen";
+            if (hasColors(colors, PropertyColor.ORANGE, PropertyColor.RED)) return "Orange-Red Wild";
+        }
+
+        return null;
+    }
+
+    private boolean hasColors(PropertyColor[] colors, PropertyColor first, PropertyColor second) {
+        return colors.length == 2
+                && ((colors[0] == first && colors[1] == second)
+                || (colors[0] == second && colors[1] == first));
     }
 
     private String getAccentColor(Card card) {
@@ -205,6 +389,10 @@ public class CardView extends StackPane {
     }
 
     public static CardView back(int count) {
-        return new CardView("HUB_DECK", count + " CARDS");
+        return back(count, DEFAULT_CARD_WIDTH, DEFAULT_CARD_HEIGHT);
+    }
+
+    public static CardView back(int count, double width, double height) {
+        return new CardView("DRAW", count + " CARDS", width, height);
     }
 }
