@@ -2,12 +2,12 @@ package enums;
 
 public enum PropertyColor {
     BROWN(2, new int[]{1, 2}),
-    LIGHT_BLUE(3, new int[]{1, 2, 4}),
+    LIGHT_BLUE(3, new int[]{1, 2, 3}),
     PINK(3, new int[]{1, 2, 4}),
-    ORANGE(3, new int[]{1, 2, 4}),
-    RED(3, new int[]{1, 2, 4}),
-    YELLOW(3, new int[]{1, 2, 4}),
-    GREEN(3, new int[]{1, 2, 4}),
+    ORANGE(3, new int[]{1, 3, 5}),
+    RED(3, new int[]{2, 3, 6}),
+    YELLOW(3, new int[]{2, 4, 6}),
+    GREEN(3, new int[]{2, 4, 7}),
     DARK_BLUE(2, new int[]{3, 8}),
     RAILROAD(4, new int[]{1, 2, 3, 4}),
     UTILITY(2, new int[]{1, 2}),

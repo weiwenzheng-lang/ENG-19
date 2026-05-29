@@ -1,6 +1,7 @@
 package ui.javafx;
 
 import cards.Card;
+import cards.PropertyCard;
 import cards.RentCard;
 import core.GameManager;
 import core.TargetInfo;
@@ -13,7 +14,6 @@ import javafx.beans.binding.NumberBinding;
 import javafx.collections.FXCollections;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
-import javafx.scene.Node;
 import javafx.scene.control.Button;
 import javafx.scene.control.ButtonBar;
 import javafx.scene.control.ButtonType;
@@ -23,7 +23,10 @@ import javafx.scene.control.Dialog;
 import javafx.scene.control.Label;
 import javafx.scene.control.ListView;
 import javafx.scene.control.MenuItem;
+import javafx.scene.control.OverrunStyle;
+import javafx.scene.control.ProgressBar;
 import javafx.scene.control.ScrollPane;
+import javafx.scene.control.Tooltip;
 import javafx.scene.layout.BorderPane;
 import javafx.scene.layout.FlowPane;
 import javafx.scene.layout.HBox;
@@ -76,12 +79,15 @@ public class GameController implements GameObserver {
     private final TextFlow turnStatus = new TextFlow();
     private final Label ownNameLabel = new Label();
     private final Label ownStatsLabel = new Label();
+    private final Label ownSetsLabel = new Label();
+    private final ProgressBar ownSetsProgress = new ProgressBar(0);
     private final Label deckLabel = new Label("Deck");
     private final Label discardLabel = new Label("Discard");
     private final CardView drawPileView = CardView.back(0, PILE_CARD_WIDTH, PILE_CARD_HEIGHT);
     private final CardView discardPileView = new CardView("Discard", "", PILE_CARD_WIDTH, PILE_CARD_HEIGHT);
     private final Button endTurnButton = imageButton("end_turn.png", "End Turn", 210, 64);
     private final HBox gameOverActions = new HBox(10);
+    private final HBox quickActions = new HBox(8);
     private final Runnable newGameAction;
     private final Runnable exitGameAction;
     private final int playerCount;
@@ -101,8 +107,7 @@ public class GameController implements GameObserver {
 
     public StackPane createContent() {
         root.getChildren().clear();
-        root.setStyle("-fx-background-color: #05080e;");
-        root.setStyle("-fx-background-color: #0d0f12;"); // 璋冩暣涓哄拰 css 涓€鑷寸殑鏆楅粦鑳屾櫙
+        root.setStyle("-fx-background-color: #0d0f12;");
         boardPane.getChildren().clear();
         boardPane.setPrefSize(BOARD_WIDTH, BOARD_HEIGHT);
         boardPane.setMinSize(BOARD_WIDTH, BOARD_HEIGHT);
@@ -133,28 +138,55 @@ public class GameController implements GameObserver {
             configureNameLabel(zone.name, spec.nameX, spec.nameY, spec.nameWidth, spec.nameHeight);
             configureStatsLabel(zone.stats, spec.nameX, spec.nameY + spec.nameHeight + 2,
                     spec.nameWidth, 34);
+            configureSetsProgress(zone.setsProgress, spec.nameX, spec.nameY + spec.nameHeight + 35,
+                    spec.nameWidth, 10);
+            configureSetsLabel(zone.setsLabel, spec.nameX, spec.nameY + spec.nameHeight + 46,
+                    spec.nameWidth, 20);
             opponentZones.add(zone);
-            boardPane.getChildren().addAll(zone.cards, zone.name, zone.stats);
+            boardPane.getChildren().addAll(zone.cards, zone.name, zone.stats, zone.setsProgress, zone.setsLabel);
         }
 
         ZoneSpec ownTable = ownTableSpec(playerCount);
         configurePane(ownTableView, ownTable.x, ownTable.y, ownTable.width, ownTable.height, ownTable.rotate);
         ZoneSpec hand = handSpec(playerCount);
         configurePane(handView, hand.x, hand.y, hand.width, hand.height, hand.rotate);
-        configurePane(centerPileView, 1168, 520, 320, 180, 0);
+        configurePane(centerPileView, 545, 352, 582, 190, 0);
         boardPane.getChildren().addAll(ownTableView, handView, centerPileView);
 
         ZoneSpec ownName = ownNameSpec(playerCount);
         configureNameLabel(ownNameLabel, ownName.x, ownName.y, ownName.width, ownName.height);
-        configureStatsLabel(ownStatsLabel, ownName.x - 6, ownName.y + ownName.height + 3, 260, 34);
-        boardPane.getChildren().addAll(ownNameLabel, ownStatsLabel);
+        configureStatsLabel(ownStatsLabel, ownName.x - 6, ownName.y + ownName.height + 3, 260, 28);
+        configureSetsProgress(ownSetsProgress, ownName.x - 6, ownName.y + ownName.height + 34, 260, 10);
+        configureSetsLabel(ownSetsLabel, ownName.x - 6, ownName.y + ownName.height + 45, 260, 20);
+        boardPane.getChildren().addAll(ownNameLabel, ownStatsLabel, ownSetsProgress, ownSetsLabel);
 
         turnStatus.setLayoutX(686);
-        turnStatus.setLayoutY(385);
+        turnStatus.setLayoutY(382);
         turnStatus.setPrefSize(300, 110);
         turnStatus.setTextAlignment(javafx.scene.text.TextAlignment.CENTER);
         turnStatus.setStyle("-fx-background-color: transparent; -fx-padding: 8 12 8 12;");
         boardPane.getChildren().add(turnStatus);
+
+        Button deckInfo = imageButton("draw.png", "Deck", 92, 32);
+        deckInfo.setTooltip(new Tooltip("Deck status"));
+        deckInfo.setOnAction(event -> showDeckSummary());
+        Button bankInfo = imageButton("bank.png", "Bank", 92, 32);
+        bankInfo.setTooltip(new Tooltip("Bank summary"));
+        bankInfo.setOnAction(event -> showBankSummary());
+        Button propertyInfo = imageButton("properties.png", "Properties", 102, 32);
+        propertyInfo.setTooltip(new Tooltip("Property summary"));
+        propertyInfo.setOnAction(event -> showPropertySummary());
+        Button actionInfo = imageButton("pass_go.png", "Actions", 92, 32);
+        actionInfo.setTooltip(new Tooltip("Action cards in hand"));
+        actionInfo.setOnAction(event -> showActionSummary());
+        Button opponentInfo = imageButton("trade.png", "Opponents", 92, 32);
+        opponentInfo.setTooltip(new Tooltip("Opponent table summary"));
+        opponentInfo.setOnAction(event -> showOpponentsSummary());
+        quickActions.getChildren().setAll(deckInfo, bankInfo, propertyInfo, actionInfo, opponentInfo);
+        quickActions.setLayoutX(1088);
+        quickActions.setLayoutY(706);
+        quickActions.setAlignment(Pos.CENTER);
+        boardPane.getChildren().add(quickActions);
 
         logView.setLayoutX(24);
         logView.setLayoutY(22);
@@ -189,25 +221,25 @@ public class GameController implements GameObserver {
         switch (count) {
             case 2:
                 return new ZoneSpec[]{
-                        new ZoneSpec(488, 166, 705, 164, 0, 762, 98, 198, 44)
+                        new ZoneSpec(488, 166, 705, 164, 0, 770, 96, 160, 44)
                 };
             case 3:
                 return new ZoneSpec[]{
-                        new ZoneSpec(92, 224, 590, 258, -10, 226, 154, 186, 45),
-                        new ZoneSpec(990, 224, 590, 258, 10, 1342, 154, 188, 45)
+                        new ZoneSpec(92, 224, 590, 258, -13, 226, 154, 186, 45),
+                        new ZoneSpec(990, 224, 590, 258, 13, 1342, 154, 188, 45)
                 };
             case 4:
                 return new ZoneSpec[]{
-                        new ZoneSpec(78, 260, 500, 260, -10, 200, 192, 174, 44),
-                        new ZoneSpec(512, 158, 640, 150, 0, 758, 96, 198, 44),
-                        new ZoneSpec(1094, 260, 500, 260, 10, 1394, 190, 174, 44)
+                        new ZoneSpec(78, 260, 500, 260, -14, 226, 192, 150, 44),
+                        new ZoneSpec(512, 158, 640, 150, 0, 806, 96, 150, 44),
+                        new ZoneSpec(1094, 260, 500, 260, 14, 1420, 190, 152, 44)
                 };
             default:
                 return new ZoneSpec[]{
-                        new ZoneSpec(72, 256, 450, 236, -10, 190, 168, 214, 44),
+                        new ZoneSpec(72, 256, 450, 236, -15, 258, 168, 148, 44),
                         new ZoneSpec(485, 174, 360, 122, 0, 650, 120, 138, 44),
                         new ZoneSpec(865, 174, 360, 122, 0, 1090, 120, 142, 44),
-                        new ZoneSpec(1182, 256, 428, 236, 10, 1430, 188, 132, 44)
+                        new ZoneSpec(1182, 256, 428, 236, 15, 1454, 188, 132, 44)
                 };
         }
     }
@@ -241,11 +273,11 @@ public class GameController implements GameObserver {
     private ZoneSpec ownNameSpec(int count) {
         switch (count) {
             case 4:
-                return area(190, 686, 190, 45, 0);
+                return area(216, 686, 132, 45, 0);
             case 5:
-                return area(220, 660, 198, 45, 0);
+                return area(282, 660, 138, 45, 0);
             default:
-                return area(218, 630, 190, 45, 0);
+                return area(222, 630, 138, 45, 0);
         }
     }
 
@@ -270,7 +302,8 @@ public class GameController implements GameObserver {
         label.setPrefSize(width, height);
         label.setAlignment(Pos.CENTER);
         label.setTextFill(javafx.scene.paint.Color.web("#f8e7b4"));
-        label.setFont(Font.font("Segoe UI", FontWeight.EXTRA_BOLD, 22));
+        label.setFont(Font.font("Segoe UI", FontWeight.EXTRA_BOLD, 17));
+        label.setTextOverrun(OverrunStyle.CLIP);
         label.setStyle("-fx-effect: dropshadow(gaussian, rgba(0,0,0,0.85), 5, 0.35, 0, 1);");
     }
 
@@ -280,9 +313,29 @@ public class GameController implements GameObserver {
         label.setPrefSize(width, height);
         label.setAlignment(Pos.CENTER);
         label.setTextFill(javafx.scene.paint.Color.web("#d8f8ff"));
-        label.setFont(Font.font("Consolas", FontWeight.BOLD, 14));
+        label.setFont(Font.font("Consolas", FontWeight.BOLD, 12));
+        label.setTextOverrun(OverrunStyle.CLIP);
         label.setStyle("-fx-background-color: rgba(0,0,0,0.42); -fx-background-radius: 10;"
                 + "-fx-padding: 3 8 3 8;");
+    }
+
+    private void configureSetsProgress(ProgressBar progress, double x, double y, double width, double height) {
+        progress.setLayoutX(x);
+        progress.setLayoutY(y);
+        progress.setPrefSize(width, height);
+        progress.setMinSize(width, height);
+        progress.setMaxSize(width, height);
+        progress.setStyle("-fx-accent: #ffd66b; -fx-control-inner-background: rgba(0,0,0,0.42);");
+    }
+
+    private void configureSetsLabel(Label label, double x, double y, double width, double height) {
+        label.setLayoutX(x);
+        label.setLayoutY(y);
+        label.setPrefSize(width, height);
+        label.setAlignment(Pos.CENTER);
+        label.setTextFill(javafx.scene.paint.Color.web("#ffe7a6"));
+        label.setFont(Font.font("Consolas", FontWeight.BOLD, 11));
+        label.setStyle("-fx-effect: dropshadow(gaussian, rgba(0,0,0,0.85), 4, 0.2, 0, 1);");
     }
 
     private Image loadResourceImage(String path) {
@@ -355,6 +408,8 @@ public class GameController implements GameObserver {
         final Pane cards = new Pane();
         final Label name = new Label();
         final Label stats = new Label();
+        final ProgressBar setsProgress = new ProgressBar(0);
+        final Label setsLabel = new Label();
 
         PlayerZone(ZoneSpec spec) {
             this.spec = spec;
@@ -532,6 +587,7 @@ public class GameController implements GameObserver {
             Player player = visibleOpponents.get(i);
             zone.name.setText(player.getPlayerName());
             zone.stats.setText(playerStats(player));
+            updateSetsProgress(zone.setsProgress, zone.setsLabel, player);
             renderTableCards(zone.cards, player, OPPONENT_CARD_WIDTH, OPPONENT_CARD_HEIGHT, false);
         }
     }
@@ -539,7 +595,7 @@ public class GameController implements GameObserver {
     private void renderHand(Player current) {
         handView.getChildren().clear();
         List<Card> cards = current.getHand().getCards();
-        double step = computeCardStep(cards.size(), handView.getPrefWidth(), HAND_CARD_WIDTH, 12);
+        double step = computeCardStep(cards.size(), handView.getPrefWidth(), HAND_CARD_WIDTH, 12, false);
         double rowWidth = cards.isEmpty() ? 0 : HAND_CARD_WIDTH + step * (cards.size() - 1);
         double startX = Math.max(10, (handView.getPrefWidth() - rowWidth) / 2.0);
         double baseY = Math.max(8, (handView.getPrefHeight() - HAND_CARD_HEIGHT) / 2.0);
@@ -565,30 +621,31 @@ public class GameController implements GameObserver {
     private void renderOwnInfo(Player current) {
         ownNameLabel.setText(current.getPlayerName());
         ownStatsLabel.setText(playerStats(current));
+        updateSetsProgress(ownSetsProgress, ownSetsLabel, current);
     }
 
     private void renderPiles() {
         centerPileView.getChildren().clear();
 
         CardView drawPile = CardView.back(game.getGameDeck().getDrawPileSize(), PILE_CARD_WIDTH, PILE_CARD_HEIGHT);
-        drawPile.setLayoutX(50);
+        drawPile.setLayoutX(34);
         drawPile.setLayoutY(28);
 
         Card discardTop = game.getGameDeck().peekDiscardTop();
         CardView discardPile = discardTop == null
                 ? new CardView("DISCARD", "EMPTY", PILE_CARD_WIDTH, PILE_CARD_HEIGHT)
                 : new CardView(discardTop, PILE_CARD_WIDTH, PILE_CARD_HEIGHT);
-        discardPile.setLayoutX(178);
+        discardPile.setLayoutX(478);
         discardPile.setLayoutY(28);
 
         deckLabel.setText("Draw: " + game.getGameDeck().getDrawPileSize());
-        deckLabel.setLayoutX(38);
+        deckLabel.setLayoutX(22);
         deckLabel.setLayoutY(148);
         deckLabel.setPrefWidth(95);
         stylePileLabel(deckLabel);
 
         discardLabel.setText(discardTop == null ? "Discard" : "Discard: " + discardTop.getCardName());
-        discardLabel.setLayoutX(142);
+        discardLabel.setLayoutX(426);
         discardLabel.setLayoutY(148);
         discardLabel.setPrefWidth(150);
         stylePileLabel(discardLabel);
@@ -610,14 +667,15 @@ public class GameController implements GameObserver {
             return;
         }
 
-        double rowGap = cardHeight + 6;
-        int rows = cards.size() > 7 && target.getPrefHeight() >= cardHeight * 2 + 10 ? 2 : 1;
+        int rows = cards.size() > 7 && target.getPrefHeight() >= cardHeight * 1.65 ? 2 : 1;
         int perRow = (int) Math.ceil(cards.size() / (double) rows);
-        double step = computeCardStep(perRow, target.getPrefWidth(), cardWidth, 8);
+        double step = computeCardStep(perRow, target.getPrefWidth(), cardWidth, 8, true);
         double firstRowWidth = perRow <= 0 ? 0 : cardWidth + step * (Math.min(perRow, cards.size()) - 1);
         double startX = Math.max(8, (target.getPrefWidth() - firstRowWidth) / 2.0);
-        double usedHeight = rows == 1 ? cardHeight : cardHeight * 2 + 6;
-        double startY = Math.max(4, (target.getPrefHeight() - usedHeight) / 2.0);
+        double rowGap = rows == 1 ? 0 : Math.min(cardHeight * 0.62,
+                (target.getPrefHeight() - cardHeight) / (rows - 1));
+        double usedHeight = cardHeight + rowGap * (rows - 1);
+        double startY = Math.max(0, (target.getPrefHeight() - usedHeight) / 2.0);
 
         for (int i = 0; i < cards.size(); i++) {
             int row = i / perRow;
@@ -625,20 +683,52 @@ public class GameController implements GameObserver {
             int rowCount = Math.min(perRow, cards.size() - row * perRow);
             double rowWidth = cardWidth + step * Math.max(0, rowCount - 1);
             double rowStartX = Math.max(8, (target.getPrefWidth() - rowWidth) / 2.0);
-            CardView cardView = new CardView(cards.get(i), cardWidth, cardHeight);
+            Card tableCard = cards.get(i);
+            CardView cardView = new CardView(tableCard, cardWidth, cardHeight);
             cardView.setLayoutX(rowStartX + column * step);
             cardView.setLayoutY(startY + row * rowGap);
+            if (currentPlayerArea && isWildPropertyCard(tableCard)) {
+                cardView.setOnMouseClicked(event -> changeWildPropertyColor((PropertyCard) tableCard));
+            }
             target.getChildren().add(cardView);
         }
     }
 
-    private double computeCardStep(int count, double zoneWidth, double cardWidth, double gap) {
+    private boolean isWildPropertyCard(Card card) {
+        return card instanceof cards.PropertyWildCard || card instanceof cards.SuperWildCard;
+    }
+
+    private void changeWildPropertyColor(PropertyCard card) {
+        enums.PropertyColor[] options;
+        if (card instanceof cards.SuperWildCard) {
+            options = ((cards.SuperWildCard) card).getAvailableColors();
+        } else if (card instanceof cards.PropertyWildCard) {
+            options = ((cards.PropertyWildCard) card).getAvailableColors();
+        } else {
+            return;
+        }
+
+        enums.PropertyColor selectedColor = chooseColor(options);
+        if (selectedColor == null) {
+            return;
+        }
+        game.getCurrentPlayer().getPropertyArea().swapWildCardColor(card, selectedColor);
+        onGameEvent("Changed wild property to " + selectedColor + ".");
+        renderAll();
+    }
+
+    private double computeCardStep(int count, double zoneWidth, double cardWidth, double gap,
+                                   boolean allowOverlap) {
         if (count <= 1) {
             return 0;
         }
         double natural = cardWidth + gap;
         double maxStep = (zoneWidth - cardWidth - 16) / (count - 1);
-        return Math.max(cardWidth * 0.55, Math.min(natural, maxStep));
+        double noOverlapMinimum = allowOverlap ? cardWidth * 0.35 : cardWidth;
+        if (maxStep >= noOverlapMinimum) {
+            return Math.min(natural, maxStep);
+        }
+        return Math.max(6, maxStep);
     }
 
     private List<Card> getTableCards(Player player) {
@@ -649,10 +739,15 @@ public class GameController implements GameObserver {
     }
 
     private String playerStats(Player player) {
-        return String.format("Bank %dM | Sets %d/3 | Hand %d",
+        return String.format("Bank %dM | Hand %d",
                 player.getBankArea().calculateTotalFunds(),
-                player.getPropertyArea().countCompletedSets(),
                 player.getHand().getSize());
+    }
+
+    private void updateSetsProgress(ProgressBar progress, Label label, Player player) {
+        int completed = player.getPropertyArea().countCompletedSets();
+        progress.setProgress(Math.min(1.0, completed / 3.0));
+        label.setText("Sets " + completed + "/3");
     }
 
     private void stylePileLabel(Label label) {
@@ -661,6 +756,88 @@ public class GameController implements GameObserver {
         label.setFont(Font.font("Consolas", FontWeight.BOLD, 13));
         label.setStyle("-fx-background-color: rgba(0,0,0,0.52); -fx-background-radius: 8;"
                 + "-fx-padding: 3 6 3 6;");
+    }
+
+    private void showDeckSummary() {
+        Card discardTop = game.getGameDeck().peekDiscardTop();
+        GameDialogs.showMessage("Deck",
+                "Draw and discard",
+                "Draw pile: " + game.getGameDeck().getDrawPileSize() + "\n"
+                        + "Discard pile: " + game.getGameDeck().getDiscardPileSize() + "\n"
+                        + "Discard top: " + (discardTop == null ? "Empty" : discardTop.getCardName()));
+    }
+
+    private void showBankSummary() {
+        Player current = game.getCurrentPlayer();
+        StringBuilder detail = new StringBuilder();
+        detail.append("Total: ").append(current.getBankArea().calculateTotalFunds()).append("M\n");
+        if (current.getBankArea().getAssets().isEmpty()) {
+            detail.append("No bank cards yet.");
+        } else {
+            for (Card card : current.getBankArea().getAssets()) {
+                detail.append(card.getCardName()).append(" (").append(card.getMonetaryValue()).append("M)\n");
+            }
+        }
+        GameDialogs.showMessage("Bank", current.getPlayerName(), detail.toString());
+    }
+
+    private void showPropertySummary() {
+        Player current = game.getCurrentPlayer();
+        StringBuilder detail = new StringBuilder();
+        detail.append("Complete sets: ").append(current.getPropertyArea().countCompletedSets()).append("/3\n");
+        List<player.PropertyArea.PropertySetEntry> entries = current.getPropertyArea().getPropertySetEntries();
+        if (entries.isEmpty()) {
+            detail.append("No properties on table.");
+        } else {
+            for (player.PropertyArea.PropertySetEntry entry : entries) {
+                player.PropertySet root = getRootSet(entry.getRentable());
+                int count = root == null ? 0 : root.getCardsCount();
+                detail.append(entry.getColor())
+                        .append(": ").append(count).append("/")
+                        .append(entry.getColor().getRequiredCount())
+                        .append(" | Rent ").append(entry.getRentable().calculateRent()).append("M\n");
+            }
+        }
+        GameDialogs.showMessage("Properties", current.getPlayerName(), detail.toString());
+    }
+
+    private void showActionSummary() {
+        Player current = game.getCurrentPlayer();
+        StringBuilder detail = new StringBuilder();
+        int actionCount = 0;
+        for (Card card : current.getHand().getCards()) {
+            if (!(card instanceof cards.PropertyCard) && !(card instanceof cards.MoneyCard)) {
+                actionCount++;
+                detail.append(card.getCardName()).append(" (").append(card.getMonetaryValue()).append("M)\n");
+            }
+        }
+        if (actionCount == 0) {
+            detail.append("No action cards in hand.");
+        }
+        GameDialogs.showMessage("Actions", current.getPlayerName(), detail.toString());
+    }
+
+    private void showOpponentsSummary() {
+        Player current = game.getCurrentPlayer();
+        StringBuilder detail = new StringBuilder();
+        for (Player player : game.getOpponents(current)) {
+            detail.append(player.getPlayerName())
+                    .append(": ")
+                    .append(player.getPropertyArea().countCompletedSets()).append("/3 sets, ")
+                    .append(player.getBankArea().calculateTotalFunds()).append("M bank, ")
+                    .append(player.getHand().getSize()).append(" cards in hand\n");
+        }
+        GameDialogs.showMessage("Opponents", "Table status", detail.toString());
+    }
+
+    private player.PropertySet getRootSet(player.Rentable rentable) {
+        if (rentable instanceof player.SetDecorator) {
+            return ((player.SetDecorator) rentable).getRootSet();
+        }
+        if (rentable instanceof player.PropertySet) {
+            return (player.PropertySet) rentable;
+        }
+        return null;
     }
 
     private void showCardMenu(CardView owner, int cardIndex, Card card) {

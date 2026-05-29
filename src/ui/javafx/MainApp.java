@@ -160,7 +160,7 @@ public class MainApp extends Application {
         GameDialogs.showMessage("How to Play",
                 "Monopoly Deal Rules",
             "Goal: Collect 3 complete property sets of DIFFERENT colors.\n\n" +
-            "Each turn: Draw 2 cards (or 5 if hand empty) → Play up to 3 cards → Discard to 7 max.\n\n" +
+            "Each turn: Draw 2 cards (or 5 if hand empty) -> Play up to 3 cards -> Discard to 7 max.\n\n" +
             "Card types:\n" +
             "- Money: Bank as cash to pay rent\n" +
             "- Property: Build color sets on the table\n" +

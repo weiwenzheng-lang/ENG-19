@@ -11,6 +11,8 @@ import java.util.function.Consumer;
 
 public class GameManager {
     private static GameManager instance;
+    public static final int MIN_PLAYERS = 2;
+    public static final int MAX_PLAYERS = 5;
 
     private final List<Player> activePlayers;
     private final Deck gameDeck;
@@ -52,6 +54,10 @@ public class GameManager {
     }
 
     public void initializeGame(List<String> playerNames) {
+        if (playerNames == null || playerNames.size() < MIN_PLAYERS || playerNames.size() > MAX_PLAYERS) {
+            throw new IllegalArgumentException("Monopoly Deal supports 2 to 5 players.");
+        }
+
         currentTurnIndex = 0;
         actionsRemaining = 0;
         isGameOver = false;

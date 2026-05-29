@@ -73,7 +73,7 @@ class ComprehensiveTest {
     @Test
     void propertyWildCardSwitchesRentTiersOnColorChange() {
         int[] brownRent = {1, 2};
-        int[] lightBlueRent = {1, 2, 4};
+        int[] lightBlueRent = {1, 2, 3};
         PropertyWildCard wild = new PropertyWildCard(1, "Brown/LB Wild", 1,
                 PropertyColor.BROWN, PropertyColor.LIGHT_BLUE, brownRent, lightBlueRent);
 
@@ -90,7 +90,7 @@ class ComprehensiveTest {
         set.addProperty(new PropertyCard(3, "LB2", 1, PropertyColor.LIGHT_BLUE, lightBlueRent));
 
         assertTrue(set.isComplete());
-        assertEquals(4, set.calculateRent(), "3 Light Blue cards = 4M rent");
+        assertEquals(3, set.calculateRent(), "3 Light Blue cards = 3M rent");
     }
 
     // ===== Rent + Double Rent =====
@@ -176,11 +176,11 @@ class ComprehensiveTest {
 
         // Victim has 1 Red property (incomplete, needs 3)
         victim.getPropertyArea().addPropertyCard(
-                new PropertyCard(1, "Red1", 3, PropertyColor.RED, new int[]{1, 2, 4}));
+                new PropertyCard(1, "Red1", 3, PropertyColor.RED, new int[]{2, 3, 6}));
 
         Rentable set = victim.getPropertyArea().getPropertySet(PropertyColor.RED);
         assertNotNull(set);
         assertFalse(set.isComplete());
-        assertEquals(1, set.calculateRent(), "Incomplete set should still return rent based on card count");
+        assertEquals(2, set.calculateRent(), "Incomplete set should still return rent based on card count");
     }
 }

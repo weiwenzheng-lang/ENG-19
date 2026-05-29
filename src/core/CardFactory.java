@@ -23,34 +23,37 @@ public class CardFactory {
     }
 
     private static int addProperties(List<Card> deck, int id) {
-        int[] twoSetRent = {1, 2};
-        int[] threeSetRent = {1, 2, 4};
-        int[] fourSetRent = {1, 2, 3, 4};
-        int[] darkBlueRent = {3, 8};
-        int[] utilityRent = {1, 2};
+        int[] brownRent = PropertyColor.BROWN.getRentTiers();
+        int[] lightBlueRent = PropertyColor.LIGHT_BLUE.getRentTiers();
+        int[] pinkRent = PropertyColor.PINK.getRentTiers();
+        int[] orangeRent = PropertyColor.ORANGE.getRentTiers();
+        int[] redRent = PropertyColor.RED.getRentTiers();
+        int[] yellowRent = PropertyColor.YELLOW.getRentTiers();
+        int[] greenRent = PropertyColor.GREEN.getRentTiers();
+        int[] darkBlueRent = PropertyColor.DARK_BLUE.getRentTiers();
+        int[] railroadRent = PropertyColor.RAILROAD.getRentTiers();
+        int[] utilityRent = PropertyColor.UTILITY.getRentTiers();
 
         // 1. 标准房产卡 (28张)
-        id = addPropertyGroup(deck, id, new String[]{"Mediterranean Avenue", "Baltic Avenue"}, 1, PropertyColor.BROWN, twoSetRent);
-        id = addPropertyGroup(deck, id, new String[]{"Connecticut Avenue", "Oriental Avenue", "Vermont Avenue"}, 1, PropertyColor.LIGHT_BLUE, threeSetRent);
-        id = addPropertyGroup(deck, id, new String[]{"STCharles Place", "States Avenue", "Virginia Avenue"}, 2, PropertyColor.PINK, threeSetRent);
-        id = addPropertyGroup(deck, id, new String[]{"STJames Place", "NewYork Avenue", "Tennessee Avenue"}, 2, PropertyColor.ORANGE, threeSetRent);
-        id = addPropertyGroup(deck, id, new String[]{"Illinois Avenue", "Indiana Avenue", "Kentucky Avenue"}, 3, PropertyColor.RED, threeSetRent);
-        id = addPropertyGroup(deck, id, new String[]{"Atlantic Avenue", "Marvin Gardens", "Ventnor Avenue"}, 3, PropertyColor.YELLOW, threeSetRent);
-        id = addPropertyGroup(deck, id, new String[]{"North Carolina Avenue", "Pacific Avenue", "Pennsylvania Avenue"}, 4, PropertyColor.GREEN, threeSetRent);
+        id = addPropertyGroup(deck, id, new String[]{"Mediterranean Avenue", "Baltic Avenue"}, 1, PropertyColor.BROWN, brownRent);
+        id = addPropertyGroup(deck, id, new String[]{"Connecticut Avenue", "Oriental Avenue", "Vermont Avenue"}, 1, PropertyColor.LIGHT_BLUE, lightBlueRent);
+        id = addPropertyGroup(deck, id, new String[]{"STCharles Place", "States Avenue", "Virginia Avenue"}, 2, PropertyColor.PINK, pinkRent);
+        id = addPropertyGroup(deck, id, new String[]{"STJames Place", "NewYork Avenue", "Tennessee Avenue"}, 2, PropertyColor.ORANGE, orangeRent);
+        id = addPropertyGroup(deck, id, new String[]{"Illinois Avenue", "Indiana Avenue", "Kentucky Avenue"}, 3, PropertyColor.RED, redRent);
+        id = addPropertyGroup(deck, id, new String[]{"Atlantic Avenue", "Marvin Gardens", "Ventnor Avenue"}, 3, PropertyColor.YELLOW, yellowRent);
+        id = addPropertyGroup(deck, id, new String[]{"North Carolina Avenue", "Pacific Avenue", "Pennsylvania Avenue"}, 4, PropertyColor.GREEN, greenRent);
         id = addPropertyGroup(deck, id, new String[]{"Boardwalk", "Park Place"}, 4, PropertyColor.DARK_BLUE, darkBlueRent);
-        id = addPropertyGroup(deck, id, new String[]{"B&O Railroad", "Pennsylvania Railroad", "Reading Railroad", "Short Line"}, 2, PropertyColor.RAILROAD, fourSetRent);
+        id = addPropertyGroup(deck, id, new String[]{"B&O Railroad", "Pennsylvania Railroad", "Reading Railroad", "Short Line"}, 2, PropertyColor.RAILROAD, railroadRent);
         id = addPropertyGroup(deck, id, new String[]{"Electric Company", "Water works"}, 2, PropertyColor.UTILITY, utilityRent);
 
         // 2. 万能房产卡 (共 11 张)
-        deck.add(new PropertyWildCard(id++, "Property Wild card_BlueBrown", 1, PropertyColor.BROWN, PropertyColor.LIGHT_BLUE, twoSetRent, threeSetRent));
-        deck.add(new PropertyWildCard(id++, "Property Wild Card_OrangePink", 2, PropertyColor.PINK, PropertyColor.ORANGE, threeSetRent, threeSetRent));
-        deck.add(new PropertyWildCard(id++, "Property Wild Card_YellowRed", 3, PropertyColor.RED, PropertyColor.YELLOW, threeSetRent, threeSetRent));
-        deck.add(new PropertyWildCard(id++, "Property Wild card_GreenDeepblue", 4, PropertyColor.GREEN, PropertyColor.DARK_BLUE, threeSetRent, darkBlueRent));
-        deck.add(new PropertyWildCard(id++, "Property Wild Card_EnterpriseRailroad", 2, PropertyColor.RAILROAD, PropertyColor.UTILITY, fourSetRent, utilityRent));
-        deck.add(new PropertyWildCard(id++, "Property Wild Card_BlueRailroad", 4, PropertyColor.LIGHT_BLUE, PropertyColor.RAILROAD, threeSetRent, fourSetRent));
-        deck.add(new PropertyWildCard(id++, "Property Wild Card_RailroadGreen", 4, PropertyColor.RAILROAD, PropertyColor.GREEN, fourSetRent, threeSetRent));
-        deck.add(new PropertyWildCard(id++, "Property Wild card_GreenDeepblue", 4, PropertyColor.DARK_BLUE, PropertyColor.GREEN, darkBlueRent, threeSetRent));
-        deck.add(new PropertyWildCard(id++, "Orange/Red Wild", 3, PropertyColor.ORANGE, PropertyColor.RED, threeSetRent, threeSetRent));
+        deck.add(new PropertyWildCard(id++, "Property Wild card_BlueBrown", 1, PropertyColor.BROWN, PropertyColor.LIGHT_BLUE, brownRent, lightBlueRent));
+        for (int i = 0; i < 2; i++) deck.add(new PropertyWildCard(id++, "Property Wild Card_OrangePink", 2, PropertyColor.PINK, PropertyColor.ORANGE, pinkRent, orangeRent));
+        for (int i = 0; i < 2; i++) deck.add(new PropertyWildCard(id++, "Property Wild Card_YellowRed", 3, PropertyColor.RED, PropertyColor.YELLOW, redRent, yellowRent));
+        deck.add(new PropertyWildCard(id++, "Property Wild card_GreenDeepblue", 4, PropertyColor.GREEN, PropertyColor.DARK_BLUE, greenRent, darkBlueRent));
+        deck.add(new PropertyWildCard(id++, "Property Wild Card_EnterpriseRailroad", 2, PropertyColor.RAILROAD, PropertyColor.UTILITY, railroadRent, utilityRent));
+        deck.add(new PropertyWildCard(id++, "Property Wild Card_BlueRailroad", 4, PropertyColor.LIGHT_BLUE, PropertyColor.RAILROAD, lightBlueRent, railroadRent));
+        deck.add(new PropertyWildCard(id++, "Property Wild Card_RailroadGreen", 4, PropertyColor.RAILROAD, PropertyColor.GREEN, railroadRent, greenRent));
         for (int i = 0; i < 2; i++) deck.add(new SuperWildCard(id++, "Property Wild Card", 0));
 
         return id;
