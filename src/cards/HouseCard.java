@@ -20,7 +20,7 @@ public class HouseCard extends ActionCard {
                 : player.getPropertyArea().addHouseToCompleteSet(color);
 
         if (!success) {
-            player.getBankArea().deposit(this);
+            throw new IllegalStateException("no eligible complete set for House.");
         }
     }
 }

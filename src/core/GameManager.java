@@ -104,6 +104,10 @@ public class GameManager {
             notifyEvent("Game is already over.");
             return;
         }
+        if (currentState != GameState.NORMAL_TURN) {
+            notifyEvent("Resolve the pending counter action first.");
+            return;
+        }
         if (actionsRemaining <= 0) {
             notifyEvent("Not enough actions. End your turn.");
             return;
@@ -155,6 +159,10 @@ public class GameManager {
             notifyEvent("Game is already over.");
             return;
         }
+        if (currentState != GameState.NORMAL_TURN) {
+            notifyEvent("Resolve the pending counter action first.");
+            return;
+        }
         if (actionsRemaining < 2) {
             notifyEvent("Not enough actions: Double The Rent plus Rent costs 2 actions.");
             return;
@@ -201,8 +209,16 @@ public class GameManager {
             notifyEvent("Game is already over.");
             return;
         }
+        if (currentState != GameState.NORMAL_TURN) {
+            notifyEvent("Resolve the pending counter action first.");
+            return;
+        }
 
         Player player = getCurrentPlayer();
+        if (!player.getHand().requiresDiscard()) {
+            notifyEvent("Discard only when your hand has more than 7 cards.");
+            return;
+        }
         Card selectedCard = player.getHand().removeCard(cardIndex);
         if (selectedCard != null) {
             gameDeck.receiveDiscard(selectedCard);
@@ -213,6 +229,10 @@ public class GameManager {
     public void depositCardToBank(int cardIndex) {
         if (isGameOver) {
             notifyEvent("Game is already over.");
+            return;
+        }
+        if (currentState != GameState.NORMAL_TURN) {
+            notifyEvent("Resolve the pending counter action first.");
             return;
         }
         if (actionsRemaining <= 0) {
@@ -241,6 +261,10 @@ public class GameManager {
     public void endTurn() {
         if (isGameOver) {
             notifyEvent("Game is already over.");
+            return;
+        }
+        if (currentState != GameState.NORMAL_TURN) {
+            notifyEvent("Resolve the pending counter action first.");
             return;
         }
 

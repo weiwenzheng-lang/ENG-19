@@ -24,14 +24,7 @@ public class PropertySet implements Rentable{
     // 核心判断：这套房产是否已经凑齐？(用于触发游戏胜利条件或允许建房子/酒店)
     @Override
     public boolean isComplete() {
-        if (cards.size() < color.getRequiredCount()) return false;
-        // Must have at least one standard (non-wild) property card
-        for (PropertyCard c : cards) {
-            if (!(c instanceof cards.PropertyWildCard || c instanceof cards.SuperWildCard)) {
-                return true;
-            }
-        }
-        return false;
+        return cards.size() >= color.getRequiredCount();
     }
 
     @Override

@@ -68,19 +68,19 @@ public class CardView extends StackPane {
         clip.setArcHeight(Math.max(10, cardWidth * 0.12));
         imageCard.setClip(clip);
 
-        DropShadow glow = new DropShadow();
-        glow.setColor(Color.web(getGlowColor(card)).deriveColor(1, 1, 1, 0.45));
-        glow.setRadius(8);
-        glow.setSpread(0.16);
-        imageCard.setEffect(glow);
+        DropShadow shadow = new DropShadow();
+        shadow.setColor(Color.rgb(0, 0, 0, 0.32));
+        shadow.setRadius(7);
+        shadow.setSpread(0.05);
+        imageCard.setEffect(shadow);
 
         this.setOnMouseEntered(e -> {
-            this.setTranslateY(-8);
-            glow.setRadius(18);
+            this.setTranslateY(-6);
+            shadow.setRadius(12);
         });
         this.setOnMouseExited(e -> {
             this.setTranslateY(0);
-            glow.setRadius(8);
+            shadow.setRadius(7);
         });
 
         return imageCard;
@@ -97,9 +97,9 @@ public class CardView extends StackPane {
                 + "-fx-border-radius: 10;");
 
         DropShadow glow = new DropShadow();
-        glow.setColor(Color.web(getGlowColor(card)).deriveColor(1, 1, 1, 0.6));
-        glow.setRadius(10);
-        glow.setSpread(0.2);
+        glow.setColor(Color.rgb(0, 0, 0, 0.42));
+        glow.setRadius(8);
+        glow.setSpread(0.06);
         cardBody.setEffect(glow);
 
         Region headerBar = new Region();
@@ -130,11 +130,11 @@ public class CardView extends StackPane {
 
         this.setOnMouseEntered(e -> {
             this.setTranslateY(-10);
-            glow.setRadius(20);
+            glow.setRadius(13);
         });
         this.setOnMouseExited(e -> {
             this.setTranslateY(0);
-            glow.setRadius(10);
+            glow.setRadius(8);
         });
 
         return cardBody;
@@ -152,10 +152,10 @@ public class CardView extends StackPane {
         VBox cardBody = new VBox(8);
         cardBody.setAlignment(Pos.CENTER);
         cardBody.setStyle("-fx-background-color: repeating-linear-gradient(45deg, #111, #111 10px, #222 10px, #222 20px); "
-                + "-fx-background-radius: 10; -fx-border-color: #00f2ff; -fx-border-width: 2; -fx-border-radius: 10;");
+                + "-fx-background-radius: 10; -fx-border-color: #d4ad55; -fx-border-width: 2; -fx-border-radius: 10;");
 
         Label titleLabel = new Label(title);
-        titleLabel.setTextFill(Color.web("#00f2ff"));
+        titleLabel.setTextFill(Color.web("#f8e7b4"));
         titleLabel.setFont(Font.font("Consolas", FontWeight.BLACK, 14));
 
         Label subtitleLabel = new Label(subtitle);
@@ -267,7 +267,6 @@ public class CardView extends StackPane {
             if (hasColors(colors, PropertyColor.RAILROAD, PropertyColor.UTILITY)) return "Property Wild Card_EnterpriseRailroad";
             if (hasColors(colors, PropertyColor.LIGHT_BLUE, PropertyColor.RAILROAD)) return "Property Wild Card_BlueRailroad";
             if (hasColors(colors, PropertyColor.RAILROAD, PropertyColor.GREEN)) return "Property Wild Card_RailroadGreen";
-            if (hasColors(colors, PropertyColor.ORANGE, PropertyColor.RED)) return "Orange-Red Wild";
         }
 
         return null;
@@ -309,11 +308,6 @@ public class CardView extends StackPane {
         if (colors != null) {
             return getColorGradient(colors);
         }
-        return getAccentColor(card);
-    }
-
-    private String getGlowColor(Card card) {
-        if (getCardColors(card) != null) return "#e8f5ff";
         return getAccentColor(card);
     }
 

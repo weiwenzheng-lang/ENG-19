@@ -135,13 +135,13 @@ public class GameController implements GameObserver {
         for (ZoneSpec spec : opponentSpecs(playerCount)) {
             PlayerZone zone = new PlayerZone(spec);
             configurePane(zone.cards, spec.x, spec.y, spec.width, spec.height, spec.rotate);
-            configureNameLabel(zone.name, spec.nameX, spec.nameY, spec.nameWidth, spec.nameHeight);
-            configureStatsLabel(zone.stats, spec.nameX, spec.nameY + spec.nameHeight + 2,
-                    spec.nameWidth, 34);
-            configureSetsProgress(zone.setsProgress, spec.nameX, spec.nameY + spec.nameHeight + 35,
-                    spec.nameWidth, 10);
-            configureSetsLabel(zone.setsLabel, spec.nameX, spec.nameY + spec.nameHeight + 46,
-                    spec.nameWidth, 20);
+            configureNameLabel(zone.name, spec.nameX, spec.nameY + 2, spec.nameWidth, 23);
+            configureStatsLabel(zone.stats, spec.nameX + 4, spec.nameY + 25,
+                    spec.nameWidth - 46, 16);
+            configureSetsProgress(zone.setsProgress, spec.nameX + 8, spec.nameY + spec.nameHeight - 4,
+                    spec.nameWidth - 16, 5);
+            configureSetsLabel(zone.setsLabel, spec.nameX + spec.nameWidth - 40, spec.nameY + 25,
+                    36, 16);
             opponentZones.add(zone);
             boardPane.getChildren().addAll(zone.cards, zone.name, zone.stats, zone.setsProgress, zone.setsLabel);
         }
@@ -154,10 +154,11 @@ public class GameController implements GameObserver {
         boardPane.getChildren().addAll(ownTableView, handView, centerPileView);
 
         ZoneSpec ownName = ownNameSpec(playerCount);
-        configureNameLabel(ownNameLabel, ownName.x, ownName.y, ownName.width, ownName.height);
-        configureStatsLabel(ownStatsLabel, ownName.x - 6, ownName.y + ownName.height + 3, 260, 28);
-        configureSetsProgress(ownSetsProgress, ownName.x - 6, ownName.y + ownName.height + 34, 260, 10);
-        configureSetsLabel(ownSetsLabel, ownName.x - 6, ownName.y + ownName.height + 45, 260, 20);
+        configureNameLabel(ownNameLabel, ownName.x, ownName.y + 2, ownName.width, 23);
+        configureStatsLabel(ownStatsLabel, ownName.x + 4, ownName.y + 25, ownName.width - 46, 16);
+        configureSetsProgress(ownSetsProgress, ownName.x + 8, ownName.y + ownName.height - 4,
+                ownName.width - 16, 5);
+        configureSetsLabel(ownSetsLabel, ownName.x + ownName.width - 40, ownName.y + 25, 36, 16);
         boardPane.getChildren().addAll(ownNameLabel, ownStatsLabel, ownSetsProgress, ownSetsLabel);
 
         turnStatus.setLayoutX(686);
@@ -302,7 +303,7 @@ public class GameController implements GameObserver {
         label.setPrefSize(width, height);
         label.setAlignment(Pos.CENTER);
         label.setTextFill(javafx.scene.paint.Color.web("#f8e7b4"));
-        label.setFont(Font.font("Segoe UI", FontWeight.EXTRA_BOLD, 17));
+        label.setFont(Font.font("Segoe UI", FontWeight.EXTRA_BOLD, 15));
         label.setTextOverrun(OverrunStyle.CLIP);
         label.setStyle("-fx-effect: dropshadow(gaussian, rgba(0,0,0,0.85), 5, 0.35, 0, 1);");
     }
@@ -312,11 +313,10 @@ public class GameController implements GameObserver {
         label.setLayoutY(y);
         label.setPrefSize(width, height);
         label.setAlignment(Pos.CENTER);
-        label.setTextFill(javafx.scene.paint.Color.web("#d8f8ff"));
-        label.setFont(Font.font("Consolas", FontWeight.BOLD, 12));
+        label.setTextFill(javafx.scene.paint.Color.web("#f8e7b4"));
+        label.setFont(Font.font("Consolas", FontWeight.BOLD, 9));
         label.setTextOverrun(OverrunStyle.CLIP);
-        label.setStyle("-fx-background-color: rgba(0,0,0,0.42); -fx-background-radius: 10;"
-                + "-fx-padding: 3 8 3 8;");
+        label.setStyle("-fx-background-color: transparent; -fx-padding: 0;");
     }
 
     private void configureSetsProgress(ProgressBar progress, double x, double y, double width, double height) {
@@ -325,7 +325,7 @@ public class GameController implements GameObserver {
         progress.setPrefSize(width, height);
         progress.setMinSize(width, height);
         progress.setMaxSize(width, height);
-        progress.setStyle("-fx-accent: #ffd66b; -fx-control-inner-background: rgba(0,0,0,0.42);");
+        progress.setStyle("-fx-accent: #ffd66b; -fx-control-inner-background: rgba(0,0,0,0.28);");
     }
 
     private void configureSetsLabel(Label label, double x, double y, double width, double height) {
@@ -334,7 +334,7 @@ public class GameController implements GameObserver {
         label.setPrefSize(width, height);
         label.setAlignment(Pos.CENTER);
         label.setTextFill(javafx.scene.paint.Color.web("#ffe7a6"));
-        label.setFont(Font.font("Consolas", FontWeight.BOLD, 11));
+        label.setFont(Font.font("Consolas", FontWeight.BOLD, 9));
         label.setStyle("-fx-effect: dropshadow(gaussian, rgba(0,0,0,0.85), 4, 0.2, 0, 1);");
     }
 
@@ -364,7 +364,10 @@ public class GameController implements GameObserver {
         button.setPrefSize(width, height);
         button.setMinSize(width, height);
         button.setMaxSize(width, height);
-        button.setStyle("-fx-background-color: transparent; -fx-padding: 0; -fx-cursor: hand;");
+        button.setFocusTraversable(false);
+        button.setStyle("-fx-background-color: transparent; -fx-background-insets: 0;"
+                + "-fx-border-color: transparent; -fx-padding: 0; -fx-cursor: hand;"
+                + "-fx-focus-color: transparent; -fx-faint-focus-color: transparent;");
         button.setOnMouseEntered(event -> {
             button.setScaleX(1.04);
             button.setScaleY(1.04);
@@ -582,6 +585,8 @@ public class GameController implements GameObserver {
                 zone.cards.getChildren().clear();
                 zone.name.setText("");
                 zone.stats.setText("");
+                zone.setsProgress.setProgress(0);
+                zone.setsLabel.setText("");
                 continue;
             }
             Player player = visibleOpponents.get(i);
@@ -739,7 +744,7 @@ public class GameController implements GameObserver {
     }
 
     private String playerStats(Player player) {
-        return String.format("Bank %dM | Hand %d",
+        return String.format("Bank %dM Hand %d",
                 player.getBankArea().calculateTotalFunds(),
                 player.getHand().getSize());
     }
@@ -747,7 +752,7 @@ public class GameController implements GameObserver {
     private void updateSetsProgress(ProgressBar progress, Label label, Player player) {
         int completed = player.getPropertyArea().countCompletedSets();
         progress.setProgress(Math.min(1.0, completed / 3.0));
-        label.setText("Sets " + completed + "/3");
+        label.setText(completed + "/3");
     }
 
     private void stylePileLabel(Label label) {
@@ -850,6 +855,7 @@ public class GameController implements GameObserver {
         });
 
         MenuItem discard = new MenuItem("Discard");
+        discard.setDisable(!game.getCurrentPlayer().getHand().requiresDiscard());
         discard.setOnAction(event -> {
             game.discardCard(cardIndex);
             renderAll();

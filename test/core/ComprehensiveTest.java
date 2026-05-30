@@ -131,13 +131,14 @@ class ComprehensiveTest {
     // ===== Hotel Fallback =====
 
     @Test
-    void hotelCardDepositsToBankWhenNoEligibleSet() {
+    void hotelCardRequiresEligibleSetWhenPlayedAsAction() {
         Player p = new Player("1", "Builder");
         int before = p.getBankArea().calculateTotalFunds();
         HotelCard hotel = new HotelCard(1, "Hotel", 4);
-        hotel.executePlayLogic(p);
-        assertEquals(before + 4, p.getBankArea().calculateTotalFunds(),
-                "Hotel should deposit to bank when no eligible set");
+        assertThrows(IllegalStateException.class, () -> hotel.executePlayLogic(p),
+                "Hotel action should require a complete set with House");
+        assertEquals(before, p.getBankArea().calculateTotalFunds(),
+                "Playing Hotel as an action should not auto-bank it");
     }
 
     // ===== Payment with Mortgage =====
