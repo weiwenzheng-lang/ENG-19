@@ -62,13 +62,16 @@ public class MainApp extends Application {
         Button lanBtn = styledButton("Local WiFi Game");
         lanBtn.setOnAction(e -> showLanLobby());
 
+        Button wifiHelpBtn = styledButton("WiFi Guide");
+        wifiHelpBtn.setOnAction(e -> NetworkLobbyController.showWifiGuide());
+
         Button helpBtn = styledButton("How to Play");
         helpBtn.setOnAction(e -> showHelp());
 
         Button exitBtn = styledButton("Exit");
         exitBtn.setOnAction(e -> Platform.exit());
 
-        menu.getChildren().addAll(title, startBtn, lanBtn, helpBtn, exitBtn);
+        menu.getChildren().addAll(title, startBtn, lanBtn, wifiHelpBtn, helpBtn, exitBtn);
         screen.getChildren().addAll(background, menu);
         Scene scene = new Scene(screen, 1180, 664);
         primaryStage.setTitle("Monopoly Deal");
@@ -143,6 +146,7 @@ public class MainApp extends Application {
         if (networkController != null) {
             networkController.setNetworkStatusSink(currentController::setNetworkStatus);
             networkController.setNetworkRosterSink(currentController::setNetworkRoster);
+            networkController.setNetworkAlertSink(currentController::showNetworkAlert);
         }
 
         primaryStage.setTitle("Monopoly Deal - Network Game");

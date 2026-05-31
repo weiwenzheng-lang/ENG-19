@@ -76,6 +76,19 @@ Navigate to src/Main.java (or the designated entry point).
 
 Run the main method. The game engine and UI will initialize automatically.
 
+Or double-click `RunGame.bat` in the project root (requires JDK 17+ and the bundled JavaFX `lib` folder).
+
+### Local WiFi Multiplayer
+
+See [WIFI_MULTIPLAYER.md](WIFI_MULTIPLAYER.md) for the full two-device demo flow:
+
+1. Host clicks **Host Room** and shares the displayed Local IP.
+2. Guest enters that IP and clicks **Join Room**.
+3. Everyone clicks **Ready**.
+4. Host clicks **Start Network Game** when all online players are ready.
+
+The in-game network panel shows connection status, player roster, and ready/offline state.
+
 ### 🧪 Testing Suite
 
 We maintain a rigorous testing standard. All unit tests are located in the test directory, mirroring the src package structure.

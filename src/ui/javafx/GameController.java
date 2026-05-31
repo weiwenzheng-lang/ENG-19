@@ -269,7 +269,28 @@ public class GameController implements GameObserver {
             networkStatusLabel.setText(status == null || status.trim().isEmpty()
                     ? "Network: status unavailable"
                     : status);
+            applyNetworkStatusStyle(status);
         });
+    }
+
+    public void showNetworkAlert(String title, String message) {
+        Platform.runLater(() -> {
+            setNetworkStatus("Network: " + title);
+            GameDialogs.showMessage(title, title, message);
+        });
+    }
+
+    private void applyNetworkStatusStyle(String status) {
+        String normalized = status == null ? "" : status.toLowerCase();
+        String color;
+        if (normalized.contains("disconnect") || normalized.contains("error") || normalized.contains("failed")) {
+            color = "#ff9e9e";
+        } else if (normalized.contains("reconnect")) {
+            color = "#f0c978";
+        } else {
+            color = "#8dd7ee";
+        }
+        networkStatusLabel.setTextFill(javafx.scene.paint.Color.web(color));
     }
 
     public void setNetworkRoster(List<String> rosterLines) {

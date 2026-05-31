@@ -26,8 +26,9 @@ if not defined JAVAC_EXE (
     )
 )
 
-if exist "%JDK_FALLBACK%\bin\java.exe" set "JAVA_EXE=%JDK_FALLBACK%\bin\java.exe"
-if exist "%JDK_FALLBACK%\bin\javac.exe" set "JAVAC_EXE=%JDK_FALLBACK%\bin\javac.exe"
+rem Optional teammate fallback, only when nothing else was found above
+if not defined JAVA_EXE if exist "%JDK_FALLBACK%\bin\java.exe" set "JAVA_EXE=%JDK_FALLBACK%\bin\java.exe"
+if not defined JAVAC_EXE if exist "%JDK_FALLBACK%\bin\javac.exe" set "JAVAC_EXE=%JDK_FALLBACK%\bin\javac.exe"
 
 if not defined JAVA_EXE (
     echo Java was not found.
@@ -46,7 +47,7 @@ if defined JAVAC_EXE (
     if not exist "%BUILD_DIR%" mkdir "%BUILD_DIR%"
 
     echo Compiling game...
-    "%JAVAC_EXE%" --module-path "lib" --add-modules %JAVAFX_MODULES% -encoding UTF-8 -sourcepath "src" -d "%BUILD_DIR%" "src\ui\javafx\MainApp.java"
+    "%JAVAC_EXE%" --release 17 --module-path "lib" --add-modules %JAVAFX_MODULES% -encoding UTF-8 -sourcepath "src" -d "%BUILD_DIR%" "src\ui\javafx\MainApp.java"
 
     if errorlevel 1 (
         echo Compile failed.

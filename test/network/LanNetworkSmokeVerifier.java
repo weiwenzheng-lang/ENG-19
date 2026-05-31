@@ -13,6 +13,7 @@ import java.util.function.BooleanSupplier;
 
 public final class LanNetworkSmokeVerifier {
     private static final long TIMEOUT_MS = 6000;
+    private static final long SHUTDOWN_TIMEOUT_MS = 20000;
 
     public static void main(String[] args) throws Exception {
         verifyProtocolRoundTrip();
@@ -90,12 +91,62 @@ public final class LanNetworkSmokeVerifier {
                             && aliceListener.latestRoomState.getOnlineCount() == 2
                             && aliceListener.latestRoomState.getPlayerCount() == 2);
 
+            verifyJoinFailure();
+            verifyHostShutdownDuringGame();
+
             System.out.println("LAN network smoke verification passed.");
         } finally {
             alice.disconnect();
             bob.disconnect();
             charlie.disconnect();
             server.stop();
+        }
+    }
+
+    private static void verifyJoinFailure() throws IOException {
+        LanGameClient badClient = new LanGameClient(new TestListener("BadJoin"));
+        try {
+            badClient.connect("127.0.0.1", 59999, "BadJoin");
+            throw new AssertionError("Join to closed port should fail");
+        } catch (IOException expected) {
+            check(expected.getMessage() != null && !expected.getMessage().isEmpty(),
+                    "Join failure should include an error message");
+        }
+    }
+
+    private static void verifyHostShutdownDuringGame() throws Exception {
+        List<String> serverLog = new CopyOnWriteArrayList<>();
+        LanGameServer hostServer = new LanGameServer(0, serverLog::add);
+        hostServer.start();
+
+        TestListener hostListener = new TestListener("Host");
+        TestListener guestListener = new TestListener("Guest");
+        LanGameClient host = new LanGameClient(hostListener);
+        LanGameClient guest = new LanGameClient(guestListener);
+        try {
+            host.connect("127.0.0.1", hostServer.getPort(), "Host");
+            guest.connect("127.0.0.1", hostServer.getPort(), "Guest");
+            await("host shutdown setup", () ->
+                    hostListener.latestRoomState != null
+                            && hostListener.latestRoomState.getOnlineCount() == 2);
+            host.setReady(true);
+            guest.setReady(true);
+            host.requestStartGame();
+            check(hostListener.started.await(TIMEOUT_MS, TimeUnit.MILLISECONDS), "Host should receive START_GAME");
+            check(guestListener.started.await(TIMEOUT_MS, TimeUnit.MILLISECONDS), "Guest should receive START_GAME");
+
+            hostServer.stop();
+            await("guest detects connection loss", SHUTDOWN_TIMEOUT_MS, () ->
+                    guestListener.containsLog("Connection closed")
+                            || guestListener.containsLog("Reconnect attempt"));
+            await("guest eventually disconnects", SHUTDOWN_TIMEOUT_MS, () ->
+                    guestListener.containsLog("Guest disconnected"));
+            await("host eventually disconnects", SHUTDOWN_TIMEOUT_MS, () ->
+                    hostListener.containsLog("Host disconnected"));
+        } finally {
+            host.disconnect();
+            guest.disconnect();
+            hostServer.stop();
         }
     }
 
@@ -117,7 +168,11 @@ public final class LanNetworkSmokeVerifier {
     }
 
     private static void await(String label, BooleanSupplier condition) throws InterruptedException {
-        long deadline = System.currentTimeMillis() + TIMEOUT_MS;
+        await(label, TIMEOUT_MS, condition);
+    }
+
+    private static void await(String label, long timeoutMs, BooleanSupplier condition) throws InterruptedException {
+        long deadline = System.currentTimeMillis() + timeoutMs;
         while (System.currentTimeMillis() < deadline) {
             if (condition.getAsBoolean()) {
                 return;
