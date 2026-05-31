@@ -49,7 +49,9 @@ import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
+import java.util.EnumMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 
 public class GameController implements GameObserver {
@@ -135,13 +137,13 @@ public class GameController implements GameObserver {
         for (ZoneSpec spec : opponentSpecs(playerCount)) {
             PlayerZone zone = new PlayerZone(spec);
             configurePane(zone.cards, spec.x, spec.y, spec.width, spec.height, spec.rotate);
-            configureNameLabel(zone.name, spec.nameX, spec.nameY + 2, spec.nameWidth, 23);
-            configureStatsLabel(zone.stats, spec.nameX + 4, spec.nameY + 25,
-                    spec.nameWidth - 46, 16);
-            configureSetsProgress(zone.setsProgress, spec.nameX + 8, spec.nameY + spec.nameHeight - 4,
-                    spec.nameWidth - 16, 5);
-            configureSetsLabel(zone.setsLabel, spec.nameX + spec.nameWidth - 40, spec.nameY + 25,
-                    36, 16);
+            configureNameLabel(zone.name, spec.nameX, spec.nameY + 1, spec.nameWidth, 24);
+            configureStatsLabel(zone.stats, spec.nameX + 4, spec.nameY + 26,
+                    spec.nameWidth - 48, 17);
+            configureSetsProgress(zone.setsProgress, spec.nameX + 8, spec.nameY + spec.nameHeight - 6,
+                    spec.nameWidth - 16, 8);
+            configureSetsLabel(zone.setsLabel, spec.nameX + spec.nameWidth - 42, spec.nameY + 26,
+                    38, 17);
             opponentZones.add(zone);
             boardPane.getChildren().addAll(zone.cards, zone.name, zone.stats, zone.setsProgress, zone.setsLabel);
         }
@@ -154,11 +156,11 @@ public class GameController implements GameObserver {
         boardPane.getChildren().addAll(ownTableView, handView, centerPileView);
 
         ZoneSpec ownName = ownNameSpec(playerCount);
-        configureNameLabel(ownNameLabel, ownName.x, ownName.y + 2, ownName.width, 23);
-        configureStatsLabel(ownStatsLabel, ownName.x + 4, ownName.y + 25, ownName.width - 46, 16);
-        configureSetsProgress(ownSetsProgress, ownName.x + 8, ownName.y + ownName.height - 4,
-                ownName.width - 16, 5);
-        configureSetsLabel(ownSetsLabel, ownName.x + ownName.width - 40, ownName.y + 25, 36, 16);
+        configureNameLabel(ownNameLabel, ownName.x, ownName.y + 1, ownName.width, 24);
+        configureStatsLabel(ownStatsLabel, ownName.x + 4, ownName.y + 26, ownName.width - 48, 17);
+        configureSetsProgress(ownSetsProgress, ownName.x + 8, ownName.y + ownName.height - 6,
+                ownName.width - 16, 8);
+        configureSetsLabel(ownSetsLabel, ownName.x + ownName.width - 42, ownName.y + 26, 38, 17);
         boardPane.getChildren().addAll(ownNameLabel, ownStatsLabel, ownSetsProgress, ownSetsLabel);
 
         turnStatus.setLayoutX(686);
@@ -226,21 +228,21 @@ public class GameController implements GameObserver {
                 };
             case 3:
                 return new ZoneSpec[]{
-                        new ZoneSpec(92, 224, 590, 258, -13, 226, 154, 186, 45),
-                        new ZoneSpec(990, 224, 590, 258, 13, 1342, 154, 188, 45)
+                        new ZoneSpec(122, 196, 520, 258, -28, 226, 154, 186, 45),
+                        new ZoneSpec(1030, 196, 520, 258, 28, 1342, 154, 188, 45)
                 };
             case 4:
                 return new ZoneSpec[]{
-                        new ZoneSpec(78, 260, 500, 260, -14, 226, 192, 150, 44),
+                        new ZoneSpec(110, 232, 440, 260, -28, 226, 192, 150, 44),
                         new ZoneSpec(512, 158, 640, 150, 0, 806, 96, 150, 44),
-                        new ZoneSpec(1094, 260, 500, 260, 14, 1420, 190, 152, 44)
+                        new ZoneSpec(1122, 232, 440, 260, 28, 1420, 190, 152, 44)
                 };
             default:
                 return new ZoneSpec[]{
-                        new ZoneSpec(72, 256, 450, 236, -15, 258, 168, 148, 44),
+                        new ZoneSpec(100, 228, 400, 236, -28, 258, 168, 148, 44),
                         new ZoneSpec(485, 174, 360, 122, 0, 650, 120, 138, 44),
                         new ZoneSpec(865, 174, 360, 122, 0, 1090, 120, 142, 44),
-                        new ZoneSpec(1182, 256, 428, 236, 15, 1454, 188, 132, 44)
+                        new ZoneSpec(1172, 228, 400, 236, 28, 1454, 188, 132, 44)
                 };
         }
     }
@@ -274,11 +276,11 @@ public class GameController implements GameObserver {
     private ZoneSpec ownNameSpec(int count) {
         switch (count) {
             case 4:
-                return area(216, 686, 132, 45, 0);
+                return area(260, 686, 150, 48, 0);
             case 5:
-                return area(282, 660, 138, 45, 0);
+                return area(324, 660, 150, 48, 0);
             default:
-                return area(222, 630, 138, 45, 0);
+                return area(264, 630, 150, 48, 0);
         }
     }
 
@@ -303,7 +305,7 @@ public class GameController implements GameObserver {
         label.setPrefSize(width, height);
         label.setAlignment(Pos.CENTER);
         label.setTextFill(javafx.scene.paint.Color.web("#f8e7b4"));
-        label.setFont(Font.font("Segoe UI", FontWeight.EXTRA_BOLD, 15));
+        label.setFont(Font.font("Segoe UI", FontWeight.EXTRA_BOLD, 17));
         label.setTextOverrun(OverrunStyle.CLIP);
         label.setStyle("-fx-effect: dropshadow(gaussian, rgba(0,0,0,0.85), 5, 0.35, 0, 1);");
     }
@@ -314,7 +316,7 @@ public class GameController implements GameObserver {
         label.setPrefSize(width, height);
         label.setAlignment(Pos.CENTER);
         label.setTextFill(javafx.scene.paint.Color.web("#f8e7b4"));
-        label.setFont(Font.font("Consolas", FontWeight.BOLD, 9));
+        label.setFont(Font.font("Consolas", FontWeight.BOLD, 11));
         label.setTextOverrun(OverrunStyle.CLIP);
         label.setStyle("-fx-background-color: transparent; -fx-padding: 0;");
     }
@@ -325,7 +327,8 @@ public class GameController implements GameObserver {
         progress.setPrefSize(width, height);
         progress.setMinSize(width, height);
         progress.setMaxSize(width, height);
-        progress.setStyle("-fx-accent: #ffd66b; -fx-control-inner-background: rgba(0,0,0,0.28);");
+        progress.setStyle("-fx-accent: #ffd66b; -fx-control-inner-background: rgba(0,0,0,0.38);"
+                + "-fx-background-insets: 0; -fx-padding: 0;");
     }
 
     private void configureSetsLabel(Label label, double x, double y, double width, double height) {
@@ -334,7 +337,7 @@ public class GameController implements GameObserver {
         label.setPrefSize(width, height);
         label.setAlignment(Pos.CENTER);
         label.setTextFill(javafx.scene.paint.Color.web("#ffe7a6"));
-        label.setFont(Font.font("Consolas", FontWeight.BOLD, 9));
+        label.setFont(Font.font("Consolas", FontWeight.BOLD, 11));
         label.setStyle("-fx-effect: dropshadow(gaussian, rgba(0,0,0,0.85), 4, 0.2, 0, 1);");
     }
 
@@ -692,34 +695,8 @@ public class GameController implements GameObserver {
             CardView cardView = new CardView(tableCard, cardWidth, cardHeight);
             cardView.setLayoutX(rowStartX + column * step);
             cardView.setLayoutY(startY + row * rowGap);
-            if (currentPlayerArea && isWildPropertyCard(tableCard)) {
-                cardView.setOnMouseClicked(event -> changeWildPropertyColor((PropertyCard) tableCard));
-            }
             target.getChildren().add(cardView);
         }
-    }
-
-    private boolean isWildPropertyCard(Card card) {
-        return card instanceof cards.PropertyWildCard || card instanceof cards.SuperWildCard;
-    }
-
-    private void changeWildPropertyColor(PropertyCard card) {
-        enums.PropertyColor[] options;
-        if (card instanceof cards.SuperWildCard) {
-            options = ((cards.SuperWildCard) card).getAvailableColors();
-        } else if (card instanceof cards.PropertyWildCard) {
-            options = ((cards.PropertyWildCard) card).getAvailableColors();
-        } else {
-            return;
-        }
-
-        enums.PropertyColor selectedColor = chooseColor(options);
-        if (selectedColor == null) {
-            return;
-        }
-        game.getCurrentPlayer().getPropertyArea().swapWildCardColor(card, selectedColor);
-        onGameEvent("Changed wild property to " + selectedColor + ".");
-        renderAll();
     }
 
     private double computeCardStep(int count, double zoneWidth, double cardWidth, double gap,
@@ -751,8 +728,25 @@ public class GameController implements GameObserver {
 
     private void updateSetsProgress(ProgressBar progress, Label label, Player player) {
         int completed = player.getPropertyArea().countCompletedSets();
-        progress.setProgress(Math.min(1.0, completed / 3.0));
+        progress.setProgress(calculateSetProgress(player));
         label.setText(completed + "/3");
+    }
+
+    private double calculateSetProgress(Player player) {
+        Map<enums.PropertyColor, Double> bestProgressByColor = new EnumMap<>(enums.PropertyColor.class);
+        for (player.PropertyArea.PropertySetEntry entry : player.getPropertyArea().getPropertySetEntries()) {
+            player.PropertySet root = getRootSet(entry.getRentable());
+            if (root == null) {
+                continue;
+            }
+            double setProgress = Math.min(1.0,
+                    root.getCardsCount() / (double) entry.getColor().getRequiredCount());
+            bestProgressByColor.merge(entry.getColor(), setProgress, Math::max);
+        }
+        double progress = bestProgressByColor.values().stream()
+                .mapToDouble(Double::doubleValue)
+                .sum() / 3.0;
+        return Math.min(1.0, progress);
     }
 
     private void stylePileLabel(Label label) {

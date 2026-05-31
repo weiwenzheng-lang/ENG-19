@@ -4,6 +4,7 @@ import java.io.BufferedReader;
 import java.io.Closeable;
 import java.io.IOException;
 import java.io.InputStreamReader;
+import java.io.OutputStreamWriter;
 import java.io.PrintWriter;
 import java.net.InetSocketAddress;
 import java.net.Socket;
@@ -107,7 +108,7 @@ public class LanGameClient implements Closeable {
         socket.connect(new InetSocketAddress(host, port), 5000);
         socket.setTcpNoDelay(true);
         reader = new BufferedReader(new InputStreamReader(socket.getInputStream(), StandardCharsets.UTF_8));
-        writer = new PrintWriter(socket.getOutputStream(), true, StandardCharsets.UTF_8);
+        writer = new PrintWriter(new OutputStreamWriter(socket.getOutputStream(), StandardCharsets.UTF_8), true);
 
         connected = true;
         sendLine(LanGameProtocol.line(LanGameProtocol.HELLO, playerName, reconnectToken));

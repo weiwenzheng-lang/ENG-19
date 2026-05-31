@@ -3,6 +3,7 @@ package network;
 import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStreamReader;
+import java.io.OutputStreamWriter;
 import java.io.PrintWriter;
 import java.net.ServerSocket;
 import java.net.Socket;
@@ -197,7 +198,7 @@ public class LanGameServer {
         public void run() {
             try {
                 reader = new BufferedReader(new InputStreamReader(socket.getInputStream(), StandardCharsets.UTF_8));
-                writer = new PrintWriter(socket.getOutputStream(), true, StandardCharsets.UTF_8);
+                writer = new PrintWriter(new OutputStreamWriter(socket.getOutputStream(), StandardCharsets.UTF_8), true);
 
                 String firstLine = reader.readLine();
                 LanGameProtocol.Message hello = LanGameProtocol.parse(firstLine);
