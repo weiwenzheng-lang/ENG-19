@@ -90,6 +90,9 @@ public class GameController implements GameObserver {
     private final Button endTurnButton = imageButton("end_turn.png", "End Turn", 210, 64);
     private final HBox gameOverActions = new HBox(10);
     private final HBox quickActions = new HBox(8);
+    private final VBox networkOverlay = new VBox(5);
+    private final Label networkStatusLabel = new Label("Network: offline");
+    private final Label networkRosterLabel = new Label("Players: local game");
     private final Runnable newGameAction;
     private final Runnable exitGameAction;
     private final int playerCount;
@@ -200,6 +203,9 @@ public class GameController implements GameObserver {
                 + "-fx-font-family: 'Consolas'; -fx-font-size: 12px;");
         boardPane.getChildren().add(logView);
 
+        configureNetworkOverlay();
+        boardPane.getChildren().add(networkOverlay);
+
         endTurnButton.setLayoutX(1430);
         endTurnButton.setLayoutY(842);
         endTurnButton.setOnAction(event -> {
@@ -218,6 +224,64 @@ public class GameController implements GameObserver {
         gameOverActions.setVisible(false);
         gameOverActions.setManaged(false);
         boardPane.getChildren().addAll(endTurnButton, gameOverActions);
+    }
+
+    private void configureNetworkOverlay() {
+        networkOverlay.setLayoutX(1288);
+        networkOverlay.setLayoutY(22);
+        networkOverlay.setPrefSize(360, 118);
+        networkOverlay.setMaxSize(360, 118);
+        networkOverlay.setPadding(new Insets(10, 12, 10, 12));
+        networkOverlay.setStyle("-fx-background-color: rgba(5,8,12,0.68);"
+                + "-fx-background-radius: 10;"
+                + "-fx-border-color: rgba(141,215,238,0.62);"
+                + "-fx-border-radius: 10;"
+                + "-fx-border-width: 1;");
+        networkOverlay.setVisible(false);
+        networkOverlay.setManaged(false);
+
+        networkStatusLabel.setTextFill(javafx.scene.paint.Color.web("#8dd7ee"));
+        networkStatusLabel.setFont(Font.font("Consolas", FontWeight.BOLD, 13));
+        networkStatusLabel.setWrapText(true);
+        networkStatusLabel.setMaxWidth(336);
+
+        networkRosterLabel.setTextFill(javafx.scene.paint.Color.web("#f8e7b4"));
+        networkRosterLabel.setFont(Font.font("Consolas", FontWeight.BOLD, 11));
+        networkRosterLabel.setWrapText(true);
+        networkRosterLabel.setMaxWidth(336);
+
+        networkOverlay.getChildren().setAll(networkStatusLabel, networkRosterLabel);
+    }
+
+    public void showNetworkInfo(String status, List<String> rosterLines) {
+        Platform.runLater(() -> {
+            networkOverlay.setVisible(true);
+            networkOverlay.setManaged(true);
+            setNetworkStatus(status);
+            setNetworkRoster(rosterLines);
+        });
+    }
+
+    public void setNetworkStatus(String status) {
+        Platform.runLater(() -> {
+            networkOverlay.setVisible(true);
+            networkOverlay.setManaged(true);
+            networkStatusLabel.setText(status == null || status.trim().isEmpty()
+                    ? "Network: status unavailable"
+                    : status);
+        });
+    }
+
+    public void setNetworkRoster(List<String> rosterLines) {
+        Platform.runLater(() -> {
+            networkOverlay.setVisible(true);
+            networkOverlay.setManaged(true);
+            if (rosterLines == null || rosterLines.isEmpty()) {
+                networkRosterLabel.setText("Players: unavailable");
+            } else {
+                networkRosterLabel.setText(String.join("\n", rosterLines));
+            }
+        });
     }
 
     private ZoneSpec[] opponentSpecs(int count) {

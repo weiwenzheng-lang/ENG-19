@@ -16,6 +16,9 @@ import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Consumer;
 
 public class LanGameServer {
+    private static final int MIN_PLAYERS = 2;
+    private static final int MAX_PLAYERS = 5;
+
     private final int requestedPort;
     private final Consumer<String> logSink;
     private final List<PlayerSession> sessions = new CopyOnWriteArrayList<>();
@@ -179,7 +182,7 @@ public class LanGameServer {
                 return false;
             }
         }
-        return onlineCount >= 2;
+        return onlineCount >= MIN_PLAYERS && onlineCount <= MAX_PLAYERS;
     }
 
     private final class ClientHandler implements Runnable {
@@ -307,7 +310,8 @@ public class LanGameServer {
                 return;
             }
             if (!areOnlinePlayersReady()) {
-                send(LanGameProtocol.ERROR, "Need at least 2 online ready players to start.");
+                send(LanGameProtocol.ERROR,
+                        "Need 2 to 5 online players, and every online player must be ready.");
                 return;
             }
             gameStarted = true;

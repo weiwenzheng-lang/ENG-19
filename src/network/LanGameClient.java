@@ -193,7 +193,9 @@ public class LanGameClient implements Closeable {
         if (LanGameProtocol.WELCOME.equals(command)) {
             handleWelcome(message);
         } else if (LanGameProtocol.PLAYERS.equals(command)) {
-            notifyPlayers(toPlayerList(message.getFields()));
+            List<LanPlayerInfo> playerInfos = toPlayerInfos(message.getFields());
+            notifyPlayerInfos(playerInfos);
+            notifyPlayers(toPlayerList(playerInfos));
         } else if (LanGameProtocol.ROOM_STATE.equals(command)) {
             notifyRoomState(toRoomState(message.getFields()));
         } else if (LanGameProtocol.INFO.equals(command)) {
@@ -224,9 +226,9 @@ public class LanGameClient implements Closeable {
         notifyStatus("In room as player #" + playerId);
     }
 
-    private List<String> toPlayerList(List<String> fields) {
+    private List<String> toPlayerList(List<LanPlayerInfo> playerInfos) {
         List<String> players = new ArrayList<>();
-        for (LanPlayerInfo player : toPlayerInfos(fields)) {
+        for (LanPlayerInfo player : playerInfos) {
             players.add(player.toDisplayText());
         }
         return players;
@@ -318,6 +320,12 @@ public class LanGameClient implements Closeable {
     private void notifyPlayers(List<String> players) {
         if (listener != null) {
             listener.onPlayersChanged(players);
+        }
+    }
+
+    private void notifyPlayerInfos(List<LanPlayerInfo> players) {
+        if (listener != null) {
+            listener.onPlayerInfosChanged(players);
         }
     }
 

@@ -112,11 +112,40 @@ public class MainApp extends Application {
     private void showLanLobby() {
         disposeCurrentViews();
 
-        networkController = new NetworkLobbyController(this::showMainMenu);
+        networkController = new NetworkLobbyController(this::showMainMenu, this::showNetworkGame);
         Scene scene = new Scene(networkController.createContent(), 900, 600);
         applyStylesheet(scene);
 
         primaryStage.setTitle("Monopoly Deal - Local WiFi Game");
+        primaryStage.setScene(scene);
+        primaryStage.show();
+    }
+
+    private void showNetworkGame(NetworkLobbyController.NetworkGameLaunch launch) {
+        if (currentController != null) {
+            currentController.dispose();
+        }
+
+        Runnable leaveNetworkGame = () -> {
+            if (networkController != null) {
+                networkController.disconnectRoom();
+                networkController = null;
+            }
+            showMainMenu();
+        };
+
+        currentController = new GameController(launch.getPlayerNames(),
+                leaveNetworkGame,
+                Platform::exit);
+        Scene scene = new Scene(currentController.createContent(), 1366, 768);
+        applyStylesheet(scene);
+        currentController.showNetworkInfo(launch.getInitialStatus(), launch.getRosterLines());
+        if (networkController != null) {
+            networkController.setNetworkStatusSink(currentController::setNetworkStatus);
+            networkController.setNetworkRosterSink(currentController::setNetworkRoster);
+        }
+
+        primaryStage.setTitle("Monopoly Deal - Network Game");
         primaryStage.setScene(scene);
         primaryStage.show();
     }

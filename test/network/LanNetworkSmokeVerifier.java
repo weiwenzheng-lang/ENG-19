@@ -31,20 +31,23 @@ public final class LanNetworkSmokeVerifier {
 
         try {
             alice.connect("127.0.0.1", port, "Alice");
+            await("Alice receives welcome", () -> alice.getPlayerId() == 1);
             bob.connect("127.0.0.1", port, "Bob");
             await("both players are visible", () ->
                     aliceListener.latestRoomState != null
                             && aliceListener.latestRoomState.getOnlineCount() == 2
                             && bobListener.latestRoomState != null
                             && bobListener.latestRoomState.getOnlineCount() == 2);
-            check(alice.getPlayerId() == 1, "Alice should be the host/player #1");
-            check(bob.getPlayerId() == 2, "Bob should be player #2");
-            check(aliceListener.latestRoomState.getHostPlayerId() == 1, "Host should be Alice");
+            await("stable player ids and host assignment", () ->
+                    alice.getPlayerId() == 1
+                            && bob.getPlayerId() == 2
+                            && aliceListener.latestRoomState != null
+                            && aliceListener.latestRoomState.getHostPlayerId() == 1);
 
             bob.requestStartGame();
             await("non-host start is rejected", () -> bobListener.containsLog("Only the host can start"));
             alice.requestStartGame();
-            await("unready start is rejected", () -> aliceListener.containsLog("Need at least 2 online ready players"));
+            await("unready start is rejected", () -> aliceListener.containsLog("every online player must be ready"));
 
             bob.sendChat("hello from Bob");
             await("chat is broadcast to Alice", () -> aliceListener.containsLog("Bob: hello from Bob"));

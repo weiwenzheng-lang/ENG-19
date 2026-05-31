@@ -7,6 +7,9 @@ public interface LanGameListener {
 
     void onPlayersChanged(List<String> players);
 
+    default void onPlayerInfosChanged(List<LanPlayerInfo> players) {
+    }
+
     default void onRoomStateChanged(LanRoomState roomState) {
     }
 

@@ -59,7 +59,7 @@ if defined JAVAC_EXE (
 )
 
 echo Starting Monopoly Deal...
-"%JAVA_EXE%" --module-path "lib" --add-modules %JAVAFX_MODULES% -cp "%BUILD_DIR%;src" ui.javafx.MainApp
+"%JAVA_EXE%" -Djava.library.path="lib" --module-path "lib" --add-modules %JAVAFX_MODULES% -cp "%BUILD_DIR%;src" ui.javafx.MainApp
 
 if errorlevel 1 (
     echo Game exited with an error.
