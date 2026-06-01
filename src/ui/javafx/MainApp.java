@@ -17,7 +17,9 @@ import java.net.URL;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import core.GameManager;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
 
@@ -87,8 +89,14 @@ public class MainApp extends Application {
         int playerCount = choosePlayerCount();
         if (playerCount < 2) return;
 
+        int humanCount = chooseHumanCount(playerCount);
+        if (humanCount < 1) return;
+
         List<String> playerNames = new ArrayList<>();
-        for (int i = 1; i <= playerCount; i++) {
+        List<Boolean> isHuman = new ArrayList<>();
+
+        // 收集人类玩家姓名
+        for (int i = 1; i <= humanCount; i++) {
             Optional<String> name = askPlayerName(i);
             if (!name.isPresent()) {
                 return;
@@ -98,9 +106,17 @@ public class MainApp extends Application {
             } else {
                 playerNames.add("Player " + i);
             }
+            isHuman.add(true);
         }
 
-        currentController = new GameController(playerNames,
+        // 自动填充 AI 玩家
+        String[] botNames = {"Bot Alice", "Bot Bob", "Bot Carol", "Bot Diana"};
+        for (int i = humanCount; i < playerCount; i++) {
+            playerNames.add(botNames[i - humanCount]);
+            isHuman.add(false);
+        }
+
+        currentController = new GameController(playerNames, isHuman,
                 this::showMainMenu,
                 Platform::exit);
 
@@ -110,6 +126,19 @@ public class MainApp extends Application {
         primaryStage.setTitle("Monopoly Deal");
         primaryStage.setScene(scene);
         primaryStage.show();
+    }
+
+    private int chooseHumanCount(int totalPlayers) {
+        List<Integer> options = new ArrayList<>();
+        for (int n = 1; n <= totalPlayers; n++) {
+            options.add(n);
+        }
+        return GameDialogs.showChoice("Player Setup",
+                totalPlayers + " players total. How many HUMAN players?\n"
+                        + "(AI will fill remaining " + (totalPlayers - 1) + " slots if any)",
+                "Humans",
+                options,
+                totalPlayers).orElse(-1);
     }
 
     private void showLanLobby() {
@@ -129,6 +158,43 @@ public class MainApp extends Application {
             currentController.dispose();
         }
 
+        List<String> networkNames = launch.getPlayerNames();
+        int networkCount = networkNames.size();
+
+        // 联网玩家不足 5 人时，询问是否添加 AI
+        int totalPlayers = networkCount;
+        if (networkCount < GameManager.MAX_PLAYERS) {
+            List<Integer> options = new ArrayList<>();
+            for (int n = networkCount; n <= GameManager.MAX_PLAYERS; n++) {
+                options.add(n);
+            }
+            totalPlayers = GameDialogs.showChoice("Add AI Players",
+                    "Network has " + networkCount + " human player(s).\n"
+                            + "Add AI bots to fill more slots?",
+                    "Total",
+                    options,
+                    networkCount).orElse(networkCount);
+        }
+
+        // 构建最终的玩家名单和人类/AI 标记
+        List<String> playerNames = new ArrayList<>(networkNames);
+        List<Boolean> isHuman = new ArrayList<>();
+        for (int i = 0; i < networkCount; i++) {
+            isHuman.add(true);
+        }
+
+        String[] botNames = {"Bot Alice", "Bot Bob", "Bot Carol", "Bot Diana"};
+        for (int i = networkCount; i < totalPlayers; i++) {
+            playerNames.add(botNames[i - networkCount]);
+            isHuman.add(false);
+        }
+
+        // 扩展 roster 以显示 AI 玩家
+        List<String> fullRoster = new ArrayList<>(launch.getRosterLines());
+        for (int i = networkCount; i < totalPlayers; i++) {
+            fullRoster.add(botNames[i - networkCount] + "  [AI]  Ready");
+        }
+
         Runnable leaveNetworkGame = () -> {
             if (networkController != null) {
                 networkController.disconnectRoom();
@@ -137,12 +203,12 @@ public class MainApp extends Application {
             showMainMenu();
         };
 
-        currentController = new GameController(launch.getPlayerNames(),
+        currentController = new GameController(playerNames, isHuman,
                 leaveNetworkGame,
                 Platform::exit);
         Scene scene = new Scene(currentController.createContent(), 1366, 768);
         applyStylesheet(scene);
-        currentController.showNetworkInfo(launch.getInitialStatus(), launch.getRosterLines());
+        currentController.showNetworkInfo(launch.getInitialStatus(), fullRoster);
         if (networkController != null) {
             networkController.setNetworkStatusSink(currentController::setNetworkStatus);
             networkController.setNetworkRosterSink(currentController::setNetworkRoster);
@@ -201,7 +267,10 @@ public class MainApp extends Application {
             "- Action: Special effects (steal, swap, counter, etc.)\n\n" +
             "Payment: Pay with bank cash first; if insufficient, sell properties.\n" +
             "No change is given.\n\n" +
-            "Just Say No: Counter any action played against you."
+            "Just Say No: Counter any action played against you.\n\n" +
+            "AI Bots: In both local and LAN modes, you can add AI players.\n" +
+            "Select fewer human players than total slots, and bots will\n" +
+            "fill the remaining seats automatically."
         );
     }
 

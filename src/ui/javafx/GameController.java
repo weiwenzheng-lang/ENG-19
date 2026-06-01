@@ -1,5 +1,8 @@
 package ui.javafx;
 
+import ai.AIAction;
+import ai.AIPlayerBrain;
+import ai.AITurnExecutor;
 import cards.Card;
 import cards.PropertyCard;
 import cards.RentCard;
@@ -7,6 +10,7 @@ import core.GameManager;
 import core.TargetInfo;
 import patterns.observer.GameObserver;
 import player.Player;
+import player.PlayerType;
 
 import javafx.application.Platform;
 import javafx.beans.binding.Bindings;
@@ -97,17 +101,34 @@ public class GameController implements GameObserver {
     private final Runnable exitGameAction;
     private final int playerCount;
 
+    // AI 系统
+    private final AIPlayerBrain aiBrain = new AIPlayerBrain();
+    private final Map<Player, AITurnExecutor> aiTurnExecutors = new java.util.HashMap<>();
+
     public GameController(List<String> playerNames) {
-        this(playerNames, () -> {}, Platform::exit);
+        this(playerNames, Collections.nCopies(playerNames.size(), true), () -> {}, Platform::exit);
     }
 
     public GameController(List<String> playerNames, Runnable newGameAction, Runnable exitGameAction) {
+        this(playerNames, Collections.nCopies(playerNames.size(), true), newGameAction, exitGameAction);
+    }
+
+    public GameController(List<String> playerNames, List<Boolean> isHuman,
+                          Runnable newGameAction, Runnable exitGameAction) {
         this.newGameAction = newGameAction;
         this.exitGameAction = exitGameAction;
         this.playerCount = playerNames.size();
-        player.BankArea.setPaymentResolver(this::choosePaymentCardsForPayment);
+        player.BankArea.setPaymentResolver(this::resolvePayment);
         game.addObserver(this);
         game.initializeGame(playerNames);
+
+        // 设置玩家类型（人类 vs AI）
+        List<Player> players = game.getActivePlayers();
+        for (int i = 0; i < playerNames.size() && i < isHuman.size(); i++) {
+            if (!isHuman.get(i)) {
+                players.get(i).setPlayerType(PlayerType.AI);
+            }
+        }
     }
 
     public StackPane createContent() {
@@ -644,7 +665,8 @@ public class GameController implements GameObserver {
         renderPiles();
 
         boolean gameOver = game.isGameOver();
-        endTurnButton.setDisable(gameOver);
+        boolean isHumanTurn = !current.isAI();
+        endTurnButton.setDisable(gameOver || !isHumanTurn);
         gameOverActions.setVisible(gameOver);
         gameOverActions.setManaged(gameOver);
 
@@ -678,7 +700,7 @@ public class GameController implements GameObserver {
                 continue;
             }
             Player player = visibleOpponents.get(i);
-            zone.name.setText(player.getPlayerName());
+            zone.name.setText(player.getPlayerName() + (player.isAI() ? " [AI]" : ""));
             zone.stats.setText(playerStats(player));
             updateSetsProgress(zone.setsProgress, zone.setsLabel, player);
             renderTableCards(zone.cards, player, OPPONENT_CARD_WIDTH, OPPONENT_CARD_HEIGHT, false);
@@ -699,6 +721,7 @@ public class GameController implements GameObserver {
             cardView.setLayoutY(baseY);
             if (!game.isGameOver()) {
                 cardView.setOnMouseClicked(event -> {
+                    if (game.getCurrentPlayer().isAI()) return; // AI 回合忽略点击
                     cardView.toFront();
                     showCardMenu(cardView, index, cards.get(index));
                 });
@@ -1179,6 +1202,17 @@ public class GameController implements GameObserver {
         game.executeDoubleRentAction(doubleCardIndex, rentCardIndex, targetInfo);
     }
 
+    /**
+     * 支付路由：AI 玩家使用 AI 策略，人类玩家使用 UI 对话框。
+     */
+    private List<Card> resolvePayment(Player payer, Player payee, int amount,
+                                      List<Card> bankCards, List<cards.PropertyCard> propertyCards) {
+        if (payer.isAI()) {
+            return aiBrain.choosePaymentCards(payer, payee, amount, bankCards, propertyCards);
+        }
+        return choosePaymentCardsForPayment(payer, payee, amount, bankCards, propertyCards);
+    }
+
     private List<Card> choosePaymentCardsForPayment(Player payer, Player payee, int amount,
                                                     List<Card> bankCards,
                                                     List<cards.PropertyCard> propertyCards) {
@@ -1335,6 +1369,13 @@ public class GameController implements GameObserver {
         Player victim = game.getPendingVictim();
         if (victim == null) return;
 
+        // AI 受害者：自动决策
+        if (victim.isAI()) {
+            handleAIInterrupt(victim);
+            return;
+        }
+
+        // 人类受害者：弹窗询问
         List<Card> hand = victim.getHand().getCards();
         int jsnIdx = -1;
         for (int i = 0; i < hand.size(); i++) {
@@ -1364,16 +1405,44 @@ public class GameController implements GameObserver {
         }
     }
 
+    /** 处理 AI 玩家的 Just Say No 打断。 */
+    private void handleAIInterrupt(Player victim) {
+        AITurnExecutor executor = aiTurnExecutors.get(victim);
+        if (executor == null) {
+            executor = new AITurnExecutor(aiBrain);
+            aiTurnExecutors.put(victim, executor);
+        }
+        executor.handleInterrupt(victim);
+    }
+
     @Override
     public void onTurnChanged(String playerName) {
         Platform.runLater(() -> {
             logView.getItems().add(0, "Turn starts: " + playerName);
             renderAll();
+
+            // 如果新回合属于 AI 玩家，启动自动执行
+            Player current = game.getCurrentPlayer();
+            if (current.isAI()) {
+                scheduleAITurn(current);
+            }
         });
+    }
+
+    /** 为 AI 玩家启动自动回合执行。 */
+    private void scheduleAITurn(Player aiPlayer) {
+        AITurnExecutor executor = aiTurnExecutors.get(aiPlayer);
+        if (executor == null) {
+            executor = new AITurnExecutor(aiBrain);
+            aiTurnExecutors.put(aiPlayer, executor);
+        }
+        executor.startTurn(aiPlayer);
     }
 
     public void dispose() {
         player.BankArea.setPaymentResolver(null);
         game.removeObserver(this);
+        aiTurnExecutors.values().forEach(AITurnExecutor::stop);
+        aiTurnExecutors.clear();
     }
 }

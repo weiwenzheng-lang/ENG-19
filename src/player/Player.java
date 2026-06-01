@@ -4,6 +4,7 @@ import cards.Card;
 public class Player {
     private String playerId;
     private String playerName;
+    private PlayerType playerType = PlayerType.HUMAN;
 
     private Hand hand;
     private BankArea bankArea;
@@ -22,6 +23,10 @@ public class Player {
     public Hand getHand() { return hand; }
     public BankArea getBankArea() { return bankArea; }
     public PropertyArea getPropertyArea() { return propertyArea; }
+
+    public void setPlayerType(PlayerType type) { this.playerType = type; }
+    public PlayerType getPlayerType() { return playerType; }
+    public boolean isAI() { return playerType == PlayerType.AI; }
 
     // 打牌逻辑：这个方法会被 GameManager 调用
     public void playCard(Card card) {
