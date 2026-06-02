@@ -8,7 +8,6 @@ import javafx.scene.control.Label;
 import javafx.scene.control.ListView;
 import javafx.scene.control.ScrollPane;
 import javafx.scene.control.TextField;
-import javafx.scene.control.Tooltip;
 import javafx.scene.layout.BorderPane;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.Priority;
@@ -20,31 +19,18 @@ import network.LanGameMessage;
 import network.LanGameClient;
 import network.LanGameListener;
 import network.LanGameServer;
-import network.LanPlayerInfo;
 import network.LanRoomState;
 
 import java.io.IOException;
 import java.time.LocalTime;
 import java.time.format.DateTimeFormatter;
-import java.util.ArrayList;
-import java.util.Collections;
 import java.util.List;
-import java.util.function.BiConsumer;
-import java.util.function.Consumer;
 
 public class NetworkLobbyController {
     private static final int DEFAULT_PORT = 5019;
     private static final DateTimeFormatter TIME_FORMAT = DateTimeFormatter.ofPattern("HH:mm:ss");
-    static final String WIFI_GUIDE = ""
-            + "1. Host: click Host Room and note the Local IP shown below.\n"
-            + "2. Guest: enter the host's IP in Host IP, keep the same Port, then click Join Room.\n"
-            + "3. Everyone: click Ready when you are prepared.\n"
-            + "4. Host only: when all online players are ready (2-5 players), click Start Network Game.\n"
-            + "5. All devices enter the game board together. Connection status stays in the top-right panel.\n"
-            + "6. If WiFi drops briefly, the client auto-reconnects. If the host closes the room, return to the lobby.";
 
     private final Runnable backAction;
-    private final Consumer<NetworkGameLaunch> networkGameAction;
     private final ListView<String> playerList = new ListView<>();
     private final ListView<String> logList = new ListView<>();
     private final TextField nameField = new TextField("Player");
@@ -53,7 +39,6 @@ public class NetworkLobbyController {
     private final TextField chatField = new TextField();
     private final Label statusLabel = new Label("Not connected");
     private final Label addressLabel = new Label();
-    private final Label aiStatusLabel = new Label("AI: none");
     private final Button hostButton = styledButton("Host Room");
     private final Button joinButton = styledButton("Join Room");
     private final Button disconnectButton = styledButton("Disconnect");
@@ -65,21 +50,10 @@ public class NetworkLobbyController {
     private LanGameServer server;
     private LanGameClient client;
     private LanRoomState currentRoomState;
-    private List<LanPlayerInfo> latestPlayers = new ArrayList<>();
-    private Consumer<String> networkStatusSink;
-    private Consumer<List<String>> networkRosterSink;
-    private BiConsumer<String, String> networkAlertSink;
     private boolean ready;
-    private boolean networkGameLaunched;
-    private boolean reconnectAlertPending;
 
     public NetworkLobbyController(Runnable backAction) {
-        this(backAction, launch -> { });
-    }
-
-    public NetworkLobbyController(Runnable backAction, Consumer<NetworkGameLaunch> networkGameAction) {
         this.backAction = backAction;
-        this.networkGameAction = networkGameAction == null ? launch -> { } : networkGameAction;
     }
 
     public BorderPane createContent() {
@@ -98,8 +72,6 @@ public class NetworkLobbyController {
         chatField.setDisable(true);
         statusLabel.setTextFill(javafx.scene.paint.Color.web("#f8fbf6"));
         statusLabel.setFont(Font.font("Segoe UI", FontWeight.BOLD, 13));
-        aiStatusLabel.setTextFill(javafx.scene.paint.Color.web("#f0c978"));
-        aiStatusLabel.setFont(Font.font("Consolas", FontWeight.BOLD, 12));
         updateAddressLabel();
         return root;
     }
@@ -108,37 +80,10 @@ public class NetworkLobbyController {
         disconnectRoom();
     }
 
-    public void setNetworkStatusSink(Consumer<String> networkStatusSink) {
-        this.networkStatusSink = networkStatusSink;
-        if (networkStatusSink != null) {
-            networkStatusSink.accept(buildNetworkStatusText());
-        }
-    }
-
-    public void setNetworkRosterSink(Consumer<List<String>> networkRosterSink) {
-        this.networkRosterSink = networkRosterSink;
-        if (networkRosterSink != null) {
-            networkRosterSink.accept(buildRosterLines());
-        }
-    }
-
-    public void setNetworkAlertSink(BiConsumer<String, String> networkAlertSink) {
-        this.networkAlertSink = networkAlertSink;
-    }
-
-    public static void showWifiGuide() {
-        GameDialogs.showMessage("Local WiFi Game",
-                "How to connect on the same WiFi",
-                WIFI_GUIDE);
-    }
-
     private HBox createHeader() {
         Label title = new Label("Local WiFi Lobby");
         title.setTextFill(javafx.scene.paint.Color.web("#f0c978"));
         title.setFont(Font.font("Segoe UI", FontWeight.BOLD, 32));
-
-        Button helpButton = styledButton("How to Connect");
-        helpButton.setOnAction(event -> showWifiGuide());
 
         Button backButton = styledButton("Back");
         backButton.setOnAction(event -> {
@@ -149,7 +94,7 @@ public class NetworkLobbyController {
         HBox spacer = new HBox();
         HBox.setHgrow(spacer, Priority.ALWAYS);
 
-        HBox header = new HBox(16, title, spacer, helpButton, backButton);
+        HBox header = new HBox(16, title, spacer, backButton);
         header.setAlignment(Pos.CENTER_LEFT);
         header.setPadding(new Insets(18, 22, 14, 22));
         header.setStyle("-fx-background-color: #132127;"
@@ -204,7 +149,7 @@ public class NetworkLobbyController {
         Label title = sectionLabel("Players", "#ccecc3");
         playerList.setPrefWidth(220);
         playerList.setPlaceholder(new Label("No players"));
-        VBox panel = panelBox(title, playerList, aiStatusLabel);
+        VBox panel = panelBox(title, playerList);
         panel.setPrefWidth(240);
         VBox.setVgrow(playerList, Priority.ALWAYS);
         return panel;
@@ -298,15 +243,12 @@ public class NetworkLobbyController {
             appendLog("Hosting room on port " + server.getPort() + ".");
             updateAddressLabel();
         } catch (IOException e) {
-            String message = "Could not host room: " + e.getMessage();
-            appendLog(message);
-            publishNetworkAlert("Host Failed", message);
+            appendLog("Could not host room: " + e.getMessage());
             if (server != null) {
                 server.stop();
                 server = null;
             }
             setConnectedUi(false);
-            statusLabel.setText(message);
         }
     }
 
@@ -331,22 +273,15 @@ public class NetworkLobbyController {
             client = new LanGameClient(new LobbyNetworkListener());
             client.connect(host, port, readPlayerName());
             ready = false;
-            networkGameLaunched = false;
-            reconnectAlertPending = false;
             setConnectedUi(true);
         } catch (IOException | IllegalArgumentException e) {
-            String message = "Join failed: " + e.getMessage();
-            appendLog(message);
-            publishNetworkAlert("Join Failed",
-                    message + "\n\nCheck that both devices are on the same WiFi, "
-                            + "the host has clicked Host Room, and the IP/port are correct.");
+            appendLog("Could not connect: " + e.getMessage());
             client = null;
             setConnectedUi(false);
-            statusLabel.setText(message);
         }
     }
 
-    public void disconnectRoom() {
+    private void disconnectRoom() {
         if (client != null) {
             client.disconnect();
             client = null;
@@ -356,14 +291,8 @@ public class NetworkLobbyController {
             server = null;
         }
         ready = false;
-        networkGameLaunched = false;
-        reconnectAlertPending = false;
         currentRoomState = null;
-        latestPlayers = new ArrayList<>();
         playerList.getItems().clear();
-        aiStatusLabel.setText("AI: none");
-        publishNetworkStatus("Network: disconnected");
-        publishNetworkRoster(Collections.emptyList());
         setConnectedUi(false);
     }
 
@@ -412,34 +341,6 @@ public class NetworkLobbyController {
         if (!connected) {
             statusLabel.setText("Not connected");
         }
-        updateStartButtonHint();
-    }
-
-    private void updateStartButtonHint() {
-        if (canStartNetworkGame()) {
-            startNetworkButton.setTooltip(new Tooltip("Start the game for all ready players."));
-            return;
-        }
-        String hint;
-        if (client == null || !client.isConnected()) {
-            hint = "Connect to a room first.";
-        } else if (currentRoomState == null) {
-            hint = "Waiting for room state...";
-        } else if (currentRoomState.isGameStarted()) {
-            hint = "Game already started.";
-        } else if (client.getPlayerId() != currentRoomState.getHostPlayerId()) {
-            hint = "Only the host can start the network game.";
-        } else if (currentRoomState.getOnlineCount() < 2) {
-            hint = "Need at least 2 online players (currently " + currentRoomState.getOnlineCount() + ").";
-        } else if (currentRoomState.getOnlineCount() > 5) {
-            hint = "Maximum 5 players.";
-        } else if (currentRoomState.getReadyCount() != currentRoomState.getOnlineCount()) {
-            hint = "All online players must be ready ("
-                    + currentRoomState.getReadyCount() + "/" + currentRoomState.getOnlineCount() + " ready).";
-        } else {
-            hint = "Cannot start yet.";
-        }
-        startNetworkButton.setTooltip(new Tooltip(hint));
     }
 
     private boolean canStartNetworkGame() {
@@ -447,10 +348,7 @@ public class NetworkLobbyController {
                 && client.isConnected()
                 && currentRoomState != null
                 && !currentRoomState.isGameStarted()
-                && client.getPlayerId() == currentRoomState.getHostPlayerId()
-                && currentRoomState.getOnlineCount() >= 2
-                && currentRoomState.getOnlineCount() <= 5
-                && currentRoomState.getReadyCount() == currentRoomState.getOnlineCount();
+                && client.getPlayerId() == currentRoomState.getHostPlayerId();
     }
 
     private void toggleReady() {
@@ -466,12 +364,6 @@ public class NetworkLobbyController {
     private void startNetworkGame() {
         if (client == null || !client.isConnected()) {
             appendLog("Not connected.");
-            return;
-        }
-        if (!canStartNetworkGame()) {
-            String message = "Cannot start: need 2 to 5 online players, and every online player must be ready.";
-            appendLog(message);
-            publishNetworkAlert("Cannot Start", message);
             return;
         }
         client.requestStartGame();
@@ -505,139 +397,15 @@ public class NetworkLobbyController {
         logList.getItems().add(0, "[" + time + "] " + message);
     }
 
-    private void updatePlayerRoster(List<LanPlayerInfo> players) {
-        latestPlayers = new ArrayList<>(players);
-        List<String> rows = new ArrayList<>();
-        for (LanPlayerInfo player : latestPlayers) {
-            rows.add(formatPlayerLine(player));
-        }
-        playerList.getItems().setAll(rows);
-        aiStatusLabel.setText("AI: none configured");
-        syncLocalReadyFromRoster();
-        setConnectedUi(client != null && client.isConnected());
-        publishNetworkRoster(buildRosterLines());
-        publishNetworkStatus(buildNetworkStatusText());
-    }
-
-    private void syncLocalReadyFromRoster() {
-        if (client == null) {
-            return;
-        }
-        int myId = client.getPlayerId();
-        for (LanPlayerInfo player : latestPlayers) {
-            if (player.getPlayerId() == myId) {
-                ready = player.isReady();
-                return;
-            }
-        }
-    }
-
-    private String formatPlayerLine(LanPlayerInfo player) {
-        StringBuilder text = new StringBuilder();
-        text.append("Player #").append(player.getPlayerId())
-                .append("  ").append(player.getPlayerName())
-                .append(" | Human");
-        if (player.isHost()) {
-            text.append(" | Host");
-        }
-        text.append(player.isReady() ? " | Ready" : " | Not ready");
-        text.append(player.isOnline() ? " | Online" : " | Offline");
-        return text.toString();
-    }
-
-    private NetworkGameLaunch buildNetworkLaunch() {
-        List<String> names = new ArrayList<>();
-        for (LanPlayerInfo player : latestPlayers) {
-            if (player.isOnline()) {
-                names.add(player.getPlayerName());
-            }
-        }
-        return new NetworkGameLaunch(names, buildRosterLines(), buildNetworkStatusText());
-    }
-
-    private List<String> buildRosterLines() {
-        List<String> roster = new ArrayList<>();
-        for (LanPlayerInfo player : latestPlayers) {
-            roster.add(formatPlayerLine(player));
-        }
-        roster.add("AI: none configured");
-        return roster;
-    }
-
-    private String buildNetworkStatusText() {
-        if (client == null || !client.isConnected()) {
-            return "Network: disconnected";
-        }
-        String room = currentRoomState == null ? "room syncing" : currentRoomState.toSummary();
-        return "Network: connected as player #" + client.getPlayerId() + " | " + room;
-    }
-
-    private void publishNetworkStatus(String message) {
-        if (networkStatusSink != null) {
-            networkStatusSink.accept(message);
-        }
-    }
-
-    private void publishNetworkRoster(List<String> rosterLines) {
-        if (networkRosterSink != null) {
-            networkRosterSink.accept(rosterLines);
-        }
-    }
-
-    private void publishNetworkAlert(String title, String message) {
-        if (networkAlertSink != null) {
-            networkAlertSink.accept(title, message);
-        } else {
-            GameDialogs.showMessage(title, title, message);
-        }
-    }
-
-    public static final class NetworkGameLaunch {
-        private final List<String> playerNames;
-        private final List<String> rosterLines;
-        private final String initialStatus;
-
-        private NetworkGameLaunch(List<String> playerNames, List<String> rosterLines, String initialStatus) {
-            this.playerNames = Collections.unmodifiableList(new ArrayList<>(playerNames));
-            this.rosterLines = Collections.unmodifiableList(new ArrayList<>(rosterLines));
-            this.initialStatus = initialStatus;
-        }
-
-        public List<String> getPlayerNames() {
-            return playerNames;
-        }
-
-        public List<String> getRosterLines() {
-            return rosterLines;
-        }
-
-        public String getInitialStatus() {
-            return initialStatus;
-        }
-    }
-
     private final class LobbyNetworkListener implements LanGameListener {
         @Override
         public void onStatusChanged(String status) {
-            Platform.runLater(() -> {
-                statusLabel.setText(status);
-                publishNetworkStatus(buildNetworkStatusText());
-            });
+            Platform.runLater(() -> statusLabel.setText(status));
         }
 
         @Override
         public void onPlayersChanged(List<String> players) {
-            Platform.runLater(() -> {
-                if (latestPlayers.isEmpty()) {
-                    playerList.getItems().setAll(players);
-                    publishNetworkStatus(buildNetworkStatusText());
-                }
-            });
-        }
-
-        @Override
-        public void onPlayerInfosChanged(List<LanPlayerInfo> players) {
-            Platform.runLater(() -> updatePlayerRoster(players));
+            Platform.runLater(() -> playerList.getItems().setAll(players));
         }
 
         @Override
@@ -646,7 +414,6 @@ public class NetworkLobbyController {
                 currentRoomState = roomState;
                 statusLabel.setText(roomState.toSummary());
                 setConnectedUi(client != null && client.isConnected());
-                publishNetworkStatus(buildNetworkStatusText());
             });
         }
 
@@ -655,18 +422,6 @@ public class NetworkLobbyController {
             Platform.runLater(() -> {
                 appendLog("Start signal received. Game sync messages are enabled.");
                 setConnectedUi(client != null && client.isConnected());
-                if (networkGameLaunched) {
-                    return;
-                }
-                NetworkGameLaunch launch = buildNetworkLaunch();
-                if (launch.getPlayerNames().size() < 2 || launch.getPlayerNames().size() > 5) {
-                    String message = "Cannot enter game: online player count must be 2 to 5.";
-                    appendLog(message);
-                    publishNetworkAlert("Cannot Start", message);
-                    return;
-                }
-                networkGameLaunched = true;
-                networkGameAction.accept(launch);
             });
         }
 
@@ -679,58 +434,23 @@ public class NetworkLobbyController {
 
         @Override
         public void onReconnecting(int attempt, int maxAttempts) {
-            Platform.runLater(() -> {
-                reconnectAlertPending = true;
-                statusLabel.setText("Reconnecting " + attempt + "/" + maxAttempts + "...");
-                publishNetworkStatus("Network: reconnecting " + attempt + "/" + maxAttempts + "...");
-            });
+            Platform.runLater(() -> statusLabel.setText(
+                    "Reconnecting " + attempt + "/" + maxAttempts + "..."));
         }
 
         @Override
         public void onLogMessage(String message) {
-            Platform.runLater(() -> {
-                appendLog(message);
-                if (message.contains("Reconnected")) {
-                    publishNetworkStatus("Network: reconnected to room");
-                    if (networkGameLaunched && reconnectAlertPending) {
-                        reconnectAlertPending = false;
-                        publishNetworkAlert("Reconnected",
-                                "Connection restored. Room roster and status have been refreshed.");
-                    }
-                    return;
-                }
-                if (message.startsWith("Server error:")) {
-                    publishNetworkAlert("Network Error", message);
-                    return;
-                }
-                if (networkGameLaunched && message.contains(" left the room.")) {
-                    publishNetworkAlert("Player Left", message);
-                    return;
-                }
-                if (networkGameLaunched && message.contains("disconnected. Waiting for reconnect.")) {
-                    publishNetworkStatus("Network: player disconnected, waiting for reconnect...");
-                }
-            });
+            Platform.runLater(() -> appendLog(message));
         }
 
         @Override
         public void onDisconnected() {
             Platform.runLater(() -> {
                 ready = false;
-                reconnectAlertPending = false;
                 currentRoomState = null;
-                latestPlayers = new ArrayList<>();
                 playerList.getItems().clear();
                 setConnectedUi(false);
-                String message = "Disconnected from room. The host may have closed the room or the connection was lost.";
-                appendLog(message);
-                publishNetworkRoster(Collections.emptyList());
-                publishNetworkStatus("Network: disconnected. " + message);
-                if (networkGameLaunched) {
-                    publishNetworkAlert("Connection Lost",
-                            message + "\n\nYou can keep playing locally on this device, "
-                                    + "or use New Game to return to the menu.");
-                }
+                appendLog("Disconnected from room.");
             });
         }
     }

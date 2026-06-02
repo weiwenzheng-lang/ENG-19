@@ -1,8 +1,5 @@
 package ui.javafx;
 
-import ai.AIAction;
-import ai.AIPlayerBrain;
-import ai.AITurnExecutor;
 import cards.Card;
 import cards.PropertyCard;
 import cards.RentCard;
@@ -10,7 +7,6 @@ import core.GameManager;
 import core.TargetInfo;
 import patterns.observer.GameObserver;
 import player.Player;
-import player.PlayerType;
 
 import javafx.application.Platform;
 import javafx.beans.binding.Bindings;
@@ -94,41 +90,21 @@ public class GameController implements GameObserver {
     private final Button endTurnButton = imageButton("end_turn.png", "End Turn", 210, 64);
     private final HBox gameOverActions = new HBox(10);
     private final HBox quickActions = new HBox(8);
-    private final VBox networkOverlay = new VBox(5);
-    private final Label networkStatusLabel = new Label("Network: offline");
-    private final Label networkRosterLabel = new Label("Players: local game");
     private final Runnable newGameAction;
     private final Runnable exitGameAction;
     private final int playerCount;
 
-    // AI 系统
-    private final AIPlayerBrain aiBrain = new AIPlayerBrain();
-    private final Map<Player, AITurnExecutor> aiTurnExecutors = new java.util.HashMap<>();
-
     public GameController(List<String> playerNames) {
-        this(playerNames, Collections.nCopies(playerNames.size(), true), () -> {}, Platform::exit);
+        this(playerNames, () -> {}, Platform::exit);
     }
 
     public GameController(List<String> playerNames, Runnable newGameAction, Runnable exitGameAction) {
-        this(playerNames, Collections.nCopies(playerNames.size(), true), newGameAction, exitGameAction);
-    }
-
-    public GameController(List<String> playerNames, List<Boolean> isHuman,
-                          Runnable newGameAction, Runnable exitGameAction) {
         this.newGameAction = newGameAction;
         this.exitGameAction = exitGameAction;
         this.playerCount = playerNames.size();
-        player.BankArea.setPaymentResolver(this::resolvePayment);
+        player.BankArea.setPaymentResolver(this::choosePaymentCardsForPayment);
         game.addObserver(this);
         game.initializeGame(playerNames);
-
-        // 设置玩家类型（人类 vs AI）
-        List<Player> players = game.getActivePlayers();
-        for (int i = 0; i < playerNames.size() && i < isHuman.size(); i++) {
-            if (!isHuman.get(i)) {
-                players.get(i).setPlayerType(PlayerType.AI);
-            }
-        }
     }
 
     public StackPane createContent() {
@@ -224,9 +200,6 @@ public class GameController implements GameObserver {
                 + "-fx-font-family: 'Consolas'; -fx-font-size: 12px;");
         boardPane.getChildren().add(logView);
 
-        configureNetworkOverlay();
-        boardPane.getChildren().add(networkOverlay);
-
         endTurnButton.setLayoutX(1430);
         endTurnButton.setLayoutY(842);
         endTurnButton.setOnAction(event -> {
@@ -247,85 +220,6 @@ public class GameController implements GameObserver {
         boardPane.getChildren().addAll(endTurnButton, gameOverActions);
     }
 
-    private void configureNetworkOverlay() {
-        networkOverlay.setLayoutX(1288);
-        networkOverlay.setLayoutY(22);
-        networkOverlay.setPrefSize(360, 118);
-        networkOverlay.setMaxSize(360, 118);
-        networkOverlay.setPadding(new Insets(10, 12, 10, 12));
-        networkOverlay.setStyle("-fx-background-color: rgba(5,8,12,0.68);"
-                + "-fx-background-radius: 10;"
-                + "-fx-border-color: rgba(141,215,238,0.62);"
-                + "-fx-border-radius: 10;"
-                + "-fx-border-width: 1;");
-        networkOverlay.setVisible(false);
-        networkOverlay.setManaged(false);
-
-        networkStatusLabel.setTextFill(javafx.scene.paint.Color.web("#8dd7ee"));
-        networkStatusLabel.setFont(Font.font("Consolas", FontWeight.BOLD, 13));
-        networkStatusLabel.setWrapText(true);
-        networkStatusLabel.setMaxWidth(336);
-
-        networkRosterLabel.setTextFill(javafx.scene.paint.Color.web("#f8e7b4"));
-        networkRosterLabel.setFont(Font.font("Consolas", FontWeight.BOLD, 11));
-        networkRosterLabel.setWrapText(true);
-        networkRosterLabel.setMaxWidth(336);
-
-        networkOverlay.getChildren().setAll(networkStatusLabel, networkRosterLabel);
-    }
-
-    public void showNetworkInfo(String status, List<String> rosterLines) {
-        Platform.runLater(() -> {
-            networkOverlay.setVisible(true);
-            networkOverlay.setManaged(true);
-            setNetworkStatus(status);
-            setNetworkRoster(rosterLines);
-        });
-    }
-
-    public void setNetworkStatus(String status) {
-        Platform.runLater(() -> {
-            networkOverlay.setVisible(true);
-            networkOverlay.setManaged(true);
-            networkStatusLabel.setText(status == null || status.trim().isEmpty()
-                    ? "Network: status unavailable"
-                    : status);
-            applyNetworkStatusStyle(status);
-        });
-    }
-
-    public void showNetworkAlert(String title, String message) {
-        Platform.runLater(() -> {
-            setNetworkStatus("Network: " + title);
-            GameDialogs.showMessage(title, title, message);
-        });
-    }
-
-    private void applyNetworkStatusStyle(String status) {
-        String normalized = status == null ? "" : status.toLowerCase();
-        String color;
-        if (normalized.contains("disconnect") || normalized.contains("error") || normalized.contains("failed")) {
-            color = "#ff9e9e";
-        } else if (normalized.contains("reconnect")) {
-            color = "#f0c978";
-        } else {
-            color = "#8dd7ee";
-        }
-        networkStatusLabel.setTextFill(javafx.scene.paint.Color.web(color));
-    }
-
-    public void setNetworkRoster(List<String> rosterLines) {
-        Platform.runLater(() -> {
-            networkOverlay.setVisible(true);
-            networkOverlay.setManaged(true);
-            if (rosterLines == null || rosterLines.isEmpty()) {
-                networkRosterLabel.setText("Players: unavailable");
-            } else {
-                networkRosterLabel.setText(String.join("\n", rosterLines));
-            }
-        });
-    }
-
     private ZoneSpec[] opponentSpecs(int count) {
         switch (count) {
             case 2:
@@ -334,21 +228,21 @@ public class GameController implements GameObserver {
                 };
             case 3:
                 return new ZoneSpec[]{
-                        new ZoneSpec(122, 196, 520, 258, -28, 226, 154, 186, 45),
-                        new ZoneSpec(1030, 196, 520, 258, 28, 1342, 154, 188, 45)
+                        new ZoneSpec(158, 162, 470, 220, -28, 226, 154, 186, 45),
+                        new ZoneSpec(1044, 162, 470, 220, 28, 1342, 154, 188, 45)
                 };
             case 4:
                 return new ZoneSpec[]{
-                        new ZoneSpec(110, 232, 440, 260, -28, 226, 192, 150, 44),
+                        new ZoneSpec(126, 198, 410, 224, -28, 226, 192, 150, 44),
                         new ZoneSpec(512, 158, 640, 150, 0, 806, 96, 150, 44),
-                        new ZoneSpec(1122, 232, 440, 260, 28, 1420, 190, 152, 44)
+                        new ZoneSpec(1136, 198, 410, 224, 28, 1420, 190, 152, 44)
                 };
             default:
                 return new ZoneSpec[]{
-                        new ZoneSpec(100, 228, 400, 236, -28, 258, 168, 148, 44),
+                        new ZoneSpec(110, 194, 380, 212, -28, 258, 168, 148, 44),
                         new ZoneSpec(485, 174, 360, 122, 0, 650, 120, 138, 44),
                         new ZoneSpec(865, 174, 360, 122, 0, 1090, 120, 142, 44),
-                        new ZoneSpec(1172, 228, 400, 236, 28, 1454, 188, 132, 44)
+                        new ZoneSpec(1182, 194, 380, 212, 28, 1454, 188, 132, 44)
                 };
         }
     }
@@ -358,11 +252,11 @@ public class GameController implements GameObserver {
             case 2:
                 return area(410, 590, 852, 98, 0);
             case 3:
-                return area(421, 594, 828, 96, 0);
+                return area(421, 568, 828, 96, 0);
             case 4:
-                return area(389, 604, 893, 96, 0);
+                return area(389, 572, 893, 96, 0);
             default:
-                return area(478, 610, 730, 98, 0);
+                return area(478, 560, 730, 98, 0);
         }
     }
 
@@ -665,8 +559,7 @@ public class GameController implements GameObserver {
         renderPiles();
 
         boolean gameOver = game.isGameOver();
-        boolean isHumanTurn = !current.isAI();
-        endTurnButton.setDisable(gameOver || !isHumanTurn);
+        endTurnButton.setDisable(gameOver);
         gameOverActions.setVisible(gameOver);
         gameOverActions.setManaged(gameOver);
 
@@ -700,7 +593,7 @@ public class GameController implements GameObserver {
                 continue;
             }
             Player player = visibleOpponents.get(i);
-            zone.name.setText(player.getPlayerName() + (player.isAI() ? " [AI]" : ""));
+            zone.name.setText(player.getPlayerName());
             zone.stats.setText(playerStats(player));
             updateSetsProgress(zone.setsProgress, zone.setsLabel, player);
             renderTableCards(zone.cards, player, OPPONENT_CARD_WIDTH, OPPONENT_CARD_HEIGHT, false);
@@ -721,7 +614,6 @@ public class GameController implements GameObserver {
             cardView.setLayoutY(baseY);
             if (!game.isGameOver()) {
                 cardView.setOnMouseClicked(event -> {
-                    if (game.getCurrentPlayer().isAI()) return; // AI 回合忽略点击
                     cardView.toFront();
                     showCardMenu(cardView, index, cards.get(index));
                 });
@@ -1202,17 +1094,6 @@ public class GameController implements GameObserver {
         game.executeDoubleRentAction(doubleCardIndex, rentCardIndex, targetInfo);
     }
 
-    /**
-     * 支付路由：AI 玩家使用 AI 策略，人类玩家使用 UI 对话框。
-     */
-    private List<Card> resolvePayment(Player payer, Player payee, int amount,
-                                      List<Card> bankCards, List<cards.PropertyCard> propertyCards) {
-        if (payer.isAI()) {
-            return aiBrain.choosePaymentCards(payer, payee, amount, bankCards, propertyCards);
-        }
-        return choosePaymentCardsForPayment(payer, payee, amount, bankCards, propertyCards);
-    }
-
     private List<Card> choosePaymentCardsForPayment(Player payer, Player payee, int amount,
                                                     List<Card> bankCards,
                                                     List<cards.PropertyCard> propertyCards) {
@@ -1369,13 +1250,6 @@ public class GameController implements GameObserver {
         Player victim = game.getPendingVictim();
         if (victim == null) return;
 
-        // AI 受害者：自动决策
-        if (victim.isAI()) {
-            handleAIInterrupt(victim);
-            return;
-        }
-
-        // 人类受害者：弹窗询问
         List<Card> hand = victim.getHand().getCards();
         int jsnIdx = -1;
         for (int i = 0; i < hand.size(); i++) {
@@ -1405,44 +1279,16 @@ public class GameController implements GameObserver {
         }
     }
 
-    /** 处理 AI 玩家的 Just Say No 打断。 */
-    private void handleAIInterrupt(Player victim) {
-        AITurnExecutor executor = aiTurnExecutors.get(victim);
-        if (executor == null) {
-            executor = new AITurnExecutor(aiBrain);
-            aiTurnExecutors.put(victim, executor);
-        }
-        executor.handleInterrupt(victim);
-    }
-
     @Override
     public void onTurnChanged(String playerName) {
         Platform.runLater(() -> {
             logView.getItems().add(0, "Turn starts: " + playerName);
             renderAll();
-
-            // 如果新回合属于 AI 玩家，启动自动执行
-            Player current = game.getCurrentPlayer();
-            if (current.isAI()) {
-                scheduleAITurn(current);
-            }
         });
-    }
-
-    /** 为 AI 玩家启动自动回合执行。 */
-    private void scheduleAITurn(Player aiPlayer) {
-        AITurnExecutor executor = aiTurnExecutors.get(aiPlayer);
-        if (executor == null) {
-            executor = new AITurnExecutor(aiBrain);
-            aiTurnExecutors.put(aiPlayer, executor);
-        }
-        executor.startTurn(aiPlayer);
     }
 
     public void dispose() {
         player.BankArea.setPaymentResolver(null);
         game.removeObserver(this);
-        aiTurnExecutors.values().forEach(AITurnExecutor::stop);
-        aiTurnExecutors.clear();
     }
 }
