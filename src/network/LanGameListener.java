@@ -16,6 +16,10 @@ public interface LanGameListener {
     default void onGameStarted() {
     }
 
+    default void onGameStarted(long deckSeed) {
+        onGameStarted();
+    }
+
     default void onGameMessage(LanGameMessage message) {
     }
 
