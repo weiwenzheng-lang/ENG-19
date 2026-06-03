@@ -334,21 +334,21 @@ public class GameController implements GameObserver {
                 };
             case 3:
                 return new ZoneSpec[]{
-                        new ZoneSpec(122, 196, 520, 258, -28, 226, 154, 186, 45),
-                        new ZoneSpec(1030, 196, 520, 258, 28, 1342, 154, 188, 45)
+                        new ZoneSpec(158, 162, 470, 220, -28, 226, 154, 186, 45),
+                        new ZoneSpec(1044, 162, 470, 220, 28, 1342, 154, 188, 45)
                 };
             case 4:
                 return new ZoneSpec[]{
-                        new ZoneSpec(110, 232, 440, 260, -28, 226, 192, 150, 44),
+                        new ZoneSpec(126, 198, 410, 224, -28, 226, 192, 150, 44),
                         new ZoneSpec(512, 158, 640, 150, 0, 806, 96, 150, 44),
-                        new ZoneSpec(1122, 232, 440, 260, 28, 1420, 190, 152, 44)
+                        new ZoneSpec(1136, 198, 410, 224, 28, 1420, 190, 152, 44)
                 };
             default:
                 return new ZoneSpec[]{
-                        new ZoneSpec(100, 228, 400, 236, -28, 258, 168, 148, 44),
+                        new ZoneSpec(110, 194, 380, 212, -28, 258, 168, 148, 44),
                         new ZoneSpec(485, 174, 360, 122, 0, 650, 120, 138, 44),
                         new ZoneSpec(865, 174, 360, 122, 0, 1090, 120, 142, 44),
-                        new ZoneSpec(1172, 228, 400, 236, 28, 1454, 188, 132, 44)
+                        new ZoneSpec(1182, 194, 380, 212, 28, 1454, 188, 132, 44)
                 };
         }
     }
@@ -358,11 +358,11 @@ public class GameController implements GameObserver {
             case 2:
                 return area(410, 590, 852, 98, 0);
             case 3:
-                return area(421, 594, 828, 96, 0);
+                return area(421, 568, 828, 96, 0);
             case 4:
-                return area(389, 604, 893, 96, 0);
+                return area(389, 572, 893, 96, 0);
             default:
-                return area(478, 610, 730, 98, 0);
+                return area(478, 560, 730, 98, 0);
         }
     }
 
