@@ -2,6 +2,7 @@ package core;
 
 import cards.Card;
 import player.Player;
+import player.PlayerType;
 import patterns.observer.GameObserver;
 
 import java.util.ArrayList;
@@ -38,6 +39,24 @@ public class GameManager {
     private List<Player> pendingVictims;
     private int pendingVictimIndex;
 
+    public static final class PlayerSetup {
+        private final String name;
+        private final PlayerType type;
+
+        public PlayerSetup(String name, PlayerType type) {
+            this.name = name == null || name.trim().isEmpty() ? "Player" : name.trim();
+            this.type = type == null ? PlayerType.HUMAN : type;
+        }
+
+        public String getName() {
+            return name;
+        }
+
+        public PlayerType getType() {
+            return type;
+        }
+    }
+
     private GameManager() {
         this.activePlayers = new ArrayList<>();
         this.gameDeck = new Deck();
@@ -54,7 +73,25 @@ public class GameManager {
     }
 
     public void initializeGame(List<String> playerNames) {
-        if (playerNames == null || playerNames.size() < MIN_PLAYERS || playerNames.size() > MAX_PLAYERS) {
+        List<PlayerSetup> setups = new ArrayList<>();
+        if (playerNames != null) {
+            for (String name : playerNames) {
+                setups.add(new PlayerSetup(name, PlayerType.HUMAN));
+            }
+        }
+        initializeGameWithSetups(setups, null);
+    }
+
+    public void initializeConfiguredGame(List<PlayerSetup> playerSetups, long deckSeed) {
+        initializeGameWithSetups(playerSetups, deckSeed);
+    }
+
+    public void initializeConfiguredGame(List<PlayerSetup> playerSetups) {
+        initializeGameWithSetups(playerSetups, null);
+    }
+
+    private void initializeGameWithSetups(List<PlayerSetup> playerSetups, Long deckSeed) {
+        if (playerSetups == null || playerSetups.size() < MIN_PLAYERS || playerSetups.size() > MAX_PLAYERS) {
             throw new IllegalArgumentException("Monopoly Deal supports 2 to 5 players.");
         }
 
@@ -65,11 +102,17 @@ public class GameManager {
         rentMultiplier = 1;
         resetState();
 
-        gameDeck.initializeDeck(CardFactory.createInitialDeck());
+        if (deckSeed == null) {
+            gameDeck.initializeDeck(CardFactory.createInitialDeck());
+        } else {
+            gameDeck.initializeDeck(CardFactory.createInitialDeck(), deckSeed);
+        }
 
         activePlayers.clear();
-        for (int i = 0; i < playerNames.size(); i++) {
-            Player newPlayer = new Player(String.valueOf(i), playerNames.get(i));
+        for (int i = 0; i < playerSetups.size(); i++) {
+            PlayerSetup setup = playerSetups.get(i);
+            Player newPlayer = new Player(String.valueOf(i), setup.getName());
+            newPlayer.setPlayerType(setup.getType());
             newPlayer.getHand().addCards(gameDeck.drawCards(5));
             activePlayers.add(newPlayer);
         }

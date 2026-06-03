@@ -3,6 +3,7 @@ import cards.Card;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+import java.util.Random;
 import java.util.Stack;
 
 public class Deck {
@@ -22,9 +23,21 @@ public class Deck {
         shuffle();
     }
 
+    public void initializeDeck(List<Card> allCards, long seed) {
+        drawPile.clear();
+        discardPile.clear();
+        drawPile.addAll(allCards);
+        shuffle(seed);
+    }
+
     public void shuffle() {
         Collections.shuffle(drawPile);
         System.out.println("System: Deck has been shuffled.");
+    }
+
+    public void shuffle(long seed) {
+        Collections.shuffle(drawPile, new Random(seed));
+        System.out.println("System: Deck has been shuffled with shared seed.");
     }
 
     // 核心逻辑：抽牌

@@ -206,7 +206,8 @@ public class LanGameClient implements Closeable {
             notifyLog(sender + ": " + text);
         } else if (LanGameProtocol.START_GAME.equals(command)) {
             notifyLog("Network game started.");
-            notifyGameStarted();
+            long seed = readLong(message.getFields(), 1, System.currentTimeMillis());
+            notifyGameStarted(seed);
         } else if (LanGameProtocol.GAME_ACTION.equals(command) || LanGameProtocol.GAME_STATE.equals(command)) {
             notifyGameMessage(toGameMessage(message));
         } else if (LanGameProtocol.PONG.equals(command)) {
@@ -276,6 +277,17 @@ public class LanGameClient implements Closeable {
         }
     }
 
+    private long readLong(List<String> fields, int index, long fallback) {
+        if (index >= fields.size()) {
+            return fallback;
+        }
+        try {
+            return Long.parseLong(fields.get(index));
+        } catch (NumberFormatException e) {
+            return fallback;
+        }
+    }
+
     private void sendLine(String line) {
         synchronized (writeLock) {
             if (writer == null) {
@@ -335,9 +347,9 @@ public class LanGameClient implements Closeable {
         }
     }
 
-    private void notifyGameStarted() {
+    private void notifyGameStarted(long deckSeed) {
         if (listener != null) {
-            listener.onGameStarted();
+            listener.onGameStarted(deckSeed);
         }
     }
 

@@ -1,12 +1,16 @@
 package ui.javafx;
 
+import ai.AIPlayerBrain;
+import ai.AITurnExecutor;
 import cards.Card;
 import cards.PropertyCard;
 import cards.RentCard;
 import core.GameManager;
 import core.TargetInfo;
+import network.LanGameMessage;
 import patterns.observer.GameObserver;
 import player.Player;
+import player.PlayerType;
 
 import javafx.application.Platform;
 import javafx.beans.binding.Bindings;
@@ -53,6 +57,7 @@ import java.util.EnumMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.function.Consumer;
 
 public class GameController implements GameObserver {
     private static final double BOARD_WIDTH = 1672;
@@ -92,19 +97,43 @@ public class GameController implements GameObserver {
     private final HBox quickActions = new HBox(8);
     private final Runnable newGameAction;
     private final Runnable exitGameAction;
+    private final GameModeConfig modeConfig;
+    private final AITurnExecutor aiExecutor = new AITurnExecutor(new AIPlayerBrain());
     private final int playerCount;
+    private boolean applyingRemoteAction;
+    private boolean disposed;
 
     public GameController(List<String> playerNames) {
         this(playerNames, () -> {}, Platform::exit);
     }
 
     public GameController(List<String> playerNames, Runnable newGameAction, Runnable exitGameAction) {
+        this(GameModeConfig.local(toHumanSetups(playerNames)), newGameAction, exitGameAction);
+    }
+
+    public GameController(GameModeConfig modeConfig, Runnable newGameAction, Runnable exitGameAction) {
         this.newGameAction = newGameAction;
         this.exitGameAction = exitGameAction;
-        this.playerCount = playerNames.size();
+        this.modeConfig = modeConfig;
+        this.playerCount = modeConfig.players.size();
         player.BankArea.setPaymentResolver(this::choosePaymentCardsForPayment);
         game.addObserver(this);
-        game.initializeGame(playerNames);
+        if (modeConfig.deckSeed == null) {
+            game.initializeConfiguredGame(modeConfig.players);
+        } else {
+            game.initializeConfiguredGame(modeConfig.players, modeConfig.deckSeed);
+        }
+        if (modeConfig.networkBridge != null) {
+            modeConfig.networkBridge.setGameMessageHandler(this::handleNetworkMessage);
+        }
+    }
+
+    private static List<GameManager.PlayerSetup> toHumanSetups(List<String> playerNames) {
+        List<GameManager.PlayerSetup> setups = new ArrayList<>();
+        for (String name : playerNames) {
+            setups.add(new GameManager.PlayerSetup(name, PlayerType.HUMAN));
+        }
+        return setups;
     }
 
     public StackPane createContent() {
@@ -129,6 +158,7 @@ public class GameController implements GameObserver {
         boardPane.scaleXProperty().bind(scale);
         boardPane.scaleYProperty().bind(scale);
         renderAll();
+        scheduleAiIfNeeded();
         return root;
     }
 
@@ -203,8 +233,7 @@ public class GameController implements GameObserver {
         endTurnButton.setLayoutX(1430);
         endTurnButton.setLayoutY(842);
         endTurnButton.setOnAction(event -> {
-            game.endTurn();
-            renderAll();
+            requestEndTurn();
         });
 
         Button newGame = imageButton("confirm.png", "New Game", 180, 56);
@@ -424,8 +453,7 @@ public class GameController implements GameObserver {
 
     private VBox createCenter() {
         endTurnButton.setOnAction(event -> {
-            game.endTurn();
-            renderAll();
+            requestEndTurn();
         });
         styleButton(endTurnButton);
 
@@ -559,7 +587,7 @@ public class GameController implements GameObserver {
         renderPiles();
 
         boolean gameOver = game.isGameOver();
-        endTurnButton.setDisable(gameOver);
+        endTurnButton.setDisable(gameOver || !canControlCurrentPlayer());
         gameOverActions.setVisible(gameOver);
         gameOverActions.setManaged(gameOver);
 
@@ -570,10 +598,11 @@ public class GameController implements GameObserver {
                     "Collected 3 complete property sets!");
         }
 
-        renderOpponents(current);
-        renderHand(current);
-        renderOwnTable(current);
-        renderOwnInfo(current);
+        Player viewPlayer = getViewPlayer();
+        renderOpponents(viewPlayer);
+        renderHand(viewPlayer);
+        renderOwnTable(viewPlayer);
+        renderOwnInfo(viewPlayer);
     }
 
     private void renderOpponents(Player current) {
@@ -612,7 +641,7 @@ public class GameController implements GameObserver {
             CardView cardView = new CardView(cards.get(i), HAND_CARD_WIDTH, HAND_CARD_HEIGHT);
             cardView.setLayoutX(startX + i * step);
             cardView.setLayoutY(baseY);
-            if (!game.isGameOver()) {
+            if (!game.isGameOver() && canControlCurrentPlayer() && current == game.getCurrentPlayer()) {
                 cardView.setOnMouseClicked(event -> {
                     cardView.toFront();
                     showCardMenu(cardView, index, cards.get(index));
@@ -718,6 +747,314 @@ public class GameController implements GameObserver {
         cards.addAll(player.getBankArea().getAssets());
         cards.addAll(player.getPropertyArea().getAllPropertyCards());
         return cards;
+    }
+
+    private Player getViewPlayer() {
+        if (modeConfig.isNetwork()) {
+            List<Player> players = game.getActivePlayers();
+            int index = Math.max(0, Math.min(modeConfig.localPlayerIndex, players.size() - 1));
+            return players.get(index);
+        }
+        return game.getCurrentPlayer();
+    }
+
+    private boolean isLocalPlayer(Player player) {
+        if (!modeConfig.isNetwork()) {
+            return true;
+        }
+        List<Player> players = game.getActivePlayers();
+        int index = players.indexOf(player);
+        return index == modeConfig.localPlayerIndex;
+    }
+
+    private boolean canControlCurrentPlayer() {
+        if (game.isGameOver() || game.getCurrentState() != GameManager.GameState.NORMAL_TURN) {
+            return false;
+        }
+        Player current = game.getCurrentPlayer();
+        if (current.isAI()) {
+            return false;
+        }
+        return isLocalPlayer(current);
+    }
+
+    private void requestEndTurn() {
+        if (!canControlCurrentPlayer()) {
+            onGameEvent("Wait for " + game.getCurrentPlayer().getPlayerName() + "'s turn.");
+            return;
+        }
+        performEndTurn(true);
+    }
+
+    private void performEndTurn(boolean broadcast) {
+        game.endTurn();
+        if (broadcast) {
+            sendNetworkAction("END_TURN", "");
+        }
+        renderAll();
+    }
+
+    private void requestDeposit(int cardIndex) {
+        if (!canControlCurrentPlayer()) {
+            onGameEvent("Wait for " + game.getCurrentPlayer().getPlayerName() + "'s turn.");
+            return;
+        }
+        Card card = game.getCurrentPlayer().getHand().getCard(cardIndex);
+        String payload = "card=" + safe(card == null ? "" : card.getCardName());
+        game.depositCardToBank(cardIndex);
+        sendNetworkAction("BANK", payload);
+        renderAll();
+    }
+
+    private void requestDiscard(int cardIndex) {
+        if (!canControlCurrentPlayer()) {
+            onGameEvent("Wait for " + game.getCurrentPlayer().getPlayerName() + "'s turn.");
+            return;
+        }
+        Card card = game.getCurrentPlayer().getHand().getCard(cardIndex);
+        String payload = "card=" + safe(card == null ? "" : card.getCardName());
+        game.discardCard(cardIndex);
+        sendNetworkAction("DISCARD", payload);
+        renderAll();
+    }
+
+    private void requestPlayCard(int cardIndex, TargetInfo targetInfo) {
+        if (!canControlCurrentPlayer()) {
+            onGameEvent("Wait for " + game.getCurrentPlayer().getPlayerName() + "'s turn.");
+            return;
+        }
+        Card card = game.getCurrentPlayer().getHand().getCard(cardIndex);
+        String payload = encodePlayPayload(card, targetInfo);
+        game.executePlayerAction(cardIndex, targetInfo);
+        sendNetworkAction("PLAY", payload);
+        renderAll();
+    }
+
+    private void requestDoubleRent(int doubleCardIndex, int rentCardIndex, TargetInfo targetInfo) {
+        if (!canControlCurrentPlayer()) {
+            onGameEvent("Wait for " + game.getCurrentPlayer().getPlayerName() + "'s turn.");
+            return;
+        }
+        List<Card> hand = game.getCurrentPlayer().getHand().getCards();
+        Card doubleCard = doubleCardIndex >= 0 && doubleCardIndex < hand.size() ? hand.get(doubleCardIndex) : null;
+        Card rentCard = rentCardIndex >= 0 && rentCardIndex < hand.size() ? hand.get(rentCardIndex) : null;
+        String payload = encodeDoubleRentPayload(doubleCard, rentCard, targetInfo);
+        game.executeDoubleRentAction(doubleCardIndex, rentCardIndex, targetInfo);
+        sendNetworkAction("DOUBLE_RENT", payload);
+        renderAll();
+    }
+
+    private void sendNetworkAction(String type, String payload) {
+        if (applyingRemoteAction || modeConfig.networkBridge == null) {
+            return;
+        }
+        modeConfig.networkBridge.sendGameAction(type, payload);
+    }
+
+    private String encodePlayPayload(Card card, TargetInfo targetInfo) {
+        List<String> parts = new ArrayList<>();
+        parts.add("card=" + safe(card == null ? "" : card.getCardName()));
+        appendCardState(parts, card);
+        appendTarget(parts, targetInfo);
+        return String.join(";", parts);
+    }
+
+    private String encodeDoubleRentPayload(Card doubleCard, Card rentCard, TargetInfo targetInfo) {
+        List<String> parts = new ArrayList<>();
+        parts.add("double=" + safe(doubleCard == null ? "" : doubleCard.getCardName()));
+        parts.add("rent=" + safe(rentCard == null ? "" : rentCard.getCardName()));
+        appendCardState(parts, rentCard);
+        appendTarget(parts, targetInfo);
+        return String.join(";", parts);
+    }
+
+    private void appendCardState(List<String> parts, Card card) {
+        if (card instanceof cards.RentCard) {
+            parts.add("color=" + ((cards.RentCard) card).getSelectedColor());
+        } else if (card instanceof cards.WildRentCard) {
+            parts.add("color=" + ((cards.WildRentCard) card).getSelectedColor());
+        } else if (card instanceof cards.PropertyCard) {
+            parts.add("color=" + ((cards.PropertyCard) card).getColorGroup());
+        }
+    }
+
+    private void appendTarget(List<String> parts, TargetInfo targetInfo) {
+        if (targetInfo == null) {
+            return;
+        }
+        if (targetInfo.getTargetPlayer() != null) {
+            parts.add("target=" + game.getActivePlayers().indexOf(targetInfo.getTargetPlayer()));
+        }
+        if (targetInfo.getInitiatorPropertyColor() != null) {
+            parts.add("giveColor=" + targetInfo.getInitiatorPropertyColor());
+            parts.add("giveIndex=" + targetInfo.getInitiatorPropertyIndex());
+        }
+        if (targetInfo.getTargetPropertyColor() != null) {
+            parts.add("takeColor=" + targetInfo.getTargetPropertyColor());
+            parts.add("takeIndex=" + targetInfo.getTargetPropertyIndex());
+        }
+        if (targetInfo.getImprovementColor() != null) {
+            parts.add("improveColor=" + targetInfo.getImprovementColor());
+        }
+    }
+
+    private String safe(String value) {
+        return value == null ? "" : value.replace("\\", "\\\\")
+                .replace(";", "\\s")
+                .replace("=", "\\e");
+    }
+
+    private Map<String, String> parsePayload(String payload) {
+        Map<String, String> values = new java.util.HashMap<>();
+        if (payload == null || payload.isEmpty()) {
+            return values;
+        }
+        for (String part : payload.split(";")) {
+            int eq = part.indexOf('=');
+            if (eq <= 0) {
+                continue;
+            }
+            values.put(part.substring(0, eq), unsafe(part.substring(eq + 1)));
+        }
+        return values;
+    }
+
+    private String unsafe(String value) {
+        return value == null ? "" : value.replace("\\e", "=")
+                .replace("\\s", ";")
+                .replace("\\\\", "\\");
+    }
+
+    private int readInt(Map<String, String> values, String key, int fallback) {
+        try {
+            return Integer.parseInt(values.getOrDefault(key, String.valueOf(fallback)));
+        } catch (NumberFormatException e) {
+            return fallback;
+        }
+    }
+
+    private enums.PropertyColor readColor(Map<String, String> values, String key) {
+        String value = values.get(key);
+        if (value == null || value.isEmpty() || "null".equals(value)) {
+            return null;
+        }
+        try {
+            return enums.PropertyColor.valueOf(value);
+        } catch (IllegalArgumentException e) {
+            return null;
+        }
+    }
+
+    private void handleNetworkMessage(LanGameMessage message) {
+        if (!modeConfig.isNetwork() || message == null || modeConfig.networkBridge == null) {
+            return;
+        }
+        if (message.getSenderId() == modeConfig.networkBridge.getLocalPlayerId()) {
+            return;
+        }
+        Platform.runLater(() -> applyRemoteAction(message));
+    }
+
+    private void applyRemoteAction(LanGameMessage message) {
+        applyingRemoteAction = true;
+        try {
+            String type = message.getType();
+            Map<String, String> payload = parsePayload(message.getPayload());
+            if ("END_TURN".equals(type)) {
+                performEndTurn(false);
+            } else if ("BANK".equals(type)) {
+                int index = findCardIndexByName(game.getCurrentPlayer(), payload.getOrDefault("card", ""));
+                game.depositCardToBank(index);
+                renderAll();
+            } else if ("DISCARD".equals(type)) {
+                int index = findCardIndexByName(game.getCurrentPlayer(), payload.getOrDefault("card", ""));
+                game.discardCard(index);
+                renderAll();
+            } else if ("PLAY".equals(type)) {
+                applyRemotePlay(payload);
+            } else if ("DOUBLE_RENT".equals(type)) {
+                applyRemoteDoubleRent(payload);
+            }
+        } catch (Exception ex) {
+            onGameEvent("[Network] Could not apply remote action: " + ex.getMessage());
+        } finally {
+            applyingRemoteAction = false;
+        }
+    }
+
+    private void applyRemotePlay(Map<String, String> payload) {
+        Player current = game.getCurrentPlayer();
+        int cardIndex = findCardIndexByName(current, payload.getOrDefault("card", ""));
+        Card card = current.getHand().getCard(cardIndex);
+        if (card == null) {
+            onGameEvent("[Network] Remote card not found: " + payload.getOrDefault("card", ""));
+            return;
+        }
+        applyRemoteCardState(card, payload);
+        game.executePlayerAction(cardIndex, buildTargetInfo(payload));
+        renderAll();
+    }
+
+    private void applyRemoteDoubleRent(Map<String, String> payload) {
+        Player current = game.getCurrentPlayer();
+        int doubleIndex = findCardIndexByName(current, payload.getOrDefault("double", ""));
+        int rentIndex = findCardIndexByName(current, payload.getOrDefault("rent", ""));
+        Card rent = current.getHand().getCard(rentIndex);
+        applyRemoteCardState(rent, payload);
+        game.executeDoubleRentAction(doubleIndex, rentIndex, buildTargetInfo(payload));
+        renderAll();
+    }
+
+    private void applyRemoteCardState(Card card, Map<String, String> payload) {
+        enums.PropertyColor color = readColor(payload, "color");
+        if (card == null || color == null) {
+            return;
+        }
+        if (card instanceof cards.RentCard) {
+            ((cards.RentCard) card).setSelectedColor(color);
+        } else if (card instanceof cards.WildRentCard) {
+            ((cards.WildRentCard) card).setSelectedColor(color);
+        } else if (card instanceof cards.SuperWildCard) {
+            ((cards.SuperWildCard) card).setCurrentColor(color);
+        } else if (card instanceof cards.PropertyWildCard) {
+            ((cards.PropertyWildCard) card).setCurrentColor(color);
+        }
+    }
+
+    private TargetInfo buildTargetInfo(Map<String, String> payload) {
+        Player target = null;
+        int targetIndex = readInt(payload, "target", -1);
+        if (targetIndex >= 0 && targetIndex < game.getActivePlayers().size()) {
+            target = game.getActivePlayers().get(targetIndex);
+        }
+        enums.PropertyColor giveColor = readColor(payload, "giveColor");
+        enums.PropertyColor takeColor = readColor(payload, "takeColor");
+        enums.PropertyColor improveColor = readColor(payload, "improveColor");
+        if (improveColor != null) {
+            return TargetInfo.forImprovement(improveColor).withTarget(target);
+        }
+        if (giveColor != null || takeColor != null) {
+            int giveIndex = readInt(payload, "giveIndex", -1);
+            int takeIndex = readInt(payload, "takeIndex", -1);
+            if (giveColor != null) {
+                return new TargetInfo(target, giveColor, giveIndex, takeColor, takeIndex);
+            }
+            return new TargetInfo(target, takeColor, takeIndex);
+        }
+        return target == null ? null : new TargetInfo(target);
+    }
+
+    private int findCardIndexByName(Player player, String cardName) {
+        if (player == null || cardName == null) {
+            return -1;
+        }
+        List<Card> hand = player.getHand().getCards();
+        for (int i = 0; i < hand.size(); i++) {
+            if (cardName.equals(hand.get(i).getCardName())) {
+                return i;
+            }
+        }
+        return -1;
     }
 
     private String playerStats(Player player) {
@@ -844,22 +1181,19 @@ public class GameController implements GameObserver {
 
         MenuItem bank = new MenuItem("Deposit to bank");
         bank.setOnAction(event -> {
-            game.depositCardToBank(cardIndex);
-            renderAll();
+            requestDeposit(cardIndex);
         });
 
         MenuItem discard = new MenuItem("Discard");
         discard.setDisable(!game.getCurrentPlayer().getHand().requiresDiscard());
         discard.setOnAction(event -> {
-            game.discardCard(cardIndex);
-            renderAll();
+            requestDiscard(cardIndex);
         });
 
         MenuItem play = new MenuItem("Play card");
         play.setOnAction(event -> {
             if (card instanceof cards.DoubleTheRentCard) {
                 playDoubleRent(cardIndex);
-                renderAll();
                 return;
             }
 
@@ -922,8 +1256,7 @@ public class GameController implements GameObserver {
                     return;
                 }
             }
-            game.executePlayerAction(cardIndex, targetInfo);
-            renderAll();
+            requestPlayCard(cardIndex, targetInfo);
         });
 
         if (card instanceof cards.MoneyCard) {
@@ -1091,12 +1424,16 @@ public class GameController implements GameObserver {
                 return;
             }
         }
-        game.executeDoubleRentAction(doubleCardIndex, rentCardIndex, targetInfo);
+        requestDoubleRent(doubleCardIndex, rentCardIndex, targetInfo);
     }
 
     private List<Card> choosePaymentCardsForPayment(Player payer, Player payee, int amount,
                                                     List<Card> bankCards,
                                                     List<cards.PropertyCard> propertyCards) {
+        if (payer.isAI() || modeConfig.isNetwork()) {
+            return chooseAutomaticPaymentCards(payer, amount, bankCards, propertyCards);
+        }
+
         java.util.List<Card> options = new java.util.ArrayList<>();
         options.addAll(bankCards);
         options.addAll(propertyCards);
@@ -1153,6 +1490,37 @@ public class GameController implements GameObserver {
             return selected;
         });
         return dialog.showAndWait().orElse(Collections.emptyList());
+    }
+
+    private List<Card> chooseAutomaticPaymentCards(Player payer, int amount,
+                                                   List<Card> bankCards,
+                                                   List<cards.PropertyCard> propertyCards) {
+        List<Card> options = new ArrayList<>();
+        options.addAll(bankCards);
+        options.sort(java.util.Comparator.comparingInt(Card::getMonetaryValue));
+        List<Card> selected = selectEnoughCards(options, amount);
+        int total = selected.stream().mapToInt(Card::getMonetaryValue).sum();
+        if (total >= amount) {
+            return selected;
+        }
+
+        List<cards.PropertyCard> properties = new ArrayList<>(propertyCards);
+        properties.sort(java.util.Comparator.comparingInt(Card::getMonetaryValue));
+        selected.addAll(selectEnoughCards(new ArrayList<Card>(properties), amount - total));
+        return selected;
+    }
+
+    private List<Card> selectEnoughCards(List<Card> candidates, int amount) {
+        List<Card> selected = new ArrayList<>();
+        int total = 0;
+        for (Card card : candidates) {
+            if (total >= amount) {
+                break;
+            }
+            selected.add(card);
+            total += card.getMonetaryValue();
+        }
+        return selected;
     }
 
     private static class PropertyPick {
@@ -1250,6 +1618,16 @@ public class GameController implements GameObserver {
         Player victim = game.getPendingVictim();
         if (victim == null) return;
 
+        if (victim.isAI() || modeConfig.isNetwork()) {
+            if (victim.isAI()) {
+                aiExecutor.handleInterrupt(victim);
+            } else {
+                game.resolvePendingAction();
+            }
+            renderAll();
+            return;
+        }
+
         List<Card> hand = victim.getHand().getCards();
         int jsnIdx = -1;
         for (int i = 0; i < hand.size(); i++) {
@@ -1284,11 +1662,25 @@ public class GameController implements GameObserver {
         Platform.runLater(() -> {
             logView.getItems().add(0, "Turn starts: " + playerName);
             renderAll();
+            scheduleAiIfNeeded();
         });
     }
 
     public void dispose() {
+        disposed = true;
+        aiExecutor.stop();
         player.BankArea.setPaymentResolver(null);
         game.removeObserver(this);
+    }
+
+    private void scheduleAiIfNeeded() {
+        if (disposed || !modeConfig.hasAi() || game.isGameOver()
+                || game.getCurrentState() != GameManager.GameState.NORMAL_TURN) {
+            return;
+        }
+        Player current = game.getCurrentPlayer();
+        if (current.isAI()) {
+            aiExecutor.startTurn(current);
+        }
     }
 }
