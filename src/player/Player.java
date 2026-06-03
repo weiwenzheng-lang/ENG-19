@@ -1,15 +1,16 @@
 package player;
+
 import cards.Card;
 
 public class Player {
-    private String playerId;
-    private String playerName;
+    private final String playerId;
+    private final String playerName;
+    private final Hand hand;
+    private final BankArea bankArea;
+    private final PropertyArea propertyArea;
     private PlayerType playerType = PlayerType.HUMAN;
 
-    private Hand hand;
-    private BankArea bankArea;
-    private PropertyArea propertyArea;
-
+    // Creates a player with empty hand, bank, and property areas.
     public Player(String playerId, String playerName) {
         this.playerId = playerId;
         this.playerName = playerName;
@@ -19,16 +20,47 @@ public class Player {
         this.propertyArea = new PropertyArea();
     }
 
-    public String getPlayerName() { return playerName; }
-    public Hand getHand() { return hand; }
-    public BankArea getBankArea() { return bankArea; }
-    public PropertyArea getPropertyArea() { return propertyArea; }
+    // Returns the internal player id.
+    public String getPlayerId() {
+        return playerId;
+    }
 
-    public void setPlayerType(PlayerType type) { this.playerType = type; }
-    public PlayerType getPlayerType() { return playerType; }
-    public boolean isAI() { return playerType == PlayerType.AI; }
+    // Returns the display name.
+    public String getPlayerName() {
+        return playerName;
+    }
 
-    // 打牌逻辑：这个方法会被 GameManager 调用
+    // Returns this player's hand.
+    public Hand getHand() {
+        return hand;
+    }
+
+    // Returns this player's bank area.
+    public BankArea getBankArea() {
+        return bankArea;
+    }
+
+    // Returns this player's property area.
+    public PropertyArea getPropertyArea() {
+        return propertyArea;
+    }
+
+    // Sets whether this player is human or AI.
+    public void setPlayerType(PlayerType type) {
+        this.playerType = type == null ? PlayerType.HUMAN : type;
+    }
+
+    // Returns the player type.
+    public PlayerType getPlayerType() {
+        return playerType;
+    }
+
+    // Reports whether this player is controlled by AI.
+    public boolean isAI() {
+        return playerType == PlayerType.AI;
+    }
+
+    // Executes one card through polymorphic card behavior.
     public void playCard(Card card) {
         card.executePlayLogic(this);
     }
