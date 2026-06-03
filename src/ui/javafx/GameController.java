@@ -70,6 +70,8 @@ public class GameController implements GameObserver {
     private static final double OPPONENT_CARD_HEIGHT = 122;
     private static final double PILE_CARD_WIDTH = 70;
     private static final double PILE_CARD_HEIGHT = 116;
+    private static final double HAND_ARC_HEIGHT = 14;
+    private static final double HAND_MAX_ROTATION = 7;
 
     private final GameManager game = GameManager.getInstance();
     private final StackPane root = new StackPane();
@@ -262,8 +264,8 @@ public class GameController implements GameObserver {
                 };
             case 4:
                 return new ZoneSpec[]{
-                        new ZoneSpec(126, 198, 410, 224, -28, 226, 192, 150, 44),
-                        new ZoneSpec(512, 158, 640, 150, 0, 806, 96, 150, 44),
+                        new ZoneSpec(126, 220, 410, 224, -28, 226, 192, 150, 44),
+                        new ZoneSpec(512, 138, 640, 150, 0, 806, 96, 150, 44),
                         new ZoneSpec(1136, 198, 410, 224, 28, 1420, 190, 152, 44)
                 };
             default:
@@ -305,7 +307,7 @@ public class GameController implements GameObserver {
     private ZoneSpec ownNameSpec(int count) {
         switch (count) {
             case 4:
-                return area(260, 686, 150, 48, 0);
+                return area(210, 686, 150, 48, 0);
             case 5:
                 return area(324, 660, 150, 48, 0);
             default:
@@ -635,12 +637,17 @@ public class GameController implements GameObserver {
         double step = computeCardStep(cards.size(), handView.getPrefWidth(), HAND_CARD_WIDTH, 12, false);
         double rowWidth = cards.isEmpty() ? 0 : HAND_CARD_WIDTH + step * (cards.size() - 1);
         double startX = Math.max(10, (handView.getPrefWidth() - rowWidth) / 2.0);
-        double baseY = Math.max(8, (handView.getPrefHeight() - HAND_CARD_HEIGHT) / 2.0);
+        double baseY = Math.max(8, (handView.getPrefHeight() - HAND_CARD_HEIGHT - HAND_ARC_HEIGHT) / 2.0);
+        double center = cards.size() <= 1 ? 0 : (cards.size() - 1) / 2.0;
         for (int i = 0; i < cards.size(); i++) {
             int index = i;
+            double normalized = center == 0 ? 0 : (i - center) / center;
+            double arcOffset = HAND_ARC_HEIGHT * normalized * normalized;
+            double rotation = HAND_MAX_ROTATION * normalized;
             CardView cardView = new CardView(cards.get(i), HAND_CARD_WIDTH, HAND_CARD_HEIGHT);
             cardView.setLayoutX(startX + i * step);
-            cardView.setLayoutY(baseY);
+            cardView.setLayoutY(baseY + arcOffset);
+            cardView.setRotate(rotation);
             if (!game.isGameOver() && canControlCurrentPlayer() && current == game.getCurrentPlayer()) {
                 cardView.setOnMouseClicked(event -> {
                     cardView.toFront();
