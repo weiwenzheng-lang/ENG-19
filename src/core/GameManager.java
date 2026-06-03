@@ -24,6 +24,7 @@ public class GameManager {
     private TargetInfo currentTargetInfo;
     private int rentMultiplier = 1;
 
+    // Tracks whether normal play is active or a counter window is open.
     public enum GameState {
         NORMAL_TURN,
         WAITING_FOR_COUNTER_ACTION
@@ -33,30 +34,35 @@ public class GameManager {
     private Runnable pendingAction;
     private Consumer<Player> pendingGroupAction;
     private Player pendingVictim;
-    private Player pendingAttacker; // original attacker (for JSN chaining)
+    private Player pendingAttacker;
     private Player pendingActionTarget;
     private boolean pendingActionNegated;
     private List<Player> pendingVictims;
     private int pendingVictimIndex;
 
+    // Carries the name and control type used when creating a player.
     public static final class PlayerSetup {
         private final String name;
         private final PlayerType type;
 
+        // Normalizes missing names and player types.
         public PlayerSetup(String name, PlayerType type) {
             this.name = name == null || name.trim().isEmpty() ? "Player" : name.trim();
             this.type = type == null ? PlayerType.HUMAN : type;
         }
 
+        // Returns the configured display name.
         public String getName() {
             return name;
         }
 
+        // Returns whether this seat is human or AI.
         public PlayerType getType() {
             return type;
         }
     }
 
+    // Creates the singleton game coordinator.
     private GameManager() {
         this.activePlayers = new ArrayList<>();
         this.gameDeck = new Deck();
@@ -65,6 +71,7 @@ public class GameManager {
         this.isGameOver = false;
     }
 
+    // Returns the singleton game coordinator.
     public static synchronized GameManager getInstance() {
         if (instance == null) {
             instance = new GameManager();
@@ -72,6 +79,7 @@ public class GameManager {
         return instance;
     }
 
+    // Initializes a local all-human game.
     public void initializeGame(List<String> playerNames) {
         List<PlayerSetup> setups = new ArrayList<>();
         if (playerNames != null) {
@@ -82,14 +90,17 @@ public class GameManager {
         initializeGameWithSetups(setups, null);
     }
 
+    // Initializes a configured game with a deterministic deck seed.
     public void initializeConfiguredGame(List<PlayerSetup> playerSetups, long deckSeed) {
         initializeGameWithSetups(playerSetups, deckSeed);
     }
 
+    // Initializes a configured game with a random deck order.
     public void initializeConfiguredGame(List<PlayerSetup> playerSetups) {
         initializeGameWithSetups(playerSetups, null);
     }
 
+    // Resets all state, creates players, deals hands, and starts the first turn.
     private void initializeGameWithSetups(List<PlayerSetup> playerSetups, Long deckSeed) {
         if (playerSetups == null || playerSetups.size() < MIN_PLAYERS || playerSetups.size() > MAX_PLAYERS) {
             throw new IllegalArgumentException("Monopoly Deal supports 2 to 5 players.");
@@ -102,6 +113,7 @@ public class GameManager {
         rentMultiplier = 1;
         resetState();
 
+        // Network games pass a shared seed so every client sees the same deck.
         if (deckSeed == null) {
             gameDeck.initializeDeck(CardFactory.createInitialDeck());
         } else {
@@ -121,6 +133,7 @@ public class GameManager {
         startNewTurn();
     }
 
+    // Starts a turn by resetting actions and drawing the official card count.
     public void startNewTurn() {
         if (isGameOver) {
             return;
@@ -138,23 +151,14 @@ public class GameManager {
         checkDrawStalemate();
     }
 
+    // Legacy entry point for playing a card without target data.
     public void handlePlayCard(int cardIndex) {
         executePlayerAction(cardIndex, null);
     }
 
+    // Plays one card from the current player's hand.
     public void executePlayerAction(int cardIndex, TargetInfo target) {
-        if (isGameOver) {
-            notifyEvent("Game is already over.");
-            return;
-        }
-        if (currentState != GameState.NORMAL_TURN) {
-            notifyEvent("Resolve the pending counter action first.");
-            return;
-        }
-        if (actionsRemaining <= 0) {
-            notifyEvent("Not enough actions. End your turn.");
-            return;
-        }
+        if (!canUseAction()) return;
 
         Player player = getCurrentPlayer();
         Card selectedCard = player.getHand().getCard(cardIndex);
@@ -170,6 +174,7 @@ public class GameManager {
             return;
         }
 
+        // Card classes read currentTargetInfo while executing polymorphic effects.
         currentTargetInfo = target;
         try {
             player.playCard(selectedCard);
@@ -190,6 +195,24 @@ public class GameManager {
         checkWinCondition();
     }
 
+    // Checks common requirements for spending one normal action.
+    private boolean canUseAction() {
+        if (isGameOver) {
+            notifyEvent("Game is already over.");
+            return false;
+        }
+        if (currentState != GameState.NORMAL_TURN) {
+            notifyEvent("Resolve the pending counter action first.");
+            return false;
+        }
+        if (actionsRemaining <= 0) {
+            notifyEvent("Not enough actions. End your turn.");
+            return false;
+        }
+        return true;
+    }
+
+    // Reports whether a played card should go to the discard pile.
     private boolean shouldDiscardAfterPlay(Card card) {
         return !(card instanceof cards.PropertyCard
                 || card instanceof cards.MoneyCard
@@ -197,19 +220,9 @@ public class GameManager {
                 || card instanceof cards.HotelCard);
     }
 
+    // Plays Double The Rent together with a rent card as a two-action combo.
     public void executeDoubleRentAction(int doubleCardIndex, int rentCardIndex, TargetInfo target) {
-        if (isGameOver) {
-            notifyEvent("Game is already over.");
-            return;
-        }
-        if (currentState != GameState.NORMAL_TURN) {
-            notifyEvent("Resolve the pending counter action first.");
-            return;
-        }
-        if (actionsRemaining < 2) {
-            notifyEvent("Not enough actions: Double The Rent plus Rent costs 2 actions.");
-            return;
-        }
+        if (!canUseDoubleRentAction()) return;
 
         Player player = getCurrentPlayer();
         Card doubleCard = player.getHand().getCard(doubleCardIndex);
@@ -219,34 +232,63 @@ public class GameManager {
             return;
         }
 
-        currentTargetInfo = target;
-        try {
-            activateDoubleRent();
-            player.playCard(rentCard);
-        } catch (IllegalStateException ex) {
-            rentMultiplier = 1;
-            notifyEvent("Cannot play rent combo: " + ex.getMessage());
-            return;
-        } finally {
-            currentTargetInfo = null;
-        }
-
-        int first = Math.max(doubleCardIndex, rentCardIndex);
-        int second = Math.min(doubleCardIndex, rentCardIndex);
-        Card removedFirst = player.getHand().removeCard(first);
-        Card removedSecond = player.getHand().removeCard(second);
-        gameDeck.receiveDiscard(removedFirst);
-        gameDeck.receiveDiscard(removedSecond);
+        if (!playRentWithActiveMultiplier(player, rentCard, target)) return;
+        discardDoubleRentCombo(player, doubleCardIndex, rentCardIndex);
         actionsRemaining -= 2;
         notifyEvent(player.getPlayerName() + " played Double The Rent with "
                 + rentCard.getCardName() + " (actions left: " + actionsRemaining + ")");
         checkWinCondition();
     }
 
+    // Checks common requirements for the two-action Double The Rent combo.
+    private boolean canUseDoubleRentAction() {
+        if (isGameOver) {
+            notifyEvent("Game is already over.");
+            return false;
+        }
+        if (currentState != GameState.NORMAL_TURN) {
+            notifyEvent("Resolve the pending counter action first.");
+            return false;
+        }
+        if (actionsRemaining < 2) {
+            notifyEvent("Not enough actions: Double The Rent plus Rent costs 2 actions.");
+            return false;
+        }
+        return true;
+    }
+
+    // Plays the paired rent card while Double The Rent is active.
+    private boolean playRentWithActiveMultiplier(Player player, Card rentCard, TargetInfo target) {
+        currentTargetInfo = target;
+        try {
+            activateDoubleRent();
+            player.playCard(rentCard);
+            return true;
+        } catch (IllegalStateException ex) {
+            rentMultiplier = 1;
+            notifyEvent("Cannot play rent combo: " + ex.getMessage());
+            return false;
+        } finally {
+            currentTargetInfo = null;
+        }
+    }
+
+    // Removes and discards both cards from a Double The Rent combo.
+    private void discardDoubleRentCombo(Player player, int doubleCardIndex, int rentCardIndex) {
+        int first = Math.max(doubleCardIndex, rentCardIndex);
+        int second = Math.min(doubleCardIndex, rentCardIndex);
+        Card removedFirst = player.getHand().removeCard(first);
+        Card removedSecond = player.getHand().removeCard(second);
+        gameDeck.receiveDiscard(removedFirst);
+        gameDeck.receiveDiscard(removedSecond);
+    }
+
+    // Reports whether a card is a legal Double The Rent partner.
     private boolean isRentCard(Card card) {
         return card instanceof cards.RentCard || card instanceof cards.WildRentCard;
     }
 
+    // Returns one excess hand card to the bottom of the draw pile.
     public void discardCard(int cardIndex) {
         if (isGameOver) {
             notifyEvent("Game is already over.");
@@ -264,11 +306,12 @@ public class GameManager {
         }
         Card selectedCard = player.getHand().removeCard(cardIndex);
         if (selectedCard != null) {
-            gameDeck.receiveDiscard(selectedCard);
+            gameDeck.returnToBottomOfDrawPile(selectedCard);
             notifyEvent(player.getPlayerName() + " discarded " + selectedCard.getCardName());
         }
     }
 
+    // Moves a non-property card from hand into the current player's bank.
     public void depositCardToBank(int cardIndex) {
         if (isGameOver) {
             notifyEvent("Game is already over.");
@@ -301,6 +344,7 @@ public class GameManager {
         checkWinCondition();
     }
 
+    // Ends the current turn after enforcing hand limit and win checks.
     public void endTurn() {
         if (isGameOver) {
             notifyEvent("Game is already over.");
@@ -334,6 +378,7 @@ public class GameManager {
         startNewTurn();
     }
 
+    // Checks whether any player has completed three distinct color sets.
     private void checkWinCondition() {
         for (Player player : activePlayers) {
             int distinctColors = player.getPropertyArea().getCompletedColors().size();
@@ -346,27 +391,32 @@ public class GameManager {
         }
     }
 
+    // Logs when no deck cards are available to draw.
     private void checkDrawStalemate() {
         if (!isGameOver && gameDeck.getDrawPileSize() == 0 && gameDeck.getDiscardPileSize() == 0) {
             notifyEvent("Draw pile is empty. Continue playing with cards in hand.");
         }
     }
 
+    // Doubles the next rent amount.
     public void activateDoubleRent() {
         this.rentMultiplier *= 2;
         notifyEvent("Double rent is active for the next rent card.");
     }
 
+    // Returns and clears the current rent multiplier.
     public int getAndResetRentMultiplier() {
         int current = this.rentMultiplier;
         this.rentMultiplier = 1;
         return current;
     }
 
+    // Returns the player whose turn is active.
     public Player getCurrentPlayer() {
         return activePlayers.get(currentTurnIndex);
     }
 
+    // Resolves an explicit target or falls back to the first opponent.
     public Player resolveTargetOrFirstOpponent(Player initiator) {
         if (currentTargetInfo != null && currentTargetInfo.getTargetPlayer() != null) {
             return currentTargetInfo.getTargetPlayer();
@@ -375,54 +425,66 @@ public class GameManager {
         return opponents.isEmpty() ? null : opponents.get(0);
     }
 
+    // Returns an immutable view of active players.
     public List<Player> getActivePlayers() {
         return Collections.unmodifiableList(activePlayers);
     }
 
+    // Returns the active deck instance.
     public Deck getGameDeck() {
         return gameDeck;
     }
 
+    // Reports whether a winner has been found.
     public boolean isGameOver() {
         return isGameOver;
     }
 
+    // Returns remaining actions for the current turn.
     public int getActionsRemaining() {
         return actionsRemaining;
     }
 
+    // Returns target metadata for the card currently resolving.
     public TargetInfo getCurrentTargetInfo() {
         return currentTargetInfo;
     }
 
+    // Subscribes a UI or logger to game events.
     public void addObserver(GameObserver observer) {
         observers.add(observer);
     }
 
+    // Removes an event subscriber.
     public void removeObserver(GameObserver observer) {
         observers.remove(observer);
     }
 
+    // Sends a game log message to all observers.
     private void notifyEvent(String message) {
         for (GameObserver observer : observers) {
             observer.onGameEvent(message);
         }
     }
 
+    // Exposes logging for collaborators such as the AI executor.
     public void logEvent(String message) {
         notifyEvent(message);
     }
 
+    // Notifies observers when a new turn begins.
     private void notifyTurnChange(String playerName) {
         for (GameObserver observer : observers) {
             observer.onTurnChanged(playerName);
         }
     }
 
+    // Starts a targeted attack from the current player.
     public void initiateAttack(Player victim, Runnable action) {
         initiateAttack(getCurrentPlayer(), victim, action);
     }
 
+    // Opens a Just Say No window before resolving one targeted action.
     public void initiateAttack(Player attacker, Player victim, Runnable action) {
         this.currentState = GameState.WAITING_FOR_COUNTER_ACTION;
         this.pendingAction = action;
@@ -436,10 +498,12 @@ public class GameManager {
         notifyEvent("[INTERRUPT_REQUEST] " + victim.getPlayerName() + " may use Just Say No.");
     }
 
+    // Starts a group attack from the current player.
     public void initiateGroupAttack(List<Player> victims, Consumer<Player> action) {
         initiateGroupAttack(getCurrentPlayer(), victims, action);
     }
 
+    // Opens sequential Just Say No windows for a multi-victim action.
     public void initiateGroupAttack(Player attacker, List<Player> victims, Consumer<Player> action) {
         if (victims == null || victims.isEmpty()) {
             return;
@@ -457,6 +521,7 @@ public class GameManager {
                 + " may use Just Say No.");
     }
 
+    // Resolves the currently pending attack after counters are decided.
     public void resolvePendingAction() {
         if (currentState != GameState.WAITING_FOR_COUNTER_ACTION
                 || (pendingAction == null && pendingGroupAction == null)) {
@@ -464,6 +529,7 @@ public class GameManager {
         }
 
         try {
+            // A successful Just Say No cancels only the current pending victim/action.
             if (pendingActionNegated) {
                 notifyEvent("Action cancelled"
                         + (pendingActionTarget == null ? "." : " for " + pendingActionTarget.getPlayerName() + "."));
@@ -475,6 +541,7 @@ public class GameManager {
                 return;
             }
 
+            // Group attacks resolve one victim at a time.
             if (pendingGroupAction != null) {
                 pendingGroupAction.accept(pendingActionTarget);
                 notifyEvent("Action resolved for " + pendingActionTarget.getPlayerName() + ".");
@@ -493,6 +560,7 @@ public class GameManager {
         }
     }
 
+    // Moves a group attack to the next victim or restores normal turn state.
     private void advancePendingVictimOrReset() {
         if (pendingVictims != null && pendingVictimIndex < pendingVictims.size() - 1) {
             pendingVictimIndex++;
@@ -507,6 +575,7 @@ public class GameManager {
         resetState();
     }
 
+    // Plays Just Say No from the pending victim's hand.
     public void counterAttackWithJustSayNo(int cardIndex) {
         if (currentState != GameState.WAITING_FOR_COUNTER_ACTION || pendingVictim == null) {
             return;
@@ -518,6 +587,7 @@ public class GameManager {
             gameDeck.receiveDiscard(card);
             notifyEvent(pendingVictim.getPlayerName() + " used Just Say No.");
 
+            // Each counter flips whether the original action is currently cancelled.
             pendingActionNegated = !pendingActionNegated;
             Player nextResponder = getNextJustSayNoResponder(pendingVictim);
             if (nextResponder != null && hasJustSayNo(nextResponder)) {
@@ -544,6 +614,7 @@ public class GameManager {
         }
     }
 
+    // Alternates Just Say No response priority between attacker and target.
     private Player getNextJustSayNoResponder(Player currentResponder) {
         if (pendingAttacker == null || pendingActionTarget == null) {
             return null;
@@ -551,19 +622,23 @@ public class GameManager {
         return currentResponder == pendingAttacker ? pendingActionTarget : pendingAttacker;
     }
 
+    // Checks whether a player can continue the counter chain.
     private boolean hasJustSayNo(Player player) {
         return player.getHand().getCards().stream()
                 .anyMatch(card -> card.getCardName().equals("Just Say No"));
     }
 
+    // Returns the player currently allowed to answer an attack.
     public Player getPendingVictim() {
         return pendingVictim;
     }
 
+    // Returns the current game state.
     public GameState getCurrentState() {
         return currentState;
     }
 
+    // Clears all pending attack and counter state.
     private void resetState() {
         this.currentState = GameState.NORMAL_TURN;
         this.pendingAction = null;
@@ -576,6 +651,7 @@ public class GameManager {
         this.pendingVictimIndex = 0;
     }
 
+    // Resolves the attack target and opens a counter window.
     public void initiateTargetedAttack(Player initiator, Consumer<Player> attackAction) {
         Player victim = resolveTargetOrFirstOpponent(initiator);
         if (victim == null) {
@@ -584,6 +660,7 @@ public class GameManager {
         initiateAttack(initiator, victim, () -> attackAction.accept(victim));
     }
 
+    // Returns every active player except the given player.
     public List<Player> getOpponents(Player player) {
         List<Player> opponents = new ArrayList<>();
         for (Player candidate : activePlayers) {
@@ -594,6 +671,7 @@ public class GameManager {
         return opponents;
     }
 
+    // Draws extra cards for a specific player.
     public void drawCardsForPlayer(Player player, int count) {
         List<Card> drawnCards = gameDeck.drawCards(count);
         player.getHand().addCards(drawnCards);

@@ -11,29 +11,34 @@ public class TargetInfo {
     private final int targetPropertyIndex;
     private final PropertyColor improvementColor;
 
+    // Targets only a player.
     public TargetInfo(Player targetPlayer) {
         this(targetPlayer, null, -1, null, -1, null);
     }
 
+    // Targets one property owned by the target player.
     public TargetInfo(Player targetPlayer, PropertyColor targetPropertyColor, int targetPropertyIndex) {
         this(targetPlayer, null, -1, targetPropertyColor, targetPropertyIndex, null);
     }
 
+    // Targets one property from each player for a swap.
     public TargetInfo(Player targetPlayer, PropertyColor initiatorPropertyColor, int initiatorPropertyIndex,
                       PropertyColor targetPropertyColor, int targetPropertyIndex) {
         this(targetPlayer, initiatorPropertyColor, initiatorPropertyIndex, targetPropertyColor, targetPropertyIndex, null);
     }
 
+    // Targets a color set for a house, hotel, or Deal Breaker choice.
     public static TargetInfo forImprovement(PropertyColor improvementColor) {
         return new TargetInfo(null, null, -1, null, -1, improvementColor);
     }
 
-    /** Returns a copy of this TargetInfo with the target player set. */
+    // Returns a copy of this target with the player filled in.
     public TargetInfo withTarget(Player player) {
         return new TargetInfo(player, initiatorPropertyColor, initiatorPropertyIndex,
                 targetPropertyColor, targetPropertyIndex, improvementColor);
     }
 
+    // Stores all optional target details in one immutable object.
     private TargetInfo(Player targetPlayer, PropertyColor initiatorPropertyColor, int initiatorPropertyIndex,
                        PropertyColor targetPropertyColor, int targetPropertyIndex, PropertyColor improvementColor) {
         this.targetPlayer = targetPlayer;

@@ -10,9 +10,11 @@ import java.util.Enumeration;
 import java.util.List;
 
 public final class LanAddressUtil {
+    // Prevents construction of this network helper.
     private LanAddressUtil() {
     }
 
+    // Returns non-loopback IPv4 addresses that players can use to join.
     public static List<String> localIpv4Addresses() {
         List<String> addresses = new ArrayList<>();
         try {
@@ -23,6 +25,7 @@ public final class LanAddressUtil {
                     continue;
                 }
 
+                // Only physical or active adapter IPv4 addresses are shown.
                 Enumeration<InetAddress> inetAddresses = networkInterface.getInetAddresses();
                 while (inetAddresses.hasMoreElements()) {
                     InetAddress address = inetAddresses.nextElement();

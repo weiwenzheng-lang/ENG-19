@@ -31,11 +31,13 @@ public class LanGameServer {
     private ServerSocket serverSocket;
     private Thread acceptThread;
 
+    // Creates a room server that writes operational messages to the sink.
     public LanGameServer(int port, Consumer<String> logSink) {
         this.requestedPort = port;
         this.logSink = logSink == null ? message -> { } : logSink;
     }
 
+    // Starts accepting lobby clients.
     public synchronized void start() throws IOException {
         if (running) {
             return;
@@ -49,6 +51,7 @@ public class LanGameServer {
         logSink.accept("Room server started on port " + getPort() + ".");
     }
 
+    // Stops the listener socket and every active client handler.
     public synchronized void stop() {
         if (!running) {
             return;
@@ -66,11 +69,13 @@ public class LanGameServer {
         logSink.accept("Room server stopped.");
     }
 
+    // Returns the bound port, including dynamic port 0 assignments.
     public int getPort() {
         ServerSocket socket = serverSocket;
         return socket == null ? requestedPort : socket.getLocalPort();
     }
 
+    // Accepts sockets and delegates each one to its own handler thread.
     private void acceptLoop() {
         while (running) {
             try {
@@ -88,6 +93,7 @@ public class LanGameServer {
         }
     }
 
+    // Closes the server socket during shutdown.
     private void closeServerSocket() {
         try {
             if (serverSocket != null) {
@@ -97,6 +103,7 @@ public class LanGameServer {
         }
     }
 
+    // Sends one protocol frame to every online session.
     private void broadcast(String command, String... fields) {
         String line = LanGameProtocol.line(command, fields);
         for (PlayerSession session : sessions) {
@@ -107,11 +114,13 @@ public class LanGameServer {
         }
     }
 
+    // Refreshes both lobby roster and room summary.
     private void broadcastPlayersAndRoomState() {
         broadcastPlayers();
         broadcastRoomState();
     }
 
+    // Publishes the complete player roster to every connected client.
     private void broadcastPlayers() {
         List<String> fields = new ArrayList<>();
         int hostPlayerId = getHostPlayerId();
@@ -125,6 +134,7 @@ public class LanGameServer {
         broadcast(LanGameProtocol.PLAYERS, fields.toArray(new String[0]));
     }
 
+    // Publishes game-start state and ready counts.
     private void broadcastRoomState() {
         int onlineCount = 0;
         int readyCount = 0;
@@ -144,6 +154,7 @@ public class LanGameServer {
                 String.valueOf(readyCount));
     }
 
+    // Treats the first online player as the current room host.
     private int getHostPlayerId() {
         for (PlayerSession session : sessions) {
             if (session.online) {
@@ -153,6 +164,7 @@ public class LanGameServer {
         return sessions.isEmpty() ? -1 : sessions.get(0).playerId;
     }
 
+    // Normalizes user-entered names before they are broadcast.
     private String cleanPlayerName(String rawName) {
         String name = rawName == null ? "" : rawName.trim();
         if (name.isEmpty()) {
@@ -161,6 +173,7 @@ public class LanGameServer {
         return name.length() > 24 ? name.substring(0, 24) : name;
     }
 
+    // Finds a disconnected session that can be resumed.
     private PlayerSession findSessionByToken(String token) {
         if (token == null || token.trim().isEmpty()) {
             return null;
@@ -173,7 +186,8 @@ public class LanGameServer {
         return null;
     }
 
-    private boolean areOnlinePlayersReady() {
+    // Requires all online humans to be ready and total seats to be 2-5.
+    private boolean areOnlinePlayersReady(int aiCount) {
         int onlineCount = 0;
         for (PlayerSession session : sessions) {
             if (!session.online) {
@@ -184,9 +198,11 @@ public class LanGameServer {
                 return false;
             }
         }
-        return onlineCount >= MIN_PLAYERS && onlineCount <= MAX_PLAYERS;
+        int totalPlayers = onlineCount + Math.max(0, aiCount);
+        return onlineCount >= 1 && totalPlayers >= MIN_PLAYERS && totalPlayers <= MAX_PLAYERS;
     }
 
+    // Owns one socket connection and its associated room session.
     private final class ClientHandler implements Runnable {
         private final Socket socket;
         private BufferedReader reader;
@@ -199,6 +215,7 @@ public class LanGameServer {
             this.socket = socket;
         }
 
+        // Performs HELLO registration, then processes client messages.
         @Override
         public void run() {
             try {
@@ -212,6 +229,7 @@ public class LanGameServer {
                     return;
                 }
 
+                // Registration may create a new session or recover an old one.
                 registerSession(hello);
 
                 String line;
@@ -230,6 +248,7 @@ public class LanGameServer {
             }
         }
 
+        // Registers a new session or reattaches to a saved reconnect token.
         private void registerSession(LanGameProtocol.Message hello) {
             String playerName = cleanPlayerName(hello.field(0));
             String requestedToken = hello.getFields().size() > 1 ? hello.field(1) : "";
@@ -253,6 +272,7 @@ public class LanGameServer {
                 return;
             }
 
+            // New users get a durable token for automatic reconnect.
             session = new PlayerSession(nextPlayerId.getAndIncrement(), playerName, UUID.randomUUID().toString());
             session.online = true;
             session.handler = this;
@@ -268,6 +288,7 @@ public class LanGameServer {
             broadcastPlayersAndRoomState();
         }
 
+        // Dispatches client protocol messages.
         private void handleLine(String line) {
             LanGameProtocol.Message message = LanGameProtocol.parse(line);
             String command = message.getCommand();
@@ -276,7 +297,7 @@ public class LanGameServer {
             } else if (LanGameProtocol.READY.equals(command)) {
                 handleReady(message);
             } else if (LanGameProtocol.START_GAME.equals(command)) {
-                handleStartGame();
+                handleStartGame(message);
             } else if (LanGameProtocol.GAME_ACTION.equals(command)) {
                 handleGameMessage(LanGameProtocol.GAME_ACTION, message);
             } else if (LanGameProtocol.GAME_STATE.equals(command)) {
@@ -291,6 +312,7 @@ public class LanGameServer {
             }
         }
 
+        // Rebroadcasts non-empty chat text with the sender name.
         private void handleChat(LanGameProtocol.Message message) {
             String text = message.getFields().isEmpty() ? "" : message.field(0).trim();
             if (!text.isEmpty()) {
@@ -298,6 +320,7 @@ public class LanGameServer {
             }
         }
 
+        // Updates the ready flag and informs the room.
         private void handleReady(LanGameProtocol.Message message) {
             boolean ready = message.getFields().isEmpty() || Boolean.parseBoolean(message.field(0));
             session.ready = ready;
@@ -306,22 +329,40 @@ public class LanGameServer {
             broadcastPlayersAndRoomState();
         }
 
-        private void handleStartGame() {
+        // Starts the deterministic game when the host and seat counts are valid.
+        private void handleStartGame(LanGameProtocol.Message message) {
             if (session.playerId != getHostPlayerId()) {
                 send(LanGameProtocol.ERROR, "Only the host can start the network game.");
                 return;
             }
-            if (!areOnlinePlayersReady()) {
+            int aiCount = readInt(message.getFields(), 0, 0);
+            if (!areOnlinePlayersReady(aiCount)) {
                 send(LanGameProtocol.ERROR,
-                        "Need 2 to 5 online players, and every online player must be ready.");
+                        "Need 2 to 5 total players, and every online player must be ready.");
                 return;
             }
             gameStarted = true;
             gameSeed = ThreadLocalRandom.current().nextLong();
-            broadcast(LanGameProtocol.START_GAME, String.valueOf(session.playerId), String.valueOf(gameSeed));
+            broadcast(LanGameProtocol.START_GAME,
+                    String.valueOf(session.playerId),
+                    String.valueOf(gameSeed),
+                    String.valueOf(Math.max(0, aiCount)));
             broadcastRoomState();
         }
 
+        // Reads optional numeric fields without rejecting the client.
+        private int readInt(List<String> fields, int index, int fallback) {
+            if (index >= fields.size()) {
+                return fallback;
+            }
+            try {
+                return Integer.parseInt(fields.get(index));
+            } catch (NumberFormatException e) {
+                return fallback;
+            }
+        }
+
+        // Relays table-level game messages to every online client.
         private void handleGameMessage(String command, LanGameProtocol.Message message) {
             String type = message.getFields().size() > 0 ? message.field(0).trim() : "UNKNOWN";
             String payload = message.getFields().size() > 1 ? message.field(1) : "";
@@ -331,6 +372,7 @@ public class LanGameServer {
             broadcast(command, String.valueOf(session.playerId), session.playerName, type, payload);
         }
 
+        // Marks this session offline or removes it after an intentional leave.
         private void markOffline() {
             if (!registered || session == null) {
                 return;
@@ -357,16 +399,19 @@ public class LanGameServer {
             }
         }
 
+        // Encodes and sends one command to this client.
         private void send(String command, String... fields) {
             sendLine(LanGameProtocol.line(command, fields));
         }
 
+        // Writes one already-encoded protocol frame.
         private synchronized void sendLine(String line) {
             if (writer != null) {
                 writer.println(line);
             }
         }
 
+        // Closes the client socket quietly.
         private void close() {
             try {
                 socket.close();
@@ -375,6 +420,7 @@ public class LanGameServer {
         }
     }
 
+    // Stores durable lobby state separately from transient sockets.
     private static final class PlayerSession {
         private final int playerId;
         private final String reconnectToken;
@@ -383,6 +429,7 @@ public class LanGameServer {
         private boolean online;
         private ClientHandler handler;
 
+        // Creates a reconnectable player session.
         private PlayerSession(int playerId, String playerName, String reconnectToken) {
             this.playerId = playerId;
             this.playerName = playerName;

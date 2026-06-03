@@ -16,25 +16,30 @@ public enum PropertyColor {
     private final int requiredCount;
     private final int[] rentTiers;
 
+    // Stores required card count and rent tiers for one property color.
     PropertyColor(int requiredCount, int[] rentTiers) {
         this.requiredCount = requiredCount;
         this.rentTiers = rentTiers;
     }
 
+    // Returns how many property cards complete this color.
     public int getRequiredCount() {
         return requiredCount;
     }
 
+    // Returns the rent table for this color.
     public int[] getRentTiers() {
         return rentTiers;
     }
 
+    // Returns rent for the current number of cards in the set.
     public int getRentForCount(int count) {
         if (rentTiers == null || count <= 0) return 0;
         int index = Math.min(count, rentTiers.length) - 1;
         return rentTiers[index];
     }
 
+    // Returns a UI color for this property group.
     public String getColorHex() {
         switch (this) {
             case DARK_BLUE:  return "#0d47a1";
