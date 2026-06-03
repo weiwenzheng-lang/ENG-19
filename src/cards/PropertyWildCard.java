@@ -8,7 +8,9 @@ public class PropertyWildCard extends PropertyCard {
     private final int[] rentA;
     private final int[] rentB;
 
-    public PropertyWildCard(int id, String name, int value, PropertyColor colorA, PropertyColor colorB, int[] rentA, int[] rentB) {
+    // Creates a two-color wild property card.
+    public PropertyWildCard(int id, String name, int value,
+                            PropertyColor colorA, PropertyColor colorB, int[] rentA, int[] rentB) {
         super(id, name, value, colorA, rentA);
         this.colorA = colorA;
         this.colorB = colorB;
@@ -16,10 +18,12 @@ public class PropertyWildCard extends PropertyCard {
         this.rentB = rentB;
     }
 
+    // Returns the two legal colors this card can represent.
     public PropertyColor[] getAvailableColors() {
         return new PropertyColor[]{colorA, colorB};
     }
 
+    // Switches the active color and matching rent tiers.
     public void setCurrentColor(PropertyColor newColor) {
         if (newColor == colorA) {
             this.colorGroup = colorA;
@@ -32,10 +36,12 @@ public class PropertyWildCard extends PropertyCard {
         }
     }
 
+    // Returns the first printed color.
     public PropertyColor getColorA() {
         return colorA;
     }
 
+    // Returns the second printed color.
     public PropertyColor getColorB() {
         return colorB;
     }

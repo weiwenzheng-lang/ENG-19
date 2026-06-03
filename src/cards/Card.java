@@ -1,23 +1,39 @@
 package cards;
+
 import player.Player;
 
 public abstract class Card {
-    private int cardId;
-    private String cardName;
-    private int monetaryValue;
+    private final int cardId;
+    private final String cardName;
+    private final int monetaryValue;
 
+    // Stores immutable card identity and value.
     public Card(int cardId, String cardName, int monetaryValue) {
         this.cardId = cardId;
         this.cardName = cardName;
         this.monetaryValue = monetaryValue;
     }
 
-    public int getMonetaryValue() { return monetaryValue; }
-    public String getCardName() { return cardName; }
+    // Returns the card id used within the deck.
+    public int getCardId() {
+        return cardId;
+    }
 
-    // 抽象方法：每种卡牌被打出时的具体逻辑不同，交由子类实现
+    // Returns the money value printed on the card.
+    public int getMonetaryValue() {
+        return monetaryValue;
+    }
+
+    // Returns the display name for this card.
+    public String getCardName() {
+        return cardName;
+    }
+
+    // Executes the card-specific play effect.
     public abstract void executePlayLogic(Player initiator);
 
-    /** 是否需要选择目标对手（SlyDeal/ForceDeal/DealBreaker/DebtCollector） */
-    public boolean requiresTarget() { return false; }
+    // Reports whether the card needs an opponent target before play.
+    public boolean requiresTarget() {
+        return false;
+    }
 }

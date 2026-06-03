@@ -4,7 +4,8 @@ import javafx.application.Application;
 import javafx.application.Platform;
 import javafx.geometry.Pos;
 import javafx.scene.Scene;
-import javafx.scene.control.*;
+import javafx.scene.control.Button;
+import javafx.scene.control.Label;
 import javafx.scene.image.Image;
 import javafx.scene.image.ImageView;
 import javafx.scene.layout.StackPane;
@@ -21,6 +22,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 import java.util.Optional;
 
@@ -29,47 +31,64 @@ public class MainApp extends Application {
     private NetworkLobbyController networkController;
     private Stage primaryStage;
 
+    // Launches the JavaFX application.
     public static void main(String[] args) {
         launch(args);
     }
 
     @Override
+    // Stores the primary stage and opens the main menu.
     public void start(Stage stage) {
         this.primaryStage = stage;
         showMainMenu();
     }
 
     @Override
+    // Releases active controllers when JavaFX stops.
     public void stop() {
         disposeCurrentViews();
     }
 
+    // Shows the first screen with all game mode choices.
     private void showMainMenu() {
         disposeCurrentViews();
+        StackPane screen = createMenuScreen();
+        Scene scene = new Scene(screen, 1180, 664);
+        primaryStage.setTitle("Monopoly Deal");
+        primaryStage.setScene(scene);
+        primaryStage.show();
+    }
 
+    // Builds the menu background and button stack.
+    private StackPane createMenuScreen() {
         StackPane screen = new StackPane();
+        screen.getChildren().addAll(createMenuBackground(screen), createMainMenuBox());
+        return screen;
+    }
+
+    // Creates the full-window menu background.
+    private ImageView createMenuBackground(StackPane screen) {
         ImageView background = new ImageView(loadResourceImage("/assets/ui/backgrounds/menu.png"));
         background.fitWidthProperty().bind(screen.widthProperty());
         background.fitHeightProperty().bind(screen.heightProperty());
         background.setPreserveRatio(false);
         background.setSmooth(true);
+        return background;
+    }
 
+    // Creates the main menu title and mode buttons.
+    private VBox createMainMenuBox() {
         VBox menu = new VBox(18);
         menu.setAlignment(Pos.CENTER);
         menu.setMaxWidth(340);
         menu.setStyle("-fx-padding: 28 34 30 34;");
-
-        Label title = new Label("Monopoly Deal");
-        title.setFont(Font.font("Segoe UI", FontWeight.BOLD, 36));
-        title.setTextFill(javafx.scene.paint.Color.web("#ffe4a1"));
-
-        Button startBtn = styledButton("Start Game");
+        Button startBtn = styledButton("Local Players");
         startBtn.setOnAction(e -> startGame());
 
-        Button aiBtn = styledButton("Human vs AI");
-        aiBtn.setOnAction(e -> startAiGame());
+        Button aiBtn = styledButton("Local + AI");
+        aiBtn.setOnAction(e -> startMixedAiGame());
 
-        Button lanBtn = styledButton("Local WiFi Game");
+        Button lanBtn = styledButton("LAN + AI");
         lanBtn.setOnAction(e -> showLanLobby());
 
         Button helpBtn = styledButton("How to Play");
@@ -78,14 +97,19 @@ public class MainApp extends Application {
         Button exitBtn = styledButton("Exit");
         exitBtn.setOnAction(e -> Platform.exit());
 
-        menu.getChildren().addAll(title, startBtn, aiBtn, lanBtn, helpBtn, exitBtn);
-        screen.getChildren().addAll(background, menu);
-        Scene scene = new Scene(screen, 1180, 664);
-        primaryStage.setTitle("Monopoly Deal");
-        primaryStage.setScene(scene);
-        primaryStage.show();
+        menu.getChildren().addAll(createTitleLabel(), startBtn, aiBtn, lanBtn, helpBtn, exitBtn);
+        return menu;
     }
 
+    // Creates the main menu title.
+    private Label createTitleLabel() {
+        Label title = new Label("Monopoly Deal");
+        title.setFont(Font.font("Segoe UI", FontWeight.BOLD, 36));
+        title.setTextFill(javafx.scene.paint.Color.web("#ffe4a1"));
+        return title;
+    }
+
+    // Starts same-computer human multiplayer.
     private void startGame() {
         if (currentController != null) {
             currentController.dispose();
@@ -119,7 +143,8 @@ public class MainApp extends Application {
         primaryStage.show();
     }
 
-    private void startAiGame() {
+    // Starts same-computer play with humans and AI seats.
+    private void startMixedAiGame() {
         if (currentController != null) {
             currentController.dispose();
         }
@@ -127,16 +152,20 @@ public class MainApp extends Application {
         int playerCount = choosePlayerCount();
         if (playerCount < 2) return;
 
-        Optional<String> humanName = askPlayerName(1);
-        if (!humanName.isPresent()) {
-            return;
-        }
+        int humanCount = chooseHumanCount(playerCount);
+        if (humanCount < 1) return;
 
         List<GameManager.PlayerSetup> playerSetups = new ArrayList<>();
-        String name = humanName.get().trim().isEmpty() ? "Player 1" : humanName.get().trim();
-        playerSetups.add(new GameManager.PlayerSetup(name, PlayerType.HUMAN));
-        for (int i = 2; i <= playerCount; i++) {
-            playerSetups.add(new GameManager.PlayerSetup("AI " + (i - 1), PlayerType.AI));
+        for (int i = 1; i <= humanCount; i++) {
+            Optional<String> humanName = askPlayerName(i);
+            if (!humanName.isPresent()) {
+                return;
+            }
+            String name = humanName.get().trim().isEmpty() ? "Player " + i : humanName.get().trim();
+            playerSetups.add(new GameManager.PlayerSetup(name, PlayerType.HUMAN));
+        }
+        for (int i = humanCount + 1; i <= playerCount; i++) {
+            playerSetups.add(new GameManager.PlayerSetup("AI " + (i - humanCount), PlayerType.AI));
         }
 
         currentController = new GameController(GameModeConfig.ai(playerSetups),
@@ -146,11 +175,12 @@ public class MainApp extends Application {
         Scene scene = new Scene(currentController.createContent(), 1366, 768);
         applyStylesheet(scene);
 
-        primaryStage.setTitle("Monopoly Deal - Human vs AI");
+        primaryStage.setTitle("Monopoly Deal - Local + AI");
         primaryStage.setScene(scene);
         primaryStage.show();
     }
 
+    // Opens the LAN lobby screen.
     private void showLanLobby() {
         disposeCurrentViews();
 
@@ -163,6 +193,7 @@ public class MainApp extends Application {
         primaryStage.show();
     }
 
+    // Opens a network-synchronized game table.
     private void startNetworkGame(List<GameManager.PlayerSetup> players, long deckSeed, int localPlayerIndex) {
         if (networkController == null) {
             return;
@@ -179,6 +210,7 @@ public class MainApp extends Application {
         primaryStage.show();
     }
 
+    // Disposes any active game or lobby controller.
     private void disposeCurrentViews() {
         if (currentController != null) {
             currentController.dispose();
@@ -190,6 +222,7 @@ public class MainApp extends Application {
         }
     }
 
+    // Applies the shared JavaFX stylesheet when available.
     private void applyStylesheet(Scene scene) {
         try {
             String cssPath = getClass().getResource("style.css").toExternalForm();
@@ -199,14 +232,29 @@ public class MainApp extends Application {
         }
     }
 
+    // Prompts for the official 2-5 player count.
     private int choosePlayerCount() {
         return GameDialogs.showChoice("Players",
                 "How many players?",
                 "Players",
-                java.util.Arrays.asList(2, 3, 4, 5),
+                Arrays.asList(2, 3, 4, 5),
                 3).orElse(-1);
     }
 
+    // Prompts for how many seats are controlled by local humans.
+    private int chooseHumanCount(int totalPlayers) {
+        List<Integer> choices = new ArrayList<>();
+        for (int i = 1; i < totalPlayers; i++) {
+            choices.add(i);
+        }
+        return GameDialogs.showChoice("Human Players",
+                "How many people will share this computer?",
+                "Human players",
+                choices,
+                Math.min(2, totalPlayers - 1)).orElse(-1);
+    }
+
+    // Prompts for one player name.
     private Optional<String> askPlayerName(int number) {
         return GameDialogs.showTextInput("Player Name",
                 "Enter name for Player " + number,
@@ -214,11 +262,19 @@ public class MainApp extends Application {
                 "Player " + number);
     }
 
+    // Shows the short in-game help text.
     private void showHelp() {
         GameDialogs.showMessage("How to Play",
                 "Monopoly Deal Rules",
             "Goal: Collect 3 complete property sets of DIFFERENT colors.\n\n" +
             "Each turn: Draw 2 cards (or 5 if hand empty) -> Play up to 3 cards -> Discard to 7 max.\n\n" +
+            "Table buttons:\n" +
+            "- Draw: Shows draw pile and discard pile status\n" +
+            "- Bank: Shows the current visible player's money in bank\n" +
+            "- Properties: Shows color-set progress and rent values\n" +
+            "- Pass Go / Actions: Lists action cards in hand\n" +
+            "- Trade / Opponents: Shows each opponent's visible status\n" +
+            "- End Turn: Ends the current real player's turn after returning excess hand cards to the draw pile bottom\n\n" +
             "Card types:\n" +
             "- Money: Bank as cash to pay rent\n" +
             "- Property: Build color sets on the table\n" +
@@ -230,6 +286,7 @@ public class MainApp extends Application {
         );
     }
 
+    // Creates a styled main menu button.
     private Button styledButton(String text) {
         Button btn = new Button(text);
         btn.setPrefWidth(220);
@@ -237,17 +294,16 @@ public class MainApp extends Application {
         applyButtonStyle(btn, false);
         btn.setOnMouseEntered(event -> {
             applyButtonStyle(btn, true);
-            btn.setScaleX(1.04);
-            btn.setScaleY(1.04);
+            btn.setOpacity(0.96);
         });
         btn.setOnMouseExited(event -> {
             applyButtonStyle(btn, false);
-            btn.setScaleX(1.0);
-            btn.setScaleY(1.0);
+            btn.setOpacity(1.0);
         });
         return btn;
     }
 
+    // Applies normal or hover styling to a main menu button.
     private void applyButtonStyle(Button btn, boolean hover) {
         btn.setStyle((hover
                 ? "-fx-background-color: linear-gradient(to bottom, #fff2bd, #e0ad46);"
@@ -258,6 +314,7 @@ public class MainApp extends Application {
                 + (hover ? "-fx-effect: dropshadow(gaussian, rgba(255,230,165,0.62), 18, 0.28, 0, 0);" : ""));
     }
 
+    // Loads an image from resources, then falls back to the source tree.
     private Image loadResourceImage(String path) {
         URL resource = getClass().getResource(path);
         if (resource != null) {

@@ -1,22 +1,25 @@
 package player;
+
 import cards.Card;
+
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 
 public class Hand {
-    private List<Card> cardsInHand;
+    private final List<Card> cardsInHand;
 
+    // Creates an empty hand.
     public Hand() {
         this.cardsInHand = new ArrayList<>();
     }
 
-    // 抽牌入局
+    // Adds drawn cards to the hand.
     public void addCards(List<Card> newCards) {
         cardsInHand.addAll(newCards);
     }
 
-    // 打出或弃掉某张牌
+    // Removes and returns one card by index.
     public Card removeCard(int index) {
         if (index >= 0 && index < cardsInHand.size()) {
             return cardsInHand.remove(index);
@@ -24,30 +27,33 @@ public class Hand {
         return null;
     }
 
+    // Returns the current hand size.
     public int getSize() {
         return cardsInHand.size();
     }
 
-    // 检查回合结束时是否超标 (Max 7)
+    // Checks whether the hand exceeds the official seven-card limit.
     public boolean requiresDiscard() {
         return cardsInHand.size() > 7;
     }
 
+    // Prints the hand for console debugging.
     public void showHand() {
         System.out.println("--- Current Hand ---");
         for (int i = 0; i < cardsInHand.size(); i++) {
             System.out.println(i + ": " + cardsInHand.get(i).getCardName());
         }
     }
-    // 在 Hand 类中添加，以便 GameManager 可以查看手牌
+
+    // Returns a card by index without mutating the hand.
     public Card getCard(int index) {
-        // 增加安全性检查：防止索引越界
         if (index >= 0 && index < cardsInHand.size()) {
             return cardsInHand.get(index);
         }
-        return null; // 如果索引不对，返回空
+        return null;
     }
 
+    // Exposes a read-only view of the hand.
     public List<Card> getCards() {
         return Collections.unmodifiableList(cardsInHand);
     }

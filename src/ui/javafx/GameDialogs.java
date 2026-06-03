@@ -29,9 +29,11 @@ final class GameDialogs {
     private static final ButtonType YES = new ButtonType("Yes", ButtonBar.ButtonData.YES);
     private static final ButtonType NO = new ButtonType("No", ButtonBar.ButtonData.CANCEL_CLOSE);
 
+    // Prevents construction of this dialog utility class.
     private GameDialogs() {
     }
 
+    // Shows a typed choice dialog and returns the selected value.
     static <T> Optional<T> showChoice(String title, String header, String fieldLabel,
                                       List<T> choices, T defaultValue) {
         if (choices == null || choices.isEmpty()) {
@@ -54,6 +56,7 @@ final class GameDialogs {
         return dialog.showAndWait();
     }
 
+    // Shows a text input dialog and returns the entered text.
     static Optional<String> showTextInput(String title, String header, String fieldLabel, String defaultValue) {
         Dialog<String> dialog = create(title, header);
         TextField input = new TextField(defaultValue);
@@ -69,6 +72,7 @@ final class GameDialogs {
         return dialog.showAndWait();
     }
 
+    // Shows a yes/no dialog and returns true only for yes.
     static boolean showConfirmation(String title, String header, String message) {
         Dialog<ButtonType> dialog = create(title, header);
         dialog.getDialogPane().setContent(messageLabel(message));
@@ -78,6 +82,7 @@ final class GameDialogs {
         return dialog.showAndWait().orElse(NO) == YES;
     }
 
+    // Shows an informational message dialog.
     static void showMessage(String title, String header, String message) {
         Dialog<ButtonType> dialog = create(title, header);
         dialog.getDialogPane().setContent(messageLabel(message));
@@ -86,6 +91,7 @@ final class GameDialogs {
         dialog.showAndWait();
     }
 
+    // Creates the shared transparent styled dialog shell.
     static <T> Dialog<T> create(String title, String header) {
         Dialog<T> dialog = new Dialog<>();
         dialog.initStyle(StageStyle.TRANSPARENT);
@@ -103,6 +109,7 @@ final class GameDialogs {
             pane.getStylesheets().add(stylesheet);
         }
 
+        // Resize after the transparent stage is available.
         dialog.setOnShown(event -> {
             Scene scene = pane.getScene();
             if (scene != null) {
@@ -114,6 +121,7 @@ final class GameDialogs {
         return dialog;
     }
 
+    // Creates a standard dialog content container.
     static VBox contentBox() {
         VBox content = new VBox(10);
         content.setPadding(new Insets(4, 2, 0, 2));
@@ -121,12 +129,14 @@ final class GameDialogs {
         return content;
     }
 
+    // Creates a standard field label.
     static Label fieldLabel(String text) {
         Label label = new Label(text);
         label.getStyleClass().add("game-dialog-field-label");
         return label;
     }
 
+    // Creates a wrapped message label.
     static Label messageLabel(String text) {
         Label label = new Label(text);
         label.getStyleClass().add("game-dialog-message");
@@ -135,6 +145,7 @@ final class GameDialogs {
         return label;
     }
 
+    // Creates a wrapped checkbox for multi-card payment dialogs.
     static CheckBox checkBox(String text) {
         CheckBox checkBox = new CheckBox(text);
         checkBox.getStyleClass().add("game-dialog-check-box");
@@ -142,6 +153,7 @@ final class GameDialogs {
         return checkBox;
     }
 
+    // Creates a bold status label for dialog summaries.
     static Label statusLabel() {
         Label label = new Label();
         label.getStyleClass().add("game-dialog-status");
@@ -149,6 +161,7 @@ final class GameDialogs {
         return label;
     }
 
+    // Applies primary and secondary styles to dialog buttons.
     static void styleButtons(Dialog<?> dialog) {
         DialogPane pane = dialog.getDialogPane();
         for (ButtonType type : pane.getButtonTypes()) {

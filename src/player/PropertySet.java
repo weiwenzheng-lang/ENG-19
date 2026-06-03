@@ -1,27 +1,29 @@
 package player;
+
 import cards.PropertyCard;
 import enums.PropertyColor;
+
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 
-public class PropertySet implements Rentable{
-    private PropertyColor color;
-    private List<PropertyCard> cards;
+public class PropertySet implements Rentable {
+    private final PropertyColor color;
+    private final List<PropertyCard> cards;
 
+    // Creates an empty property set for one color.
     public PropertySet(PropertyColor color) {
         this.color = color;
         this.cards = new ArrayList<>();
     }
+
     @Override
     public void addProperty(PropertyCard card) {
-        //确保颜色相同
         if (card.getColorGroup() == this.color) {
             cards.add(card);
         }
     }
 
-    // 核心判断：这套房产是否已经凑齐？(用于触发游戏胜利条件或允许建房子/酒店)
     @Override
     public boolean isComplete() {
         return cards.size() >= color.getRequiredCount();
@@ -34,28 +36,34 @@ public class PropertySet implements Rentable{
         }
         return color.getRentForCount(cards.size());
     }
+
     @Override
     public PropertyColor getColor() {
         return color;
     }
+
     @Override
     public String getDescription() {
-        return color + " 房产套装 (当前 " + cards.size() + "/" + color.getRequiredCount() + ")";
-    }
-    //老师在lec02提到的一个重要原则 写toString 方法
-    @Override
-    public String toString() {
-        return String.format("[PropertySet] 颜色:%s | 进度:%d/%d | 当前租金:%dM",
-                color, cards.size(),color.getRequiredCount(), calculateRent());
+        return color + " property set (" + cards.size() + "/" + color.getRequiredCount() + ")";
     }
 
+    @Override
+    public String toString() {
+        return String.format("[PropertySet] color:%s | progress:%d/%d | rent:%dM",
+                color, cards.size(), color.getRequiredCount(), calculateRent());
+    }
+
+    // Returns the number of cards in this set.
     public int getCardsCount() {
         return cards.size();
     }
+
+    // Removes one property from this set.
     public void removeProperty(PropertyCard card) {
         this.cards.remove(card);
     }
 
+    // Exposes a read-only view of the property cards.
     public List<PropertyCard> getCards() {
         return Collections.unmodifiableList(cards);
     }

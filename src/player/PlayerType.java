@@ -1,8 +1,6 @@
 package player;
 
-/**
- * 玩家类型标记，用于区分人类玩家和 AI 玩家。
- */
+// Marks whether a player is controlled by a person or the AI.
 public enum PlayerType {
     HUMAN,
     AI

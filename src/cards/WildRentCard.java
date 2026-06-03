@@ -8,10 +8,12 @@ import player.Rentable;
 public class WildRentCard extends ActionCard {
     private PropertyColor selectedColor;
 
+    // Creates an any-color rent card.
     public WildRentCard(int id, String name, int value) {
         super(id, name, value, "WILD_RENT");
     }
 
+    // Returns all legal rent colors.
     public PropertyColor[] getAvailableColors() {
         return new PropertyColor[]{
                 PropertyColor.BROWN, PropertyColor.LIGHT_BLUE, PropertyColor.PINK,
@@ -21,16 +23,20 @@ public class WildRentCard extends ActionCard {
         };
     }
 
+    // Stores the selected color before play.
     public void setSelectedColor(PropertyColor color) {
         this.selectedColor = color;
     }
 
+    // Returns the selected rent color.
     public PropertyColor getSelectedColor() {
         return selectedColor;
     }
 
-    /** Any Rent targets ONE opponent, charges rent for selected color. */
-    @Override public boolean requiresTarget() { return true; }
+    @Override
+    public boolean requiresTarget() {
+        return true;
+    }
 
     @Override
     public void executePlayLogic(Player initiator) {
@@ -53,6 +59,7 @@ public class WildRentCard extends ActionCard {
         int multiplier = gm.getAndResetRentMultiplier();
         int finalRent = baseRent * multiplier;
 
+        // Wild rent targets one opponent instead of the whole table.
         gm.initiateAttack(initiator, victim, () -> {
             victim.getBankArea().pay(finalRent, initiator);
             System.out.printf("[WildRent] %s pays %dM for %s (multiplier: %dx)%n",

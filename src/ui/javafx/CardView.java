@@ -32,15 +32,18 @@ public class CardView extends StackPane {
     private final double cardWidth;
     private final double cardHeight;
 
+    // Creates a card view with the standard table size.
     public CardView(Card card) {
         this(card, DEFAULT_CARD_WIDTH, DEFAULT_CARD_HEIGHT);
     }
 
+    // Creates a card view at a custom size.
     public CardView(Card card, double width, double height) {
         this.cardWidth = width;
         this.cardHeight = height;
         applyFixedCardSize();
 
+        // Real card art is preferred; fallback cards keep the game playable.
         Image cardImage = loadCardImage(card);
         if (cardImage != null) {
             getChildren().add(createImageCard(cardImage, card));
@@ -50,6 +53,7 @@ public class CardView extends StackPane {
         getChildren().add(createFallbackCard(card));
     }
 
+    // Wraps loaded card art in a clipped, hoverable node.
     private StackPane createImageCard(Image cardImage, Card card) {
         ImageView imageView = new ImageView(cardImage);
         imageView.setFitWidth(cardWidth);
@@ -86,8 +90,30 @@ public class CardView extends StackPane {
         return imageCard;
     }
 
+    // Builds a readable fallback card when image art is unavailable.
     private VBox createFallbackCard(Card card) {
+        VBox cardBody = createFallbackBody(card);
+        DropShadow glow = new DropShadow();
+        glow.setColor(Color.rgb(0, 0, 0, 0.42));
+        glow.setRadius(8);
+        glow.setSpread(0.06);
+        cardBody.setEffect(glow);
 
+        Region spacer = new Region();
+        VBox.setVgrow(spacer, Priority.ALWAYS);
+
+        cardBody.getChildren().addAll(
+                createFallbackHeader(card),
+                createFallbackName(card),
+                createFallbackType(card),
+                spacer,
+                createFallbackValue(card));
+        installFallbackHover(glow);
+        return cardBody;
+    }
+
+    // Creates the fallback card container.
+    private VBox createFallbackBody(Card card) {
         VBox cardBody = new VBox();
         cardBody.setAlignment(Pos.TOP_CENTER);
         cardBody.setStyle("-fx-background-color: " + getCardBackground(card) + "; "
@@ -95,39 +121,48 @@ public class CardView extends StackPane {
                 + "-fx-border-color: " + getBorderColor(card) + "; "
                 + "-fx-border-width: 2; "
                 + "-fx-border-radius: 10;");
+        return cardBody;
+    }
 
-        DropShadow glow = new DropShadow();
-        glow.setColor(Color.rgb(0, 0, 0, 0.42));
-        glow.setRadius(8);
-        glow.setSpread(0.06);
-        cardBody.setEffect(glow);
-
+    // Creates the colored fallback header bar.
+    private Region createFallbackHeader(Card card) {
         Region headerBar = new Region();
         headerBar.setPrefHeight(10);
         headerBar.setStyle("-fx-background-color: " + getHeaderColor(card) + "; "
                 + "-fx-background-radius: 8 8 0 0;");
+        return headerBar;
+    }
 
+    // Creates the fallback card name label.
+    private Label createFallbackName(Card card) {
         Label nameLabel = new Label(card.getCardName());
         nameLabel.setWrapText(true);
         nameLabel.setAlignment(Pos.CENTER);
         nameLabel.setFont(Font.font("Segoe UI", FontWeight.BOLD, 12));
         nameLabel.setTextFill(Color.web(getPrimaryTextColor(card)));
         nameLabel.setPadding(new Insets(8, 3, 2, 3));
+        return nameLabel;
+    }
 
+    // Creates the fallback card type label.
+    private Label createFallbackType(Card card) {
         Label typeLabel = new Label(getCardTypeShortName(card));
         typeLabel.setFont(Font.font("Consolas", FontWeight.NORMAL, 10));
         typeLabel.setTextFill(Color.web(getSecondaryTextColor(card)));
+        return typeLabel;
+    }
 
-        Region spacer = new Region();
-        VBox.setVgrow(spacer, Priority.ALWAYS);
-
-        Label valueLabel = new Label("¥ " + card.getMonetaryValue() + "M");
+    // Creates the fallback money value label.
+    private Label createFallbackValue(Card card) {
+        Label valueLabel = new Label("$ " + card.getMonetaryValue() + "M");
         valueLabel.setFont(Font.font("Consolas", FontWeight.BLACK, 14));
         valueLabel.setTextFill(Color.web(getValueTextColor(card)));
         valueLabel.setPadding(new Insets(0, 0, 8, 0));
+        return valueLabel;
+    }
 
-        cardBody.getChildren().addAll(headerBar, nameLabel, typeLabel, spacer, valueLabel);
-
+    // Adds hover lift to fallback cards.
+    private void installFallbackHover(DropShadow glow) {
         this.setOnMouseEntered(e -> {
             this.setTranslateY(-10);
             glow.setRadius(13);
@@ -136,14 +171,14 @@ public class CardView extends StackPane {
             this.setTranslateY(0);
             glow.setRadius(8);
         });
-
-        return cardBody;
     }
 
+    // Creates a text-only placeholder card.
     public CardView(String title, String subtitle) {
         this(title, subtitle, DEFAULT_CARD_WIDTH, DEFAULT_CARD_HEIGHT);
     }
 
+    // Creates a text-only placeholder card at a custom size.
     public CardView(String title, String subtitle, double width, double height) {
         this.cardWidth = width;
         this.cardHeight = height;
@@ -166,12 +201,14 @@ public class CardView extends StackPane {
         getChildren().add(cardBody);
     }
 
+    // Locks the node to the card dimensions used by the table layout.
     private void applyFixedCardSize() {
         setPrefSize(cardWidth, cardHeight);
         setMinSize(cardWidth, cardHeight);
         setMaxSize(cardWidth, cardHeight);
     }
 
+    // Searches all known image filename variants for a card.
     private Image loadCardImage(Card card) {
         for (String baseName : getImageBaseNameCandidates(card)) {
             for (String extension : new String[]{".png", ".jpg", ".jpeg"}) {
@@ -184,6 +221,7 @@ public class CardView extends StackPane {
         return null;
     }
 
+    // Loads one image from resources or the source asset folder.
     private Image loadImage(String fileName) {
         URL resource = CardView.class.getResource(CARD_IMAGE_RESOURCE_DIR + fileName);
         if (resource != null) {
@@ -200,6 +238,7 @@ public class CardView extends StackPane {
         return null;
     }
 
+    // Builds possible filenames for exact and sanitized asset names.
     private List<String> getImageBaseNameCandidates(Card card) {
         List<String> names = new ArrayList<>();
         names.add(card.getCardName());
@@ -217,6 +256,7 @@ public class CardView extends StackPane {
         return names;
     }
 
+    // Adds common slash replacement variants.
     private void addSanitizedNames(List<String> names, String baseName) {
         String hyphen = baseName.replace("/", "-");
         String underscore = baseName.replace("/", "_");
@@ -228,6 +268,7 @@ public class CardView extends StackPane {
         }
     }
 
+    // Maps card models to asset filenames that differ from card names.
     private String getMappedImageBaseName(Card card) {
         if (card instanceof SuperWildCard) {
             return "Property Wild Card";
@@ -238,46 +279,48 @@ public class CardView extends StackPane {
         }
 
         if (card instanceof RentCard) {
-            RentCard rentCard = (RentCard) card;
-            PropertyColor[] colors = rentCard.getColorOptions();
-            if (hasColors(colors, PropertyColor.BROWN, PropertyColor.LIGHT_BLUE)) {
-                return "Brown-Light Blue Rent";
-            }
-            if (hasColors(colors, PropertyColor.PINK, PropertyColor.ORANGE)) {
-                return "Pink-Orange Rent";
-            }
-            if (hasColors(colors, PropertyColor.RED, PropertyColor.YELLOW)) {
-                return "Red-Yellow Rent";
-            }
-            if (hasColors(colors, PropertyColor.GREEN, PropertyColor.DARK_BLUE)) {
-                return "Rent_GreenDeepblue";
-            }
-            if (hasColors(colors, PropertyColor.RAILROAD, PropertyColor.UTILITY)) {
-                return "Railroad-Utility Rent";
-            }
+            return getMappedRentImageBaseName((RentCard) card);
         }
 
         if (card instanceof PropertyWildCard) {
-            PropertyWildCard wildCard = (PropertyWildCard) card;
-            PropertyColor[] colors = wildCard.getAvailableColors();
-            if (hasColors(colors, PropertyColor.BROWN, PropertyColor.LIGHT_BLUE)) return "Property Wild card_BlueBrown";
-            if (hasColors(colors, PropertyColor.PINK, PropertyColor.ORANGE)) return "Property Wild Card_OrangePink";
-            if (hasColors(colors, PropertyColor.RED, PropertyColor.YELLOW)) return "Property Wild Card_YellowRed";
-            if (hasColors(colors, PropertyColor.GREEN, PropertyColor.DARK_BLUE)) return "Property Wild card_GreenDeepblue";
-            if (hasColors(colors, PropertyColor.RAILROAD, PropertyColor.UTILITY)) return "Property Wild Card_EnterpriseRailroad";
-            if (hasColors(colors, PropertyColor.LIGHT_BLUE, PropertyColor.RAILROAD)) return "Property Wild Card_BlueRailroad";
-            if (hasColors(colors, PropertyColor.RAILROAD, PropertyColor.GREEN)) return "Property Wild Card_RailroadGreen";
+            return getMappedPropertyWildImageBaseName((PropertyWildCard) card);
         }
 
         return null;
     }
 
+    // Maps two-color rent cards to their asset filenames.
+    private String getMappedRentImageBaseName(RentCard rentCard) {
+        PropertyColor[] colors = rentCard.getColorOptions();
+        if (hasColors(colors, PropertyColor.BROWN, PropertyColor.LIGHT_BLUE)) return "Brown-Light Blue Rent";
+        if (hasColors(colors, PropertyColor.PINK, PropertyColor.ORANGE)) return "Pink-Orange Rent";
+        if (hasColors(colors, PropertyColor.RED, PropertyColor.YELLOW)) return "Red-Yellow Rent";
+        if (hasColors(colors, PropertyColor.GREEN, PropertyColor.DARK_BLUE)) return "Rent_GreenDeepblue";
+        if (hasColors(colors, PropertyColor.RAILROAD, PropertyColor.UTILITY)) return "Railroad-Utility Rent";
+        return null;
+    }
+
+    // Maps two-color property wild cards to their asset filenames.
+    private String getMappedPropertyWildImageBaseName(PropertyWildCard wildCard) {
+        PropertyColor[] colors = wildCard.getAvailableColors();
+        if (hasColors(colors, PropertyColor.BROWN, PropertyColor.LIGHT_BLUE)) return "Property Wild card_BlueBrown";
+        if (hasColors(colors, PropertyColor.PINK, PropertyColor.ORANGE)) return "Property Wild Card_OrangePink";
+        if (hasColors(colors, PropertyColor.RED, PropertyColor.YELLOW)) return "Property Wild Card_YellowRed";
+        if (hasColors(colors, PropertyColor.GREEN, PropertyColor.DARK_BLUE)) return "Property Wild card_GreenDeepblue";
+        if (hasColors(colors, PropertyColor.RAILROAD, PropertyColor.UTILITY)) return "Property Wild Card_EnterpriseRailroad";
+        if (hasColors(colors, PropertyColor.LIGHT_BLUE, PropertyColor.RAILROAD)) return "Property Wild Card_BlueRailroad";
+        if (hasColors(colors, PropertyColor.RAILROAD, PropertyColor.GREEN)) return "Property Wild Card_RailroadGreen";
+        return null;
+    }
+
+    // Checks a two-color card without depending on order.
     private boolean hasColors(PropertyColor[] colors, PropertyColor first, PropertyColor second) {
         return colors.length == 2
                 && ((colors[0] == first && colors[1] == second)
                 || (colors[0] == second && colors[1] == first));
     }
 
+    // Returns the primary fallback accent for a card type.
     private String getAccentColor(Card card) {
         if (card instanceof PropertyWildCard) return ((PropertyWildCard) card).getColorA().getColorHex();
         if (card instanceof PropertyCard) return ((PropertyCard) card).getColorGroup().getColorHex();
@@ -295,6 +338,7 @@ public class CardView extends StackPane {
         return "#00f2ff";
     }
 
+    // Returns the fallback header color or gradient.
     private String getHeaderColor(Card card) {
         PropertyColor[] colors = getCardColors(card);
         if (colors != null) {
@@ -303,6 +347,7 @@ public class CardView extends StackPane {
         return getAccentColor(card);
     }
 
+    // Returns the fallback border color or gradient.
     private String getBorderColor(Card card) {
         PropertyColor[] colors = getCardColors(card);
         if (colors != null) {
@@ -311,26 +356,31 @@ public class CardView extends StackPane {
         return getAccentColor(card);
     }
 
+    // Returns the fallback card background.
     private String getCardBackground(Card card) {
         if (card instanceof MoneyCard)
             return "linear-gradient(to bottom, #1a1608, #0d0a04)";
         return "linear-gradient(to bottom right, #1e2230, #10131c)";
     }
 
+    // Returns fallback title text color.
     private String getPrimaryTextColor(Card card) {
         return "#ffffff";
     }
 
+    // Returns fallback secondary text color.
     private String getSecondaryTextColor(Card card) {
         return "#a0aab5";
     }
 
+    // Returns fallback money value text color.
     private String getValueTextColor(Card card) {
         if (card instanceof MoneyCard) return "#ffd700";
         if (card instanceof ActionCard) return "#00f2ff";
         return "#00ff9f";
     }
 
+    // Returns all colors represented by a multi-color card.
     private PropertyColor[] getCardColors(Card card) {
         if (card instanceof SuperWildCard) {
             return ((SuperWildCard) card).getAvailableColors();
@@ -345,6 +395,7 @@ public class CardView extends StackPane {
         return null;
     }
 
+    // Builds a hard-stop gradient for two-color cards.
     private String getColorGradient(PropertyColor[] colors) {
         StringBuilder gradient = new StringBuilder("linear-gradient(to right");
         double segment = 100.0 / colors.length;
@@ -365,6 +416,7 @@ public class CardView extends StackPane {
         return gradient.toString();
     }
 
+    // Formats gradient percentages without trailing decimals when possible.
     private String formatPercent(double value) {
         if (value == Math.rint(value)) {
             return String.valueOf((int) value);
@@ -372,6 +424,7 @@ public class CardView extends StackPane {
         return String.format(java.util.Locale.US, "%.1f", value);
     }
 
+    // Returns the short fallback type label.
     private String getCardTypeShortName(Card card) {
         if (card instanceof SuperWildCard) return "[WILD ASSET]";
         if (card instanceof PropertyWildCard) return "[WILD ASSET]";
@@ -382,10 +435,12 @@ public class CardView extends StackPane {
         return "[SYS]";
     }
 
+    // Creates a default-size draw pile back.
     public static CardView back(int count) {
         return back(count, DEFAULT_CARD_WIDTH, DEFAULT_CARD_HEIGHT);
     }
 
+    // Creates a draw pile back at a custom size.
     public static CardView back(int count, double width, double height) {
         return new CardView("DRAW", count + " CARDS", width, height);
     }

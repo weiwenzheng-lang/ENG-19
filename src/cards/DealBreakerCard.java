@@ -6,11 +6,15 @@ import enums.PropertyColor;
 import player.Player;
 
 public class DealBreakerCard extends ActionCard {
+    // Creates a Deal Breaker action card.
     public DealBreakerCard(int id, String name, int value) {
         super(id, name, value, "DEAL_BREAKER");
     }
 
-    @Override public boolean requiresTarget() { return true; }
+    @Override
+    public boolean requiresTarget() {
+        return true;
+    }
 
     @Override
     public void executePlayLogic(Player initiator) {
@@ -18,6 +22,7 @@ public class DealBreakerCard extends ActionCard {
         TargetInfo target = gm.getCurrentTargetInfo();
         PropertyColor chosenColor = (target != null) ? target.getImprovementColor() : null;
 
+        // Steal the selected complete set, or fall back to the first complete set.
         gm.initiateTargetedAttack(initiator, victim -> {
             boolean moved;
             if (chosenColor != null) {

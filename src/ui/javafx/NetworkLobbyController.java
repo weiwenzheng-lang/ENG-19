@@ -42,6 +42,7 @@ public class NetworkLobbyController {
     private final TextField nameField = new TextField("Player");
     private final TextField hostField = new TextField("127.0.0.1");
     private final TextField portField = new TextField(String.valueOf(DEFAULT_PORT));
+    private final TextField aiCountField = new TextField("0");
     private final TextField chatField = new TextField();
     private final Label statusLabel = new Label("Not connected");
     private final Label addressLabel = new Label();
@@ -60,11 +61,13 @@ public class NetworkLobbyController {
     private Consumer<LanGameMessage> gameMessageHandler;
     private boolean ready;
 
+    // Creates a lobby view that can return to the menu or open a table.
     public NetworkLobbyController(Runnable backAction, NetworkGameStart gameStartAction) {
         this.backAction = backAction;
         this.gameStartAction = gameStartAction;
     }
 
+    // Builds the full lobby screen and initializes disabled controls.
     public BorderPane createContent() {
         BorderPane root = new BorderPane();
         root.setStyle("-fx-background-color: #0d0f12;");
@@ -85,19 +88,23 @@ public class NetworkLobbyController {
         return root;
     }
 
+    // Releases any hosted or joined room before leaving the screen.
     public void dispose() {
         disconnectRoom();
     }
 
+    // Creates the bridge used by the game table after a network game starts.
     public NetworkGameBridge createGameBridge() {
         LanGameClient activeClient = client;
         return new NetworkGameBridge() {
             @Override
+            // Returns this client's room id for ownership checks.
             public int getLocalPlayerId() {
                 return activeClient == null ? -1 : activeClient.getPlayerId();
             }
 
             @Override
+            // Relays a table action through the lobby client.
             public void sendGameAction(String type, String payload) {
                 if (activeClient != null && activeClient.isConnected()) {
                     activeClient.sendGameAction(type, payload);
@@ -105,12 +112,14 @@ public class NetworkLobbyController {
             }
 
             @Override
+            // Registers the table-level network message handler.
             public void setGameMessageHandler(Consumer<LanGameMessage> handler) {
                 gameMessageHandler = handler;
             }
         };
     }
 
+    // Creates the top title bar and back navigation.
     private HBox createHeader() {
         Label title = new Label("Local WiFi Lobby");
         title.setTextFill(javafx.scene.paint.Color.web("#f0c978"));
@@ -134,6 +143,7 @@ public class NetworkLobbyController {
         return header;
     }
 
+    // Lays out connection controls, player roster, and logs.
     private HBox createMainPanel() {
         VBox controls = createControls();
         VBox players = createPlayersPanel();
@@ -145,11 +155,13 @@ public class NetworkLobbyController {
         return main;
     }
 
+    // Builds the host/join controls and AI seat field.
     private VBox createControls() {
         Label section = sectionLabel("Connection", "#cbd8ff");
         configureField(nameField, 180);
         configureField(hostField, 180);
         configureField(portField, 90);
+        configureField(aiCountField, 90);
 
         hostButton.setOnAction(event -> hostRoom());
         joinButton.setOnAction(event -> joinRoom());
@@ -163,6 +175,7 @@ public class NetworkLobbyController {
                 fieldBlock("Name", nameField),
                 fieldBlock("Host IP", hostField),
                 fieldBlock("Port", portField),
+                fieldBlock("AI seats", aiCountField),
                 hostButton,
                 joinButton,
                 disconnectButton,
@@ -175,6 +188,7 @@ public class NetworkLobbyController {
         return panel;
     }
 
+    // Builds the visible player roster panel.
     private VBox createPlayersPanel() {
         Label title = sectionLabel("Players", "#ccecc3");
         playerList.setPrefWidth(220);
@@ -185,6 +199,7 @@ public class NetworkLobbyController {
         return panel;
     }
 
+    // Builds the room activity log panel.
     private VBox createLogPanel() {
         Label title = sectionLabel("Room Log", "#f7d0d7");
         logList.setPlaceholder(new Label("No messages"));
@@ -194,6 +209,7 @@ public class NetworkLobbyController {
         return panel;
     }
 
+    // Builds the chat input bar.
     private HBox createChatBar() {
         chatField.setPromptText("Message");
         chatField.setOnAction(event -> sendChat());
@@ -209,6 +225,7 @@ public class NetworkLobbyController {
         return chat;
     }
 
+    // Creates a label-field stack.
     private VBox fieldBlock(String labelText, TextField field) {
         Label label = new Label(labelText);
         label.setTextFill(javafx.scene.paint.Color.web("#f7efe1"));
@@ -216,6 +233,7 @@ public class NetworkLobbyController {
         return new VBox(6, label, field);
     }
 
+    // Applies the shared dark panel style.
     private VBox panelBox(javafx.scene.Node... children) {
         VBox panel = new VBox(12, children);
         panel.setPadding(new Insets(14));
@@ -226,6 +244,7 @@ public class NetworkLobbyController {
         return panel;
     }
 
+    // Applies the shared input field style.
     private void configureField(TextField field, double width) {
         field.setPrefWidth(width);
         field.setStyle("-fx-background-color: #16181b;"
@@ -238,6 +257,7 @@ public class NetworkLobbyController {
                 + "-fx-font-size: 13px;");
     }
 
+    // Creates a colored section heading.
     private Label sectionLabel(String text, String color) {
         Label label = new Label(text);
         label.setTextFill(javafx.scene.paint.Color.web(color));
@@ -245,6 +265,7 @@ public class NetworkLobbyController {
         return label;
     }
 
+    // Creates a lobby button with consistent visual treatment.
     private static Button styledButton(String text) {
         Button button = new Button(text);
         button.setMaxWidth(Double.MAX_VALUE);
@@ -258,6 +279,7 @@ public class NetworkLobbyController {
         return button;
     }
 
+    // Starts an in-process room server and joins it as the host.
     private void hostRoom() {
         int port = readPort();
         if (port < 0) {
@@ -282,6 +304,7 @@ public class NetworkLobbyController {
         }
     }
 
+    // Joins a room hosted on another machine.
     private void joinRoom() {
         int port = readPort();
         if (port < 0) {
@@ -298,6 +321,7 @@ public class NetworkLobbyController {
         connectClient(host, port);
     }
 
+    // Creates and connects the client half of the lobby.
     private void connectClient(String host, int port) {
         try {
             client = new LanGameClient(new LobbyNetworkListener());
@@ -311,6 +335,7 @@ public class NetworkLobbyController {
         }
     }
 
+    // Disconnects the client and stops the local server if this user hosts.
     private void disconnectRoom() {
         if (client != null) {
             client.disconnect();
@@ -327,6 +352,7 @@ public class NetworkLobbyController {
         setConnectedUi(false);
     }
 
+    // Reads and validates the TCP port field.
     private int readPort() {
         try {
             int port = Integer.parseInt(portField.getText().trim());
@@ -341,11 +367,13 @@ public class NetworkLobbyController {
         }
     }
 
+    // Returns a non-empty player name.
     private String readPlayerName() {
         String name = nameField.getText().trim();
         return name.isEmpty() ? "Player" : name;
     }
 
+    // Sends chat text through the active client.
     private void sendChat() {
         if (client == null || !client.isConnected()) {
             appendLog("Not connected.");
@@ -359,6 +387,7 @@ public class NetworkLobbyController {
         chatField.clear();
     }
 
+    // Keeps buttons synchronized with connection and room state.
     private void setConnectedUi(boolean connected) {
         hostButton.setDisable(connected);
         joinButton.setDisable(connected);
@@ -374,6 +403,7 @@ public class NetworkLobbyController {
         }
     }
 
+    // Allows only the connected room host to request a game start.
     private boolean canStartNetworkGame() {
         return client != null
                 && client.isConnected()
@@ -382,6 +412,7 @@ public class NetworkLobbyController {
                 && client.getPlayerId() == currentRoomState.getHostPlayerId();
     }
 
+    // Toggles the local ready state and sends it to the server.
     private void toggleReady() {
         if (client == null || !client.isConnected()) {
             appendLog("Not connected.");
@@ -392,14 +423,41 @@ public class NetworkLobbyController {
         setConnectedUi(true);
     }
 
+    // Requests a table start with the selected AI seat count.
     private void startNetworkGame() {
         if (client == null || !client.isConnected()) {
             appendLog("Not connected.");
             return;
         }
-        client.requestStartGame();
+        int aiCount = readAiCount();
+        if (aiCount < 0) {
+            return;
+        }
+        client.requestStartGame(aiCount);
     }
 
+    // Reads and validates AI seats against total 2-5 player rules.
+    private int readAiCount() {
+        try {
+            int aiCount = Integer.parseInt(aiCountField.getText().trim());
+            if (aiCount < 0 || aiCount > GameManager.MAX_PLAYERS - 1) {
+                appendLog("AI seats must be between 0 and 4.");
+                return -1;
+            }
+            int onlineCount = currentRoomState == null ? 0 : currentRoomState.getOnlineCount();
+            int totalPlayers = onlineCount + aiCount;
+            if (totalPlayers < GameManager.MIN_PLAYERS || totalPlayers > GameManager.MAX_PLAYERS) {
+                appendLog("Online players plus AI seats must total 2 to 5.");
+                return -1;
+            }
+            return aiCount;
+        } catch (NumberFormatException e) {
+            appendLog("AI seats must be a number.");
+            return -1;
+        }
+    }
+
+    // Sends a simple relay test message while a table is active.
     private void sendTestAction() {
         if (client == null || !client.isConnected()) {
             appendLog("Not connected.");
@@ -408,6 +466,7 @@ public class NetworkLobbyController {
         client.sendGameAction("LOBBY_TEST", "Protocol test from " + readPlayerName());
     }
 
+    // Shows local addresses that other players can type into Host IP.
     private void updateAddressLabel() {
         List<String> addresses = LanAddressUtil.localIpv4Addresses();
         String text = addresses.isEmpty()
@@ -419,15 +478,18 @@ public class NetworkLobbyController {
         addressLabel.setFont(Font.font("Consolas", FontWeight.BOLD, 12));
     }
 
+    // Moves server-thread log messages onto the JavaFX thread.
     private void appendLogFromAnyThread(String message) {
         Platform.runLater(() -> appendLog(message));
     }
 
+    // Adds a timestamped line at the top of the lobby log.
     private void appendLog(String message) {
         String time = LocalTime.now().format(TIME_FORMAT);
         logList.getItems().add(0, "[" + time + "] " + message);
     }
 
+    // Receives network callbacks and applies them on the JavaFX thread.
     private final class LobbyNetworkListener implements LanGameListener {
         @Override
         public void onStatusChanged(String status) {
@@ -435,16 +497,19 @@ public class NetworkLobbyController {
         }
 
         @Override
+        // Refreshes the legacy display roster.
         public void onPlayersChanged(List<String> players) {
             Platform.runLater(() -> playerList.getItems().setAll(players));
         }
 
         @Override
+        // Saves typed roster data for deterministic game setup.
         public void onPlayerInfosChanged(List<LanPlayerInfo> players) {
             Platform.runLater(() -> currentPlayers = new ArrayList<>(players));
         }
 
         @Override
+        // Refreshes room counts and start-button availability.
         public void onRoomStateChanged(LanRoomState roomState) {
             Platform.runLater(() -> {
                 currentRoomState = roomState;
@@ -454,13 +519,15 @@ public class NetworkLobbyController {
         }
 
         @Override
-        public void onGameStarted(long deckSeed) {
+        // Opens the game table once the server broadcasts the shared seed.
+        public void onGameStarted(long deckSeed, int aiCount) {
             Platform.runLater(() -> {
-                startNetworkGameView(deckSeed);
+                startNetworkGameView(deckSeed, aiCount);
             });
         }
 
         @Override
+        // Routes game messages into the active table when one exists.
         public void onGameMessage(LanGameMessage message) {
             Platform.runLater(() -> {
                 if (gameMessageHandler != null) {
@@ -473,7 +540,8 @@ public class NetworkLobbyController {
             });
         }
 
-        private void startNetworkGameView(long fallbackSeed) {
+        // Builds player setups from the network roster plus AI seats.
+        private void startNetworkGameView(long fallbackSeed, int aiCount) {
             long seed = fallbackSeed;
             appendLog("Start signal received. Opening game table.");
             if (client == null || currentPlayers.isEmpty()) {
@@ -492,21 +560,28 @@ public class NetworkLobbyController {
                     localPlayerIndex = i;
                 }
             }
+            // AI seats are appended after online humans so all clients agree.
+            for (int i = 1; i <= aiCount && setups.size() < GameManager.MAX_PLAYERS; i++) {
+                setups.add(new GameManager.PlayerSetup("AI " + i, PlayerType.AI));
+            }
             gameStartAction.start(setups, seed, localPlayerIndex);
         }
 
         @Override
+        // Updates the status label during automatic reconnect attempts.
         public void onReconnecting(int attempt, int maxAttempts) {
             Platform.runLater(() -> statusLabel.setText(
                     "Reconnecting " + attempt + "/" + maxAttempts + "..."));
         }
 
         @Override
+        // Appends server and client log messages.
         public void onLogMessage(String message) {
             Platform.runLater(() -> appendLog(message));
         }
 
         @Override
+        // Resets lobby UI after a final disconnect.
         public void onDisconnected() {
             Platform.runLater(() -> {
                 ready = false;

@@ -12,6 +12,7 @@ public class RentCard extends ActionCard {
     private final PropertyColor color2;
     private PropertyColor selectedColor;
 
+    // Creates a rent card for one or two color groups.
     public RentCard(int id, String name, int value, PropertyColor c1, PropertyColor c2) {
         super(id, name, value, "RENT");
         this.color1 = c1;
@@ -19,10 +20,12 @@ public class RentCard extends ActionCard {
         this.selectedColor = c1;
     }
 
+    // Reports whether the card offers two color choices.
     public boolean isMultiColor() {
         return color1 != color2;
     }
 
+    // Returns the legal color choices for this rent card.
     public PropertyColor[] getColorOptions() {
         if (isMultiColor()) {
             return new PropertyColor[]{color1, color2};
@@ -30,12 +33,14 @@ public class RentCard extends ActionCard {
         return new PropertyColor[]{color1};
     }
 
+    // Stores the color selected before play.
     public void setSelectedColor(PropertyColor color) {
         if (color == color1 || color == color2) {
             this.selectedColor = color;
         }
     }
 
+    // Returns the color selected for this play.
     public PropertyColor getSelectedColor() {
         return selectedColor;
     }
@@ -61,6 +66,7 @@ public class RentCard extends ActionCard {
         int multiplier = gm.getAndResetRentMultiplier();
         int finalRent = baseRent * multiplier;
 
+        // Regular rent cards charge all opponents.
         gm.initiateGroupAttack(initiator, opponents, opponent -> opponent.getBankArea().pay(finalRent, initiator));
     }
 }
