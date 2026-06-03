@@ -7,7 +7,8 @@ set "JAVA_EXE="
 set "JAVAC_EXE="
 set "JDK_FALLBACK=D:\Java-JDK\jdk-25"
 set "BUILD_DIR=out\bat-run"
-set "JAVAFX_MODULES=javafx.controls,javafx.fxml,javafx.media,javafx.web,javafx.swing"
+set "JAVAFX_CP=lib\*"
+set "SOURCE_LIST=%BUILD_DIR%\sources.list"
 
 if defined JAVA_HOME (
     if exist "%JAVA_HOME%\bin\java.exe" set "JAVA_EXE=%JAVA_HOME%\bin\java.exe"
@@ -47,7 +48,8 @@ if defined JAVAC_EXE (
     if not exist "%BUILD_DIR%" mkdir "%BUILD_DIR%"
 
     echo Compiling game...
-    "%JAVAC_EXE%" --release 17 --module-path "lib" --add-modules %JAVAFX_MODULES% -encoding UTF-8 -sourcepath "src" -d "%BUILD_DIR%" "src\ui\javafx\MainApp.java"
+    dir /s /b "src\*.java" > "%SOURCE_LIST%"
+    "%JAVAC_EXE%" --release 17 -encoding UTF-8 -cp "src;%JAVAFX_CP%" -d "%BUILD_DIR%" @"%SOURCE_LIST%"
 
     if errorlevel 1 (
         echo Compile failed.
@@ -60,7 +62,7 @@ if defined JAVAC_EXE (
 )
 
 echo Starting Monopoly Deal...
-"%JAVA_EXE%" -Djava.library.path="lib" --module-path "lib" --add-modules %JAVAFX_MODULES% -cp "%BUILD_DIR%;src" ui.javafx.MainApp
+"%JAVA_EXE%" -Djava.library.path="lib" -cp "%BUILD_DIR%;src;%JAVAFX_CP%" Launcher
 
 if errorlevel 1 (
     echo Game exited with an error.
