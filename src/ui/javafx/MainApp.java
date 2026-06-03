@@ -13,6 +13,9 @@ import javafx.scene.text.Font;
 import javafx.scene.text.FontWeight;
 import javafx.stage.Stage;
 
+import core.GameManager;
+import player.PlayerType;
+
 import java.net.URL;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -25,6 +28,10 @@ public class MainApp extends Application {
     private GameController currentController;
     private NetworkLobbyController networkController;
     private Stage primaryStage;
+
+    public static void main(String[] args) {
+        launch(args);
+    }
 
     @Override
     public void start(Stage stage) {
@@ -59,6 +66,9 @@ public class MainApp extends Application {
         Button startBtn = styledButton("Start Game");
         startBtn.setOnAction(e -> startGame());
 
+        Button aiBtn = styledButton("Human vs AI");
+        aiBtn.setOnAction(e -> startAiGame());
+
         Button lanBtn = styledButton("Local WiFi Game");
         lanBtn.setOnAction(e -> showLanLobby());
 
@@ -68,7 +78,7 @@ public class MainApp extends Application {
         Button exitBtn = styledButton("Exit");
         exitBtn.setOnAction(e -> Platform.exit());
 
-        menu.getChildren().addAll(title, startBtn, lanBtn, helpBtn, exitBtn);
+        menu.getChildren().addAll(title, startBtn, aiBtn, lanBtn, helpBtn, exitBtn);
         screen.getChildren().addAll(background, menu);
         Scene scene = new Scene(screen, 1180, 664);
         primaryStage.setTitle("Monopoly Deal");
@@ -109,13 +119,61 @@ public class MainApp extends Application {
         primaryStage.show();
     }
 
+    private void startAiGame() {
+        if (currentController != null) {
+            currentController.dispose();
+        }
+
+        int playerCount = choosePlayerCount();
+        if (playerCount < 2) return;
+
+        Optional<String> humanName = askPlayerName(1);
+        if (!humanName.isPresent()) {
+            return;
+        }
+
+        List<GameManager.PlayerSetup> playerSetups = new ArrayList<>();
+        String name = humanName.get().trim().isEmpty() ? "Player 1" : humanName.get().trim();
+        playerSetups.add(new GameManager.PlayerSetup(name, PlayerType.HUMAN));
+        for (int i = 2; i <= playerCount; i++) {
+            playerSetups.add(new GameManager.PlayerSetup("AI " + (i - 1), PlayerType.AI));
+        }
+
+        currentController = new GameController(GameModeConfig.ai(playerSetups),
+                this::showMainMenu,
+                Platform::exit);
+
+        Scene scene = new Scene(currentController.createContent(), 1366, 768);
+        applyStylesheet(scene);
+
+        primaryStage.setTitle("Monopoly Deal - Human vs AI");
+        primaryStage.setScene(scene);
+        primaryStage.show();
+    }
+
     private void showLanLobby() {
         disposeCurrentViews();
 
-        networkController = new NetworkLobbyController(this::showMainMenu);
+        networkController = new NetworkLobbyController(this::showMainMenu, this::startNetworkGame);
         Scene scene = new Scene(networkController.createContent(), 900, 600);
         applyStylesheet(scene);
 
+        primaryStage.setTitle("Monopoly Deal - Local WiFi Game");
+        primaryStage.setScene(scene);
+        primaryStage.show();
+    }
+
+    private void startNetworkGame(List<GameManager.PlayerSetup> players, long deckSeed, int localPlayerIndex) {
+        if (networkController == null) {
+            return;
+        }
+        NetworkGameBridge bridge = networkController.createGameBridge();
+        currentController = new GameController(
+                GameModeConfig.network(players, deckSeed, localPlayerIndex, bridge),
+                this::showMainMenu,
+                Platform::exit);
+        Scene scene = new Scene(currentController.createContent(), 1366, 768);
+        applyStylesheet(scene);
         primaryStage.setTitle("Monopoly Deal - Local WiFi Game");
         primaryStage.setScene(scene);
         primaryStage.show();

@@ -14,23 +14,29 @@ import javafx.scene.layout.Priority;
 import javafx.scene.layout.VBox;
 import javafx.scene.text.Font;
 import javafx.scene.text.FontWeight;
+import core.GameManager;
 import network.LanAddressUtil;
 import network.LanGameMessage;
 import network.LanGameClient;
 import network.LanGameListener;
+import network.LanPlayerInfo;
 import network.LanGameServer;
 import network.LanRoomState;
+import player.PlayerType;
 
 import java.io.IOException;
 import java.time.LocalTime;
 import java.time.format.DateTimeFormatter;
+import java.util.ArrayList;
 import java.util.List;
+import java.util.function.Consumer;
 
 public class NetworkLobbyController {
     private static final int DEFAULT_PORT = 5019;
     private static final DateTimeFormatter TIME_FORMAT = DateTimeFormatter.ofPattern("HH:mm:ss");
 
     private final Runnable backAction;
+    private final NetworkGameStart gameStartAction;
     private final ListView<String> playerList = new ListView<>();
     private final ListView<String> logList = new ListView<>();
     private final TextField nameField = new TextField("Player");
@@ -50,10 +56,13 @@ public class NetworkLobbyController {
     private LanGameServer server;
     private LanGameClient client;
     private LanRoomState currentRoomState;
+    private List<LanPlayerInfo> currentPlayers = new ArrayList<>();
+    private Consumer<LanGameMessage> gameMessageHandler;
     private boolean ready;
 
-    public NetworkLobbyController(Runnable backAction) {
+    public NetworkLobbyController(Runnable backAction, NetworkGameStart gameStartAction) {
         this.backAction = backAction;
+        this.gameStartAction = gameStartAction;
     }
 
     public BorderPane createContent() {
@@ -78,6 +87,28 @@ public class NetworkLobbyController {
 
     public void dispose() {
         disconnectRoom();
+    }
+
+    public NetworkGameBridge createGameBridge() {
+        LanGameClient activeClient = client;
+        return new NetworkGameBridge() {
+            @Override
+            public int getLocalPlayerId() {
+                return activeClient == null ? -1 : activeClient.getPlayerId();
+            }
+
+            @Override
+            public void sendGameAction(String type, String payload) {
+                if (activeClient != null && activeClient.isConnected()) {
+                    activeClient.sendGameAction(type, payload);
+                }
+            }
+
+            @Override
+            public void setGameMessageHandler(Consumer<LanGameMessage> handler) {
+                gameMessageHandler = handler;
+            }
+        };
     }
 
     private HBox createHeader() {
@@ -137,7 +168,6 @@ public class NetworkLobbyController {
                 disconnectButton,
                 readyButton,
                 startNetworkButton,
-                testActionButton,
                 statusLabel,
                 addressLabel
         );
@@ -292,6 +322,7 @@ public class NetworkLobbyController {
         }
         ready = false;
         currentRoomState = null;
+        currentPlayers = new ArrayList<>();
         playerList.getItems().clear();
         setConnectedUi(false);
     }
@@ -409,6 +440,11 @@ public class NetworkLobbyController {
         }
 
         @Override
+        public void onPlayerInfosChanged(List<LanPlayerInfo> players) {
+            Platform.runLater(() -> currentPlayers = new ArrayList<>(players));
+        }
+
+        @Override
         public void onRoomStateChanged(LanRoomState roomState) {
             Platform.runLater(() -> {
                 currentRoomState = roomState;
@@ -418,18 +454,45 @@ public class NetworkLobbyController {
         }
 
         @Override
-        public void onGameStarted() {
+        public void onGameStarted(long deckSeed) {
             Platform.runLater(() -> {
-                appendLog("Start signal received. Game sync messages are enabled.");
-                setConnectedUi(client != null && client.isConnected());
+                startNetworkGameView(deckSeed);
             });
         }
 
         @Override
         public void onGameMessage(LanGameMessage message) {
-            Platform.runLater(() -> appendLog("Game " + message.getType()
-                    + " from " + message.getSenderName()
-                    + ": " + message.getPayload()));
+            Platform.runLater(() -> {
+                if (gameMessageHandler != null) {
+                    gameMessageHandler.accept(message);
+                } else {
+                    appendLog("Game " + message.getType()
+                            + " from " + message.getSenderName()
+                            + ": " + message.getPayload());
+                }
+            });
+        }
+
+        private void startNetworkGameView(long fallbackSeed) {
+            long seed = fallbackSeed;
+            appendLog("Start signal received. Opening game table.");
+            if (client == null || currentPlayers.isEmpty()) {
+                appendLog("Cannot open game table yet: player roster is not ready.");
+                return;
+            }
+
+            List<LanPlayerInfo> sortedPlayers = new ArrayList<>(currentPlayers);
+            sortedPlayers.sort(java.util.Comparator.comparingInt(LanPlayerInfo::getPlayerId));
+            List<GameManager.PlayerSetup> setups = new ArrayList<>();
+            int localPlayerIndex = 0;
+            for (int i = 0; i < sortedPlayers.size(); i++) {
+                LanPlayerInfo player = sortedPlayers.get(i);
+                setups.add(new GameManager.PlayerSetup(player.getPlayerName(), PlayerType.HUMAN));
+                if (player.getPlayerId() == client.getPlayerId()) {
+                    localPlayerIndex = i;
+                }
+            }
+            gameStartAction.start(setups, seed, localPlayerIndex);
         }
 
         @Override

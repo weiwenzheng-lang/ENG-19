@@ -14,6 +14,7 @@ import java.util.UUID;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Consumer;
+import java.util.concurrent.ThreadLocalRandom;
 
 public class LanGameServer {
     private static final int MIN_PLAYERS = 2;
@@ -26,6 +27,7 @@ public class LanGameServer {
 
     private volatile boolean running;
     private volatile boolean gameStarted;
+    private volatile long gameSeed;
     private ServerSocket serverSocket;
     private Thread acceptThread;
 
@@ -315,7 +317,8 @@ public class LanGameServer {
                 return;
             }
             gameStarted = true;
-            broadcast(LanGameProtocol.START_GAME, String.valueOf(session.playerId));
+            gameSeed = ThreadLocalRandom.current().nextLong();
+            broadcast(LanGameProtocol.START_GAME, String.valueOf(session.playerId), String.valueOf(gameSeed));
             broadcastRoomState();
         }
 
