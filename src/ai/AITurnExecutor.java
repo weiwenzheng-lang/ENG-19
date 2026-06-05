@@ -18,13 +18,13 @@ public class AITurnExecutor {
     private static final long ACTION_DELAY_MS = 2500;
     private static final long POLL_DELAY_MS = 300;
 
-    private final AIPlayerBrain brain;
+    private final AIActionStrategy brain;
     private Player aiPlayer;
     private GameManager game;
     private boolean running;
 
     // Stores the AI brain used for decisions.
-    public AITurnExecutor(AIPlayerBrain brain) {
+    public AITurnExecutor(AIActionStrategy brain) {
         this.brain = brain;
     }
 

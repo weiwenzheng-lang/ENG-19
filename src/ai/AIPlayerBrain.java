@@ -9,9 +9,10 @@ import player.Rentable;
 
 import java.util.*;
 
-public class AIPlayerBrain {
+public class AIPlayerBrain implements AIActionStrategy {
 
     // Picks the next legal AI action by strategy priority.
+    @Override
     public AIAction decideNextAction(Player ai, GameManager game) {
         int actions = game.getActionsRemaining();
         List<Card> hand = ai.getHand().getCards();
@@ -195,6 +196,7 @@ public class AIPlayerBrain {
     }
 
     // Decides whether an AI should answer an attack with Just Say No.
+    @Override
     public boolean shouldCounterWithJustSayNo(Player victim, GameManager game) {
         List<Card> hand = victim.getHand().getCards();
         boolean hasJSN = hand.stream().anyMatch(c -> c.getCardName().equals("Just Say No"));

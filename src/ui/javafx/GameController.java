@@ -189,7 +189,7 @@ public class GameController implements GameObserver {
             configureSetsLabel(zone.setsLabel, spec.nameX + spec.nameWidth - 42, spec.nameY + 23,
                     38, 17);
             opponentZones.add(zone);
-            boardPane.getChildren().addAll(zone.cards, zone.name, zone.stats, zone.setsProgress, zone.setsLabel);
+            boardPane.getChildren().addAll(zone.cards, zone.name, zone.setsProgress, zone.stats, zone.setsLabel);
         }
     }
 
@@ -210,7 +210,7 @@ public class GameController implements GameObserver {
                 ownName.y + ownName.height - SET_PROGRESS_HEIGHT,
                 ownName.width - 16, SET_PROGRESS_HEIGHT);
         configureSetsLabel(ownSetsLabel, ownName.x + ownName.width - 42, ownName.y + 23, 38, 17);
-        boardPane.getChildren().addAll(ownNameLabel, ownStatsLabel, ownSetsProgress, ownSetsLabel);
+        boardPane.getChildren().addAll(ownNameLabel, ownSetsProgress, ownStatsLabel, ownSetsLabel);
     }
 
     // Creates the center turn owner and action counter label.
@@ -562,11 +562,15 @@ public class GameController implements GameObserver {
         double rowWidth = cards.isEmpty() ? 0 : HAND_CARD_WIDTH + step * (cards.size() - 1);
         double startX = Math.max(10, (handView.getPrefWidth() - rowWidth) / 2.0);
         double baseY = Math.max(8, (handView.getPrefHeight() - HAND_CARD_HEIGHT) / 2.0);
+        double curveDepth = CardArcLayout.computeHandCurveDepth(handView.getPrefHeight(),
+                HAND_CARD_HEIGHT, SET_PROGRESS_HEIGHT);
         for (int i = 0; i < cards.size(); i++) {
             int index = i;
             CardView cardView = new CardView(cards.get(i), HAND_CARD_WIDTH, HAND_CARD_HEIGHT);
+            double normalized = CardArcLayout.normalizeCardPosition(i, cards.size());
             cardView.setLayoutX(startX + i * step);
-            cardView.setLayoutY(baseY);
+            cardView.setLayoutY(baseY + CardArcLayout.computeArcOffset(normalized, curveDepth));
+            cardView.setRotate(normalized * CardArcLayout.computeHandRotationDepth(curveDepth, SET_PROGRESS_HEIGHT));
             if (!game.isGameOver() && canControlCurrentPlayer() && current == game.getCurrentPlayer()) {
                 cardView.setOnMouseClicked(event -> {
                     cardView.toFront();
