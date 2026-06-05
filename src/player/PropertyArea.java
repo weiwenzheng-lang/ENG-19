@@ -522,9 +522,9 @@ public class PropertyArea {
     }
 
     // Moves a wild card to a new color and rejoins it to the best set.
-    public void swapWildCardColor(PropertyCard card, PropertyColor newColor) {
+    public boolean swapWildCardColor(PropertyCard card, PropertyColor newColor) {
         PropertyColor oldColor = card.getColorGroup();
-        if (oldColor == newColor) return;
+        if (oldColor == newColor) return false;
 
         // Remove before mutating color so the old bucket stays consistent.
         removeCardFromColor(card, oldColor);
@@ -536,6 +536,7 @@ public class PropertyArea {
         }
 
         addPropertyCard(card);
+        return true;
     }
 
     // Removes a concrete card from the requested color bucket.
