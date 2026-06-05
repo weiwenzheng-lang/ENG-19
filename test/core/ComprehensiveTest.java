@@ -1,4 +1,4 @@
-package core;
+﻿package core;
 
 import cards.*;
 import enums.PropertyColor;
@@ -9,10 +9,11 @@ import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.*;
 
+// Cross-cutting regression tests for win detection, wild cards, rent multipliers,
+// discard flow, and payment edge cases that span multiple packages.
 class ComprehensiveTest {
 
-    // ===== Win Condition Tests =====
-
+    // Counts three completed property sets (Brown 2 + Red 3 + Green 3).
     @Test
     void detectsWinWithThreeCompleteSets() {
         Player p = new Player("1", "Winner");
@@ -31,6 +32,7 @@ class ComprehensiveTest {
         assertEquals(3, p.getPropertyArea().countCompletedSets());
     }
 
+    // A partial set must not contribute toward the three-set win threshold.
     @Test
     void doesNotCountIncompleteSets() {
         Player p = new Player("1", "Loser");
@@ -40,8 +42,7 @@ class ComprehensiveTest {
         assertEquals(0, p.getPropertyArea().countCompletedSets());
     }
 
-    // ===== SuperWildCard Rent Fix Test =====
-
+    // Super wild adopts the selected color's rent table once the set is complete.
     @Test
     void superWildCardHasCorrectRentAfterColorSet() {
         SuperWildCard wild = new SuperWildCard(1, "Multi-Color Wild", 0);
@@ -55,6 +56,7 @@ class ComprehensiveTest {
         assertEquals(8, set.calculateRent(), "SuperWildCard should use DARK_BLUE rent tiers (8M for 2 cards)");
     }
 
+    // Railroad rent tiers apply when the super wild is assigned to RAILROAD.
     @Test
     void superWildCardRailroadRent() {
         SuperWildCard wild = new SuperWildCard(1, "Multi-Color Wild", 0);
@@ -68,8 +70,8 @@ class ComprehensiveTest {
         assertEquals(3, set.calculateRent(), "3 railroads = 3M rent");
     }
 
-    // ===== PropertyWildCard Rent Tier Switching =====
 
+    // Dual-color wild switches color group and rent tiers when setCurrentColor is called.
     @Test
     void propertyWildCardSwitchesRentTiersOnColorChange() {
         int[] brownRent = {1, 2};
@@ -93,8 +95,8 @@ class ComprehensiveTest {
         assertEquals(3, set.calculateRent(), "3 Light Blue cards = 3M rent");
     }
 
-    // ===== Rent + Double Rent =====
 
+    // Two Double The Rent cards in one turn stack to a 4x rent multiplier.
     @Test
     void doubleRentStacksMultiplier() {
         GameManager gm = GameManager.getInstance();
@@ -104,6 +106,7 @@ class ComprehensiveTest {
         assertEquals(4, mult, "Two Double The Rent = 4x multiplier");
     }
 
+    // Rent multiplier returns to 1 after getAndResetRentMultiplier consumes it.
     @Test
     void doubleRentResetsAfterUse() {
         GameManager gm = GameManager.getInstance();
@@ -112,8 +115,8 @@ class ComprehensiveTest {
         assertEquals(1, gm.getAndResetRentMultiplier(), "Multiplier should reset to 1");
     }
 
-    // ===== Discard Flow =====
 
+    // Hand size decreases when a card index is removed directly.
     @Test
     void discardRemovesCardFromHand() {
         Player p = new Player("1", "Discarder");
@@ -128,8 +131,23 @@ class ComprehensiveTest {
         assertEquals(2, p.getHand().getSize());
     }
 
-    // ===== Hotel Fallback =====
+    // End-of-turn discard trims the hand to seven and returns the card to the draw pile.
+    @Test
+    void discardReturnsExcessHandCardToDrawPileBottom() {
+        GameManager gm = GameManager.getInstance();
+        gm.initializeGame(List.of("Alice", "Bob"));
+        Player current = gm.getCurrentPlayer();
+        current.getHand().addCards(List.of(new MoneyCard(999, "Money 1M", 1)));
+        int beforeDrawPile = gm.getGameDeck().getDrawPileSize();
 
+        gm.discardCard(current.getHand().getSize() - 1);
+
+        assertEquals(7, current.getHand().getSize());
+        assertEquals(beforeDrawPile + 1, gm.getGameDeck().getDrawPileSize());
+    }
+
+
+    // Hotel played as an action without a house on a complete set must fail safely.
     @Test
     void hotelCardRequiresEligibleSetWhenPlayedAsAction() {
         Player p = new Player("1", "Builder");
@@ -141,8 +159,8 @@ class ComprehensiveTest {
                 "Playing Hotel as an action should not auto-bank it");
     }
 
-    // ===== Payment with Mortgage =====
 
+    // When cash is short, properties are liquidated to satisfy the remaining debt.
     @Test
     void paymentWithInsufficientCashTriggersMortgage() {
         Player debtor = new Player("1", "Debtor");
@@ -160,16 +178,16 @@ class ComprehensiveTest {
                 || debtor.getPropertyArea().getPropertySet(PropertyColor.BROWN).calculateRent() == 0);
     }
 
-    // ===== Deck Size Verification =====
 
+    // Official Monopoly Deal deck size is 106 cards.
     @Test
     void deckHasCorrectNumberOfCards() {
         List<Card> cards = CardFactory.createInitialDeck();
         assertEquals(106, cards.size());
     }
 
-    // ===== Rent Card - incomplete sets still pay =====
 
+    // Rent is based on cards present, even when the set is not yet complete.
     @Test
     void rentChargesForIncompleteSets() {
         Player renter = new Player("1", "Renter");

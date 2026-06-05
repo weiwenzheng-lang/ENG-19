@@ -244,7 +244,7 @@ public class GameController implements GameObserver {
         opponentInfo.setOnAction(event -> showOpponentsSummary());
         quickActions.getChildren().setAll(deckInfo, bankInfo, propertyInfo, actionInfo, opponentInfo);
         quickActions.setLayoutX(1088);
-        quickActions.setLayoutY(706);
+        quickActions.setLayoutY(35);
         quickActions.setAlignment(Pos.CENTER);
         boardPane.getChildren().add(quickActions);
     }
@@ -288,7 +288,7 @@ public class GameController implements GameObserver {
         switch (count) {
             case 2:
                 return new ZoneSpec[]{
-                        new ZoneSpec(488, 166, 705, 164, 0, 770, 96, 160, 44)
+                        new ZoneSpec(488, 145, 705, 164, 0, 770, 93, 160, 44)
                 };
             case 3:
                 return new ZoneSpec[]{
@@ -297,16 +297,16 @@ public class GameController implements GameObserver {
                 };
             case 4:
                 return new ZoneSpec[]{
-                        new ZoneSpec(126, 198, 410, 224, -28, 226, 192, 150, 44),
-                        new ZoneSpec(512, 158, 640, 150, 0, 806, 96, 150, 44),
-                        new ZoneSpec(1136, 198, 410, 224, 28, 1420, 190, 152, 44)
+                        new ZoneSpec(130, 215, 410, 224, -32, 226, 200, 150, 44),
+                        new ZoneSpec(512, 142, 640, 150, 0, 800, 86, 150, 44),
+                        new ZoneSpec(1140, 218, 410, 224, 35, 1420, 213, 152, 44)
                 };
             default:
                 return new ZoneSpec[]{
-                        new ZoneSpec(110, 194, 380, 212, -28, 258, 168, 148, 44),
-                        new ZoneSpec(485, 174, 360, 122, 0, 650, 120, 138, 44),
-                        new ZoneSpec(865, 174, 360, 122, 0, 1090, 120, 142, 44),
-                        new ZoneSpec(1182, 194, 380, 212, 28, 1454, 188, 132, 44)
+                        new ZoneSpec(110, 230, 380, 212, -28, 258, 195, 148, 44),
+                        new ZoneSpec(485, 174, 360, 122, -8, 640, 120, 138, 44),
+                        new ZoneSpec(865, 174, 360, 122, 8, 1085, 120, 142, 44),
+                        new ZoneSpec(1182, 230, 380, 212, 28, 1454, 220, 132, 44)
                 };
         }
     }
@@ -315,13 +315,13 @@ public class GameController implements GameObserver {
     private ZoneSpec ownTableSpec(int count) {
         switch (count) {
             case 2:
-                return area(410, 590, 852, 98, 0);
+                return area(410, 555, 852, 98, 0);
             case 3:
-                return area(421, 568, 828, 96, 0);
+                return area(421, 548, 828, 96, 0);
             case 4:
-                return area(389, 572, 893, 96, 0);
+                return area(389, 582, 893, 96, 0);
             default:
-                return area(478, 560, 730, 98, 0);
+                return area(478, 570, 730, 98, 0);
         }
     }
 
@@ -329,25 +329,27 @@ public class GameController implements GameObserver {
     private ZoneSpec handSpec(int count) {
         switch (count) {
             case 2:
-                return area(145, 748, 1385, 176, 0);
+                return area(145, 700, 1385, 176, 0);
             case 3:
-                return area(260, 718, 1155, 178, 0);
+                return area(260, 700, 1155, 178, 0);
             case 4:
-                return area(252, 733, 1203, 180, 0);
+                return area(252, 700, 1203, 180, 0);
             default:
-                return area(255, 758, 1175, 160, 0);
+                return area(255, 700, 1175, 160, 0);
         }
     }
 
     // Returns the local name and stats-frame coordinates.
     private ZoneSpec ownNameSpec(int count) {
         switch (count) {
+            case 2:
+                return area(206, 628, 162, 48, 0);
             case 4:
-                return area(260, 686, 150, 48, 0);
+                return area(210, 685, 150, 48, 0);
             case 5:
-                return area(324, 660, 150, 48, 0);
+                return area(286, 660, 150, 48, 0);
             default:
-                return area(264, 630, 150, 48, 0);
+                return area(264, 642, 150, 48, 0);
         }
     }
 
