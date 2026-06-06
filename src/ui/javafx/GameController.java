@@ -3,8 +3,6 @@ package ui.javafx;
 import ai.AIPlayerBrain;
 import ai.AITurnExecutor;
 import cards.Card;
-import cards.PropertyCard;
-import cards.RentCard;
 import core.GameManager;
 import core.TargetInfo;
 import network.LanGameMessage;
@@ -46,12 +44,10 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
-import java.util.function.Consumer;
 
 public class GameController implements GameObserver {
     // The board art is authored at this fixed coordinate system.
@@ -66,6 +62,8 @@ public class GameController implements GameObserver {
     private static final double PILE_CARD_WIDTH = 70;
     private static final double PILE_CARD_HEIGHT = 116;
     private static final double SET_PROGRESS_HEIGHT = 11;
+    private static final double HAND_TOP_PADDING = 14;
+    private static final double HAND_CLIP_PADDING = 22;
 
     private final GameManager game = GameManager.getInstance();
     private final StackPane root = new StackPane();
@@ -83,8 +81,6 @@ public class GameController implements GameObserver {
     private final ProgressBar ownSetsProgress = new ProgressBar(0);
     private final Label deckLabel = new Label("Deck");
     private final Label discardLabel = new Label("Discard");
-    private final CardView drawPileView = CardView.back(0, PILE_CARD_WIDTH, PILE_CARD_HEIGHT);
-    private final CardView discardPileView = new CardView("Discard", "", PILE_CARD_WIDTH, PILE_CARD_HEIGHT);
     private final Button endTurnButton = imageButton("end_turn.png", "End Turn", 210, 64);
     private final HBox gameOverActions = new HBox(10);
     private final HBox quickActions = new HBox(8);
@@ -200,6 +196,7 @@ public class GameController implements GameObserver {
         configurePane(ownTableView, ownTable.x, ownTable.y, ownTable.width, ownTable.height, ownTable.rotate);
         ZoneSpec hand = handSpec(playerCount);
         configurePane(handView, hand.x, hand.y, hand.width, hand.height, hand.rotate);
+        expandHandClip(handView, hand.width, hand.height);
         configurePane(centerPileView, 545, 352, 582, 190, 0);
         boardPane.getChildren().addAll(ownTableView, handView, centerPileView);
 
@@ -368,6 +365,12 @@ public class GameController implements GameObserver {
         pane.setRotate(rotate);
         pane.setClip(new Rectangle(width, height));
         pane.setPickOnBounds(false);
+    }
+
+    // Gives the hand room for rotated cards, shadows, and hover lift above the painted frame.
+    private void expandHandClip(Pane pane, double width, double height) {
+        pane.setClip(new Rectangle(-HAND_CLIP_PADDING, -HAND_CLIP_PADDING,
+                width + HAND_CLIP_PADDING * 2, height + HAND_CLIP_PADDING * 2));
     }
 
     // Positions a player name inside the painted nameplate.
@@ -561,7 +564,7 @@ public class GameController implements GameObserver {
         double step = computeCardStep(cards.size(), handView.getPrefWidth(), HAND_CARD_WIDTH, 12, false);
         double rowWidth = cards.isEmpty() ? 0 : HAND_CARD_WIDTH + step * (cards.size() - 1);
         double startX = Math.max(10, (handView.getPrefWidth() - rowWidth) / 2.0);
-        double baseY = Math.max(8, (handView.getPrefHeight() - HAND_CARD_HEIGHT) / 2.0);
+        double baseY = Math.max(HAND_TOP_PADDING, (handView.getPrefHeight() - HAND_CARD_HEIGHT) / 2.0);
         double curveDepth = CardArcLayout.computeHandCurveDepth(handView.getPrefHeight(),
                 HAND_CARD_HEIGHT, SET_PROGRESS_HEIGHT);
         for (int i = 0; i < cards.size(); i++) {
