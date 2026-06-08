@@ -55,6 +55,7 @@ public class GameController implements GameObserver {
     private static final double SET_PROGRESS_HEIGHT = 11;
     private static final double HAND_TOP_PADDING = 14;
     private static final double HAND_CLIP_PADDING = 22;
+    private static final double FIVE_PLAYER_LEFT_BANK_Y_OFFSET = 24;
 
     private final GameManager game = GameManager.getInstance();
     private final StackPane root = new StackPane();
@@ -66,6 +67,7 @@ public class GameController implements GameObserver {
     private final List<PlayerZone> opponentZones = new ArrayList<>();
     private final ListView<String> logView = new ListView<>();
     private final TextFlow turnStatus = new TextFlow();
+    private final StackPane turnStatusBox = new StackPane(turnStatus);
     private final Label ownNameLabel = new Label();
     private final Label ownStatsLabel = new Label();
     private final Label ownSetsLabel = new Label();
@@ -222,13 +224,16 @@ public class GameController implements GameObserver {
 
     // Creates the center turn owner and action counter label.
     private void createCenterTurnStatus() {
-        // The circle in the center shows turn ownership and action count.
-        turnStatus.setLayoutX(686);
-        turnStatus.setLayoutY(382);
-        turnStatus.setPrefSize(300, 110);
+        BoardLayoutConfig.ZoneSpec centerTurn = BoardLayoutConfig.centerTurnSpec(playerCount);
+        configurePane(turnStatusBox, centerTurn.x, centerTurn.y,
+                centerTurn.width, centerTurn.height, centerTurn.rotate);
+        turnStatusBox.setAlignment(Pos.CENTER);
         turnStatus.setTextAlignment(javafx.scene.text.TextAlignment.CENTER);
+        turnStatus.setPrefWidth(centerTurn.width);
+        turnStatus.setMinWidth(centerTurn.width);
+        turnStatus.setMaxSize(centerTurn.width, javafx.scene.layout.Region.USE_PREF_SIZE);
         turnStatus.setStyle("-fx-background-color: transparent; -fx-padding: 8 12 8 12;");
-        boardPane.getChildren().add(turnStatus);
+        boardPane.getChildren().add(turnStatusBox);
     }
 
     // Creates the summary buttons beside the local table area.
@@ -467,7 +472,9 @@ public class GameController implements GameObserver {
             zone.name.setText(player.getPlayerName());
             zone.stats.setText(playerStats(player));
             updateSetsProgress(zone.setsProgress, zone.setsLabel, player);
-            TableCardRenderer.render(zone.cards, player, OPPONENT_CARD_WIDTH, OPPONENT_CARD_HEIGHT, false);
+            double bankYOffset = playerCount == 5 && i == 0 ? FIVE_PLAYER_LEFT_BANK_Y_OFFSET : 0;
+            TableCardRenderer.render(zone.cards, player, OPPONENT_CARD_WIDTH, OPPONENT_CARD_HEIGHT,
+                    false, bankYOffset);
         }
     }
 

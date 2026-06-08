@@ -18,6 +18,13 @@ final class TableCardRenderer {
     private static final double PROPERTY_WIDTH_SHARE = 0.58;
     private static final double PROPERTY_TILT = -2.4;
     private static final double BANK_TILT = 2.4;
+    private static final double OWN_TABLE_CARD_SCALE = 0.76;
+    private static final double OWN_TABLE_CURVE = 9;
+    private static final double OPPONENT_TABLE_CURVE = 10;
+    private static final double OWN_TABLE_Y_OFFSET = 7;
+    private static final double OWN_TABLE_GROUP_INSET = 18;
+    private static final double OWN_TABLE_ROTATION = 2.2;
+    private static final double OPPONENT_TABLE_ROTATION = 5.0;
 
     // Prevents construction of this rendering helper.
     private TableCardRenderer() {
@@ -26,6 +33,12 @@ final class TableCardRenderer {
     // Renders property cards on the left and bank cards on the right.
     static void render(Pane target, Player player, double cardWidth, double cardHeight,
                        boolean currentPlayerArea) {
+        render(target, player, cardWidth, cardHeight, currentPlayerArea, 0);
+    }
+
+    // Renders table cards with an optional vertical adjustment for the bank section.
+    static void render(Pane target, Player player, double cardWidth, double cardHeight,
+                       boolean currentPlayerArea, double bankYOffset) {
         target.getChildren().clear();
         List<Card> properties = new ArrayList<>(player.getPropertyArea().getAllPropertyCards());
         List<Card> bank = new ArrayList<>(player.getBankArea().getAssets());
@@ -47,20 +60,23 @@ final class TableCardRenderer {
 
         boolean splitTable = !properties.isEmpty() && !bank.isEmpty();
         renderGroup(target, properties, 0, propertyWidth, cardWidth, cardHeight, currentPlayerArea,
-                splitTable ? PROPERTY_TILT : 0);
+                splitTable ? PROPERTY_TILT : 0, 0);
         renderGroup(target, bank, propertyWidth + gap, bankWidth, cardWidth, cardHeight, currentPlayerArea,
-                splitTable ? BANK_TILT : 0);
+                splitTable ? BANK_TILT : 0, bankYOffset);
     }
 
     // Renders one side of the table frame.
     private static void renderGroup(Pane target, List<Card> cards, double startX, double zoneWidth,
                                     double cardWidth, double cardHeight, boolean currentPlayerArea,
-                                    double rotationBias) {
+                                    double rotationBias, double extraYOffset) {
         if (cards.isEmpty() || zoneWidth <= 0) {
             return;
         }
 
         double effectiveHeight = adjustedCardHeight(target.getPrefHeight(), cardHeight);
+        if (currentPlayerArea) {
+            effectiveHeight *= OWN_TABLE_CARD_SCALE;
+        }
         double effectiveWidth = cardWidth * (effectiveHeight / cardHeight);
         double tightGap = isTightOpponentZone(target, cardHeight) ? 2 : 6;
         int rows = cards.size() > 5 && target.getPrefHeight() >= effectiveHeight * 1.55 ? 2 : 1;
@@ -68,25 +84,35 @@ final class TableCardRenderer {
         double step = computeCardStep(perRow, zoneWidth, effectiveWidth, tightGap, true);
         double rowGap = rows == 1 ? 0 : Math.min(effectiveHeight * 0.58,
                 (target.getPrefHeight() - effectiveHeight) / (rows - 1));
-        double requestedCurve = cards.size() <= 1 ? 0 : (currentPlayerArea ? 5 : 10);
+        double requestedCurve = cards.size() <= 1 ? 0
+                : (currentPlayerArea ? OWN_TABLE_CURVE : OPPONENT_TABLE_CURVE);
         double availableCurve = Math.max(0,
                 target.getPrefHeight() - effectiveHeight - rowGap * (rows - 1) - 2);
         double curveDepth = Math.min(requestedCurve, availableCurve);
         double usedHeight = effectiveHeight + rowGap * (rows - 1) + curveDepth;
-        double startY = Math.max(1, (target.getPrefHeight() - usedHeight) / 2.0);
+        double startY = Math.max(1, (target.getPrefHeight() - usedHeight) / 2.0)
+                + (currentPlayerArea ? OWN_TABLE_Y_OFFSET : 0);
+        if (currentPlayerArea) {
+            double maxStartY = Math.max(1, target.getPrefHeight() - usedHeight - 1);
+            startY = Math.min(startY, maxStartY);
+        }
+        double groupInset = currentPlayerArea ? OWN_TABLE_GROUP_INSET : 0;
+        double renderStartX = startX + groupInset;
+        double renderZoneWidth = Math.max(effectiveWidth, zoneWidth - groupInset * 2);
 
         for (int i = 0; i < cards.size(); i++) {
             int row = i / perRow;
             int column = i % perRow;
             int rowCount = Math.min(perRow, cards.size() - row * perRow);
             double rowWidth = effectiveWidth + step * Math.max(0, rowCount - 1);
-            double rowStartX = startX + Math.max(2, (zoneWidth - rowWidth) / 2.0);
+            double rowStartX = renderStartX + Math.max(2, (renderZoneWidth - rowWidth) / 2.0);
             double centerOffset = column - (rowCount - 1) / 2.0;
             double normalized = rowCount <= 1 ? 0 : centerOffset / ((rowCount - 1) / 2.0);
             CardView cardView = new CardView(cards.get(i), effectiveWidth, effectiveHeight);
             cardView.setLayoutX(rowStartX + column * step);
-            cardView.setLayoutY(startY + row * rowGap + Math.abs(normalized) * curveDepth);
-            cardView.setRotate(rotationBias + normalized * (currentPlayerArea ? 2.5 : 5.0));
+            cardView.setLayoutY(startY + extraYOffset + row * rowGap + Math.abs(normalized) * curveDepth);
+            cardView.setRotate(rotationBias
+                    + normalized * (currentPlayerArea ? OWN_TABLE_ROTATION : OPPONENT_TABLE_ROTATION));
             target.getChildren().add(cardView);
         }
     }

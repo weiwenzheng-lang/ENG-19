@@ -13,7 +13,7 @@ final class BoardLayoutConfig {
             },
             {
                     new ZoneSpec(158, 162, 470, 220, -28, 226, 154, 186, 45),
-                    new ZoneSpec(1044, 162, 470, 220, 28, 1342, 154, 188, 45)
+                    new ZoneSpec(1044, 162, 470, 220, 31, 1342, 154, 188, 45)
             },
             {
                     new ZoneSpec(130, 215, 410, 224, -32, 226, 200, 150, 44),
@@ -55,6 +55,15 @@ final class BoardLayoutConfig {
             area(286, 660, 150, 48, 0)
     };
 
+    private static final ZoneSpec[] CENTER_TURN_SPECS = new ZoneSpec[]{
+            null,
+            null,
+            area(686, 360, 300, 150, 0), // 2 players
+            area(689, 330, 300, 150, 0), // 3 players
+            area(690, 360, 300, 150, 0), // 4 players
+            area(699, 360, 300, 150, 0)  // 5 players
+    };
+
     // Prevents construction of this static layout holder.
     private BoardLayoutConfig() {
     }
@@ -77,6 +86,11 @@ final class BoardLayoutConfig {
     // Returns the local name and stats-frame coordinates.
     static ZoneSpec ownNameSpec(int count) {
         return specFor(OWN_NAME_SPECS, count, THREE_PLAYER_LAYOUT);
+    }
+
+    // Returns the centered frame for the turn owner and action counter text.
+    static ZoneSpec centerTurnSpec(int count) {
+        return specFor(CENTER_TURN_SPECS, count, THREE_PLAYER_LAYOUT);
     }
 
     // Creates a simple zone spec without a name frame.

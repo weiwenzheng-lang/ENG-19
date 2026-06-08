@@ -316,10 +316,28 @@ public class CardView extends StackPane {
         return null;
     }
 
-    // Rotates two-color wild properties when the printed bottom color is active.
+    // Rotates two-color wild properties so the active color is shown on top.
     private boolean shouldRotateWildProperty(Card card) {
-        return card instanceof PropertyWildCard
-                && ((PropertyWildCard) card).getColorGroup() == ((PropertyWildCard) card).getColorB();
+        if (!(card instanceof PropertyWildCard)) {
+            return false;
+        }
+
+        PropertyWildCard wildCard = (PropertyWildCard) card;
+        PropertyColor printedTopColor = getPrintedTopColor(wildCard);
+        return printedTopColor != null && wildCard.getColorGroup() != printedTopColor;
+    }
+
+    // Returns the color printed upright in the upper half of the image asset.
+    private PropertyColor getPrintedTopColor(PropertyWildCard wildCard) {
+        PropertyColor[] colors = wildCard.getAvailableColors();
+        if (hasColors(colors, PropertyColor.BROWN, PropertyColor.LIGHT_BLUE)) return PropertyColor.LIGHT_BLUE;
+        if (hasColors(colors, PropertyColor.PINK, PropertyColor.ORANGE)) return PropertyColor.ORANGE;
+        if (hasColors(colors, PropertyColor.RED, PropertyColor.YELLOW)) return PropertyColor.YELLOW;
+        if (hasColors(colors, PropertyColor.GREEN, PropertyColor.DARK_BLUE)) return PropertyColor.DARK_BLUE;
+        if (hasColors(colors, PropertyColor.RAILROAD, PropertyColor.UTILITY)) return PropertyColor.UTILITY;
+        if (hasColors(colors, PropertyColor.LIGHT_BLUE, PropertyColor.RAILROAD)) return PropertyColor.LIGHT_BLUE;
+        if (hasColors(colors, PropertyColor.RAILROAD, PropertyColor.GREEN)) return PropertyColor.RAILROAD;
+        return wildCard.getColorA();
     }
 
     // Checks a two-color card without depending on order.
