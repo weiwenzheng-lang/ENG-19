@@ -37,14 +37,6 @@ public class Hand {
         return cardsInHand.size() > 7;
     }
 
-    // Prints the hand for console debugging.
-    public void showHand() {
-        System.out.println("--- Current Hand ---");
-        for (int i = 0; i < cardsInHand.size(); i++) {
-            System.out.println(i + ": " + cardsInHand.get(i).getCardName());
-        }
-    }
-
     // Returns a card by index without mutating the hand.
     public Card getCard(int index) {
         if (index >= 0 && index < cardsInHand.size()) {

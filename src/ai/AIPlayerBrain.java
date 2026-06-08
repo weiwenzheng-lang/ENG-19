@@ -8,6 +8,7 @@ import player.Player;
 import player.Rentable;
 
 import java.util.*;
+import java.util.function.Predicate;
 
 public class AIPlayerBrain implements AIActionStrategy {
 
@@ -209,7 +210,6 @@ public class AIPlayerBrain implements AIActionStrategy {
     // Tries to play a card of the requested type.
     private AIAction tryPlayCardType(Player ai, List<Card> hand, GameManager game,
                                       Class<? extends Card> cardType) {
-        GameManager gm = GameManager.getInstance();
         for (int i = 0; i < hand.size(); i++) {
             Card card = hand.get(i);
             if (!cardType.isInstance(card)) continue;
@@ -217,24 +217,8 @@ public class AIPlayerBrain implements AIActionStrategy {
             if (card instanceof JustSayNoCard || card instanceof DoubleTheRentCard) continue;
 
             if (card.requiresTarget()) {
-                if (card instanceof DealBreakerCard) {
-                    List<Player> opponents = gm.getOpponents(ai);
-                    opponents.removeIf(p -> p.getPropertyArea().countCompletedSets() == 0);
-                    if (opponents.isEmpty()) continue;
-                }
-                if (card instanceof SlyDealCard) {
-                    List<Player> opponents = gm.getOpponents(ai);
-                    opponents.removeIf(p -> p.getPropertyArea().getStealableIncompleteColors().isEmpty());
-                    if (opponents.isEmpty()) continue;
-                }
-                if (card instanceof ForceDealCard) {
-                    if (ai.getPropertyArea().getPropertyColorsWithCards().isEmpty()) continue;
-                    List<Player> opponents = gm.getOpponents(ai);
-                    opponents.removeIf(p -> p.getPropertyArea().getPropertyColorsWithCards().isEmpty());
-                    if (opponents.isEmpty()) continue;
-                }
-
-                TargetInfo target = chooseTarget(ai, card, gm);
+                if (!hasPlayableTarget(ai, card, game)) continue;
+                TargetInfo target = chooseTarget(ai, card, game);
                 if (target == null || target.getTargetPlayer() == null) continue;
                 return new AIAction(AIAction.Type.PLAY_CARD, i, target);
             }
@@ -243,6 +227,35 @@ public class AIPlayerBrain implements AIActionStrategy {
         }
         return null;
     }
+
+    // Checks whether an action card has a valid target before selecting it.
+    private boolean hasPlayableTarget(Player ai, Card card, GameManager game) {
+        if (card instanceof DealBreakerCard) {
+            return hasOpponentMatching(ai, game,
+                    opponent -> opponent.getPropertyArea().countCompletedSets() > 0);
+        }
+        if (card instanceof SlyDealCard) {
+            return hasOpponentMatching(ai, game,
+                    opponent -> !opponent.getPropertyArea().getStealableIncompleteColors().isEmpty());
+        }
+        if (card instanceof ForceDealCard) {
+            return !ai.getPropertyArea().getPropertyColorsWithCards().isEmpty()
+                    && hasOpponentMatching(ai, game,
+                    opponent -> !opponent.getPropertyArea().getPropertyColorsWithCards().isEmpty());
+        }
+        return true;
+    }
+
+    // Reports whether any opponent satisfies a target predicate.
+    private boolean hasOpponentMatching(Player ai, GameManager game, Predicate<Player> predicate) {
+        for (Player opponent : game.getOpponents(ai)) {
+            if (predicate.test(opponent)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
     // Tries to pair Double The Rent with the best rent card.
     private AIAction tryDoubleRentCombo(Player ai, List<Card> hand, GameManager game) {
         int doubleIdx = findDoubleRentIndex(hand);

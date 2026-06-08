@@ -12,6 +12,5 @@ public class MoneyCard extends Card {
     @Override
     public void executePlayLogic(Player initiator) {
         initiator.getBankArea().deposit(this);
-        System.out.println("[BANK] " + initiator.getPlayerName() + " banked " + getCardName() + ".");
     }
 }

@@ -13,6 +13,5 @@ public class DoubleTheRentCard extends ActionCard {
     @Override
     public void executePlayLogic(Player initiator) {
         GameManager.getInstance().activateDoubleRent();
-        System.out.println("[Double Rent] " + initiator.getPlayerName() + " activated a multiplier.");
     }
 }

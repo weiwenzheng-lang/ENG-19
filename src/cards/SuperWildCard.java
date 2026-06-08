@@ -20,9 +20,6 @@ public class SuperWildCard extends PropertyCard {
         this.currentSelectedColor = newColor;
         this.colorGroup = newColor;
         this.rentTiers = newColor.getRentTiers();
-
-        System.out.println("[System] Super Wildcard activated. Current color changed to: "
-                + this.currentSelectedColor);
     }
 
     @Override

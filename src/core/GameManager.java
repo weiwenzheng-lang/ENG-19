@@ -21,6 +21,7 @@ public class GameManager {
     private int currentTurnIndex;
     private int actionsRemaining;
     private boolean isGameOver;
+    private Player winner;
     private TargetInfo currentTargetInfo;
     private int rentMultiplier = 1;
 
@@ -109,6 +110,7 @@ public class GameManager {
         currentTurnIndex = 0;
         actionsRemaining = 0;
         isGameOver = false;
+        winner = null;
         currentTargetInfo = null;
         rentMultiplier = 1;
         resetState();
@@ -384,6 +386,7 @@ public class GameManager {
             int distinctColors = player.getPropertyArea().getCompletedColors().size();
             if (distinctColors >= 3) {
                 isGameOver = true;
+                winner = player;
                 notifyEvent("Congratulations " + player.getPlayerName()
                         + " collected 3 complete property sets of different colors and wins!");
                 return;
@@ -416,6 +419,42 @@ public class GameManager {
         return activePlayers.get(currentTurnIndex);
     }
 
+    // Removes a player who left an active network game and keeps turn order valid.
+    public boolean removePlayerAt(int playerIndex) {
+        if (playerIndex < 0 || playerIndex >= activePlayers.size()) {
+            return false;
+        }
+
+        Player removed = activePlayers.remove(playerIndex);
+        notifyEvent(removed.getPlayerName() + " left the match.");
+        if (activePlayers.isEmpty()) {
+            isGameOver = true;
+            winner = null;
+            return true;
+        }
+        if (activePlayers.size() == 1) {
+            isGameOver = true;
+            winner = activePlayers.get(0);
+            notifyEvent(winner.getPlayerName() + " wins because all other players left.");
+            return true;
+        }
+
+        if (playerIndex < currentTurnIndex) {
+            currentTurnIndex--;
+        } else if (playerIndex == currentTurnIndex) {
+            resetState();
+            currentTargetInfo = null;
+            actionsRemaining = 0;
+            if (currentTurnIndex >= activePlayers.size()) {
+                currentTurnIndex = 0;
+            }
+            startNewTurn();
+        } else if (currentTurnIndex >= activePlayers.size()) {
+            currentTurnIndex = 0;
+        }
+        return true;
+    }
+
     // Resolves an explicit target or falls back to the first opponent.
     public Player resolveTargetOrFirstOpponent(Player initiator) {
         if (currentTargetInfo != null && currentTargetInfo.getTargetPlayer() != null) {
@@ -438,6 +477,11 @@ public class GameManager {
     // Reports whether a winner has been found.
     public boolean isGameOver() {
         return isGameOver;
+    }
+
+    // Returns the winner once the game is over.
+    public Player getWinner() {
+        return winner;
     }
 
     // Returns remaining actions for the current turn.

@@ -12,8 +12,6 @@ public class PassGoCard extends ActionCard {
 
     @Override
     public void executePlayLogic(Player initiator) {
-        System.out.println("[ACTION] " + initiator.getPlayerName()
-                + " played Pass Go and draws 2 extra cards.");
         GameManager.getInstance().drawCardsForPlayer(initiator, 2);
     }
 }

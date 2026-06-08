@@ -11,6 +11,5 @@ public class JustSayNoCard extends ActionCard {
     @Override
     public void executePlayLogic(Player initiator) {
         // The real effect is handled by GameManager during pending attacks.
-        System.out.println(initiator.getPlayerName() + " keeps Just Say No ready for counter actions.");
     }
 }

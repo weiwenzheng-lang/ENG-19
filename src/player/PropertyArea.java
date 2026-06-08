@@ -149,20 +149,16 @@ public class PropertyArea {
 
     // Lists incomplete colors that can be targeted by Sly Deal.
     public List<PropertyColor> getStealableIncompleteColors() {
-        List<PropertyColor> colors = new ArrayList<>();
-        for (PropertySetEntry entry : getPropertySetEntries()) {
-            Rentable set = entry.getRentable();
-            PropertySet root = unwrap(set);
-            if (!set.isComplete() && root != null && !root.getCards().isEmpty()
-                    && !colors.contains(entry.getColor())) {
-                colors.add(entry.getColor());
-            }
-        }
-        return colors;
+        return getIncompleteColorsWithCards();
     }
 
     // Lists incomplete colors that still contain at least one property card.
     public List<PropertyColor> getPropertyColorsWithCards() {
+        return getIncompleteColorsWithCards();
+    }
+
+    // Collects unique incomplete colors with at least one visible card.
+    private List<PropertyColor> getIncompleteColorsWithCards() {
         List<PropertyColor> colors = new ArrayList<>();
         for (PropertySetEntry entry : getPropertySetEntries()) {
             Rentable set = entry.getRentable();

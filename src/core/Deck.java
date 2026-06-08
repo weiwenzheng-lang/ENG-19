@@ -37,13 +37,11 @@ public class Deck {
     // Shuffles the draw pile randomly.
     public void shuffle() {
         Collections.shuffle(drawPile);
-        System.out.println("System: Deck has been shuffled.");
     }
 
     // Shuffles the draw pile deterministically.
     public void shuffle(long seed) {
         Collections.shuffle(drawPile, new Random(seed));
-        System.out.println("System: Deck has been shuffled with shared seed.");
     }
 
     // Draws cards, reshuffling discards if the draw pile is empty.
@@ -52,7 +50,6 @@ public class Deck {
 
         for (int i = 0; i < amount; i++) {
             if (drawPile.isEmpty()) {
-                System.out.println("System: Draw pile empty. Reshuffling discard pile...");
                 drawPile.addAll(discardPile);
                 discardPile.clear();
                 shuffle();

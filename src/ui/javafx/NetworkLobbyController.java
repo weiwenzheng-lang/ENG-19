@@ -93,6 +93,16 @@ public class NetworkLobbyController {
         disconnectRoom();
     }
 
+    // Refreshes lobby controls after returning from a finished network table.
+    public void markBetweenMatches() {
+        ready = false;
+        if (client != null && client.isConnected()) {
+            client.setReady(false);
+            statusLabel.setText("Back in room. Ready for another match.");
+            setConnectedUi(true);
+        }
+    }
+
     // Creates the bridge used by the game table after a network game starts.
     public NetworkGameBridge createGameBridge() {
         LanGameClient activeClient = client;
@@ -408,7 +418,6 @@ public class NetworkLobbyController {
         return client != null
                 && client.isConnected()
                 && currentRoomState != null
-                && !currentRoomState.isGameStarted()
                 && client.getPlayerId() == currentRoomState.getHostPlayerId();
     }
 
@@ -548,6 +557,8 @@ public class NetworkLobbyController {
                 appendLog("Cannot open game table yet: player roster is not ready.");
                 return;
             }
+            ready = false;
+            client.setReady(false);
 
             List<LanPlayerInfo> sortedPlayers = new ArrayList<>(currentPlayers);
             sortedPlayers.sort(java.util.Comparator.comparingInt(LanPlayerInfo::getPlayerId));

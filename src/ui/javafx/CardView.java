@@ -61,6 +61,9 @@ public class CardView extends StackPane {
         imageView.setPreserveRatio(true);
         imageView.setSmooth(true);
         imageView.setCache(true);
+        if (shouldRotateWildProperty(card)) {
+            imageView.setRotate(180);
+        }
 
         StackPane imageCard = new StackPane(imageView);
         imageCard.setPrefSize(cardWidth, cardHeight);
@@ -186,7 +189,7 @@ public class CardView extends StackPane {
 
         VBox cardBody = new VBox(8);
         cardBody.setAlignment(Pos.CENTER);
-        cardBody.setStyle("-fx-background-color: repeating-linear-gradient(45deg, #111, #111 10px, #222 10px, #222 20px); "
+        cardBody.setStyle("-fx-background-color: linear-gradient(to bottom right, #111111, #222222); "
                 + "-fx-background-radius: 10; -fx-border-color: #d4ad55; -fx-border-width: 2; -fx-border-radius: 10;");
 
         Label titleLabel = new Label(title);
@@ -311,6 +314,12 @@ public class CardView extends StackPane {
         if (hasColors(colors, PropertyColor.LIGHT_BLUE, PropertyColor.RAILROAD)) return "Property Wild Card_BlueRailroad";
         if (hasColors(colors, PropertyColor.RAILROAD, PropertyColor.GREEN)) return "Property Wild Card_RailroadGreen";
         return null;
+    }
+
+    // Rotates two-color wild properties when the printed bottom color is active.
+    private boolean shouldRotateWildProperty(Card card) {
+        return card instanceof PropertyWildCard
+                && ((PropertyWildCard) card).getColorGroup() == ((PropertyWildCard) card).getColorB();
     }
 
     // Checks a two-color card without depending on order.

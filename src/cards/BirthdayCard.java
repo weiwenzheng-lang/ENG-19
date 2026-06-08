@@ -19,7 +19,8 @@ public class BirthdayCard extends ActionCard {
         // Each opponent may counter before paying birthday money.
         GameManager.getInstance().initiateGroupAttack(initiator, opponents, victim -> {
             victim.getBankArea().pay(2, initiator);
-            System.out.println(victim.getPlayerName() + " paid " + initiator.getPlayerName() + " 2M birthday money.");
+            GameManager.getInstance().logEvent(victim.getPlayerName()
+                    + " paid " + initiator.getPlayerName() + " 2M birthday money.");
         });
     }
 }

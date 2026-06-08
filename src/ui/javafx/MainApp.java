@@ -29,6 +29,7 @@ import java.util.Optional;
 public class MainApp extends Application {
     private GameController currentController;
     private NetworkLobbyController networkController;
+    private Scene networkScene;
     private Stage primaryStage;
 
     // Launches the JavaFX application.
@@ -131,16 +132,8 @@ public class MainApp extends Application {
             }
         }
 
-        currentController = new GameController(playerNames,
-                this::showMainMenu,
-                Platform::exit);
-
-        Scene scene = new Scene(currentController.createContent(), 1366, 768);
-        applyStylesheet(scene);
-
-        primaryStage.setTitle("Monopoly Deal");
-        primaryStage.setScene(scene);
-        primaryStage.show();
+        showGame(new GameController(playerNames, this::showMainMenu, Platform::exit),
+                "Monopoly Deal");
     }
 
     // Starts same-computer play with humans and AI seats.
@@ -168,16 +161,8 @@ public class MainApp extends Application {
             playerSetups.add(new GameManager.PlayerSetup("AI " + (i - humanCount), PlayerType.AI));
         }
 
-        currentController = new GameController(GameModeConfig.ai(playerSetups),
-                this::showMainMenu,
-                Platform::exit);
-
-        Scene scene = new Scene(currentController.createContent(), 1366, 768);
-        applyStylesheet(scene);
-
-        primaryStage.setTitle("Monopoly Deal - Local + AI");
-        primaryStage.setScene(scene);
-        primaryStage.show();
+        showGame(new GameController(GameModeConfig.ai(playerSetups), this::showMainMenu, Platform::exit),
+                "Monopoly Deal - Local + AI");
     }
 
     // Opens the LAN lobby screen.
@@ -185,11 +170,11 @@ public class MainApp extends Application {
         disposeCurrentViews();
 
         networkController = new NetworkLobbyController(this::showMainMenu, this::startNetworkGame);
-        Scene scene = new Scene(networkController.createContent(), 900, 600);
-        applyStylesheet(scene);
+        networkScene = new Scene(networkController.createContent(), 900, 600);
+        applyStylesheet(networkScene);
 
         primaryStage.setTitle("Monopoly Deal - Local WiFi Game");
-        primaryStage.setScene(scene);
+        primaryStage.setScene(networkScene);
         primaryStage.show();
     }
 
@@ -199,14 +184,36 @@ public class MainApp extends Application {
             return;
         }
         NetworkGameBridge bridge = networkController.createGameBridge();
-        currentController = new GameController(
+        showGame(new GameController(
                 GameModeConfig.network(players, deckSeed, localPlayerIndex, bridge),
-                this::showMainMenu,
-                Platform::exit);
+                this::returnToLanLobby,
+                Platform::exit),
+                "Monopoly Deal - Local WiFi Game");
+    }
+
+    // Opens a configured game controller in the standard board scene.
+    private void showGame(GameController controller, String title) {
+        currentController = controller;
         Scene scene = new Scene(currentController.createContent(), 1366, 768);
         applyStylesheet(scene);
-        primaryStage.setTitle("Monopoly Deal - Local WiFi Game");
+        primaryStage.setTitle(title);
         primaryStage.setScene(scene);
+        primaryStage.show();
+    }
+
+    // Returns to the existing LAN lobby without disconnecting the room client.
+    private void returnToLanLobby() {
+        if (currentController != null) {
+            currentController.dispose();
+            currentController = null;
+        }
+        if (networkController == null || networkScene == null) {
+            showMainMenu();
+            return;
+        }
+        networkController.markBetweenMatches();
+        primaryStage.setTitle("Monopoly Deal - Local WiFi Game");
+        primaryStage.setScene(networkScene);
         primaryStage.show();
     }
 
@@ -220,6 +227,7 @@ public class MainApp extends Application {
             networkController.dispose();
             networkController = null;
         }
+        networkScene = null;
     }
 
     // Applies the shared JavaFX stylesheet when available.
@@ -269,12 +277,13 @@ public class MainApp extends Application {
             "Goal: Collect 3 complete property sets of DIFFERENT colors.\n\n" +
             "Each turn: Draw 2 cards (or 5 if hand empty) -> Play up to 3 cards -> Discard to 7 max.\n\n" +
             "Table buttons:\n" +
-            "- Draw: Shows draw pile and discard pile status\n" +
-            "- Bank: Shows the current visible player's money in bank\n" +
-            "- Properties: Shows color-set progress and rent values\n" +
-            "- Pass Go / Actions: Lists action cards in hand\n" +
-            "- Trade / Opponents: Shows each opponent's visible status\n" +
-            "- End Turn: Ends the current real player's turn after returning excess hand cards to the draw pile bottom\n\n" +
+            "- Bank: Shows every player's bank card types, counts, and money total\n" +
+            "- Properties: Shows every player's property count and complete/incomplete sets\n" +
+            "- Leave Match: Leaves the current match; LAN players stay connected in the lobby\n" +
+            "- End Turn: Ends the current real player's turn after legal discard checks\n\n" +
+            "Card viewing:\n" +
+            "- Double-click or right-click your hand card to open a large readable preview\n" +
+            "- For dual-color property cards, the upper half of the card shows the active played color\n\n" +
             "Card types:\n" +
             "- Money: Bank as cash to pay rent\n" +
             "- Property: Build color sets on the table\n" +
