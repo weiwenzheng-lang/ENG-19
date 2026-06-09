@@ -25,6 +25,7 @@ final class TableCardRenderer {
     private static final double OWN_TABLE_GROUP_INSET = 18;
     private static final double OWN_TABLE_ROTATION = 2.2;
     private static final double OPPONENT_TABLE_ROTATION = 5.0;
+    private static final double CARD_SHADOW_MARGIN = 4;
 
     // Prevents construction of this rendering helper.
     private TableCardRenderer() {
@@ -81,7 +82,11 @@ final class TableCardRenderer {
         double tightGap = isTightOpponentZone(target, cardHeight) ? 2 : 6;
         int rows = cards.size() > 5 && target.getPrefHeight() >= effectiveHeight * 1.55 ? 2 : 1;
         int perRow = (int) Math.ceil(cards.size() / (double) rows);
-        double step = computeCardStep(perRow, zoneWidth, effectiveWidth, tightGap, true);
+        double groupInset = currentPlayerArea ? OWN_TABLE_GROUP_INSET : 0;
+        double edgeInset = computeEdgeInset(effectiveWidth, effectiveHeight, rotationBias, currentPlayerArea);
+        double renderStartX = startX + groupInset + edgeInset;
+        double renderZoneWidth = Math.max(effectiveWidth, zoneWidth - groupInset * 2 - edgeInset * 2);
+        double step = computeCardStep(perRow, renderZoneWidth, effectiveWidth, tightGap, true);
         double rowGap = rows == 1 ? 0 : Math.min(effectiveHeight * 0.58,
                 (target.getPrefHeight() - effectiveHeight) / (rows - 1));
         double requestedCurve = cards.size() <= 1 ? 0
@@ -96,9 +101,6 @@ final class TableCardRenderer {
             double maxStartY = Math.max(1, target.getPrefHeight() - usedHeight - 1);
             startY = Math.min(startY, maxStartY);
         }
-        double groupInset = currentPlayerArea ? OWN_TABLE_GROUP_INSET : 0;
-        double renderStartX = startX + groupInset;
-        double renderZoneWidth = Math.max(effectiveWidth, zoneWidth - groupInset * 2);
 
         for (int i = 0; i < cards.size(); i++) {
             int row = i / perRow;
@@ -115,6 +117,18 @@ final class TableCardRenderer {
                     + normalized * (currentPlayerArea ? OWN_TABLE_ROTATION : OPPONENT_TABLE_ROTATION));
             target.getChildren().add(cardView);
         }
+    }
+
+    // Reserves room for the visual bounds of rotated cards inside the clipped frame.
+    private static double computeEdgeInset(double cardWidth, double cardHeight, double rotationBias,
+                                           boolean currentPlayerArea) {
+        double rotationSpread = currentPlayerArea ? OWN_TABLE_ROTATION : OPPONENT_TABLE_ROTATION;
+        double maxRotation = Math.abs(rotationBias) + rotationSpread;
+        double radians = Math.toRadians(maxRotation);
+        double rotatedWidth = Math.abs(cardWidth * Math.cos(radians))
+                + Math.abs(cardHeight * Math.sin(radians));
+        double rotationMargin = Math.max(0, (rotatedWidth - cardWidth) / 2.0);
+        return Math.ceil(rotationMargin + CARD_SHADOW_MARGIN);
     }
 
     // Creates the centered empty-state label.
