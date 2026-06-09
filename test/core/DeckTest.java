@@ -1,4 +1,4 @@
-﻿package core;
+package core;
 
 import cards.Card;
 import cards.MoneyCard;
