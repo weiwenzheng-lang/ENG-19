@@ -120,8 +120,8 @@ final class TableCardRenderer {
     }
 
     // Reserves room for the visual bounds of rotated cards inside the clipped frame.
-    private static double computeEdgeInset(double cardWidth, double cardHeight, double rotationBias,
-                                           boolean currentPlayerArea) {
+    static double computeEdgeInset(double cardWidth, double cardHeight, double rotationBias,
+                                   boolean currentPlayerArea) {
         double rotationSpread = currentPlayerArea ? OWN_TABLE_ROTATION : OPPONENT_TABLE_ROTATION;
         double maxRotation = Math.abs(rotationBias) + rotationSpread;
         double radians = Math.toRadians(maxRotation);

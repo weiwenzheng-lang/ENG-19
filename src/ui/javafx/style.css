@@ -4,7 +4,7 @@
     -fx-font-family: 'Segoe UI', sans-serif;
 }
 
-/* 霓虹按钮设计 */
+
 .button {
     -fx-background-color: transparent;
     -fx-text-fill: #00f2ff;
@@ -30,7 +30,7 @@
     -fx-text-fill: #000000;
 }
 
-/* 危险操作按钮 (如End Turn) */
+
 .danger-button {
     -fx-text-fill: #ff0055;
     -fx-border-color: #ff0055;
@@ -41,7 +41,7 @@
     -fx-text-fill: #ffffff;
 }
 
-/* 控制台日志面板 */
+
 .list-view {
     -fx-background-color: rgba(10, 15, 25, 0.8);
     -fx-border-color: #3b424a;
